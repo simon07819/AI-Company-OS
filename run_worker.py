@@ -168,6 +168,7 @@ def run_one(project_path, repo_path):
         task = mark_task_completed_real(task_file, pr_url)
         commit_all(repo_path, f"AI task status: {task['title']}")
         run_cmd(["git", "push", "-u", "origin", branch], repo_path)
+        checkout_main(repo_path)
 
     except GitHubWorkerError as exc:
         if running:
