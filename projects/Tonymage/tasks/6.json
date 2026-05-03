@@ -1,0 +1,11 @@
+{
+  "id": 6,
+  "title": "Develop Database Schema",
+  "department": "Database",
+  "description": "Design and implement database schema for project data storage.",
+  "acceptance_criteria": "Database schema is fully functional and optimized for project data storage.",
+  "estimated_cost_usd": 1500,
+  "branch_name": "feature/database-schema",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

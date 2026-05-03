@@ -1,0 +1,12 @@
+{
+  "id": "TASK-007",
+  "title": "Tests initiaux",
+  "department": "QA/Test Agent",
+  "status": "completed_dry_run",
+  "mode": "DRY_RUN",
+  "branch": "dry-run/task-007",
+  "estimated_cost_usd": 1.5,
+  "completed_at": "2026-05-03T02:01:59.542923",
+  "worker": 2,
+  "cost_usd": 1.5
+}

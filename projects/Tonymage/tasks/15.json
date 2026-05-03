@@ -1,0 +1,11 @@
+{
+  "id": 15,
+  "title": "Implement Load Balancing",
+  "department": "Load Balancing",
+  "description": "Develop load balancing feature for project performance and scalability.",
+  "acceptance_criteria": "Load balancing feature is fully functional and ensures project performance and scalability.",
+  "estimated_cost_usd": 1000,
+  "branch_name": "feature/load-balancing",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

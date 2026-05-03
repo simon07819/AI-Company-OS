@@ -1,0 +1,12 @@
+{
+  "id": "TASK-001",
+  "title": "Discovery du projet",
+  "department": "CEO Agent",
+  "status": "completed_dry_run",
+  "mode": "DRY_RUN",
+  "branch": "dry-run/task-001",
+  "estimated_cost_usd": 1.5,
+  "completed_at": "2026-05-03T02:01:58.533129",
+  "worker": 1,
+  "cost_usd": 1.5
+}

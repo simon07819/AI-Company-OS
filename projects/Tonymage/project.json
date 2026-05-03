@@ -1,0 +1,24 @@
+{
+  "name": "Tonymage",
+  "status": "initialized",
+  "mode": "DRY_RUN",
+  "budget": {
+    "max_usd": 50,
+    "spent_usd": 0
+  },
+  "created_at": "2026-05-03T02:00:02.828394",
+  "agents": [
+    "CEO Agent",
+    "CTO Agent",
+    "Product Manager Agent",
+    "Architect Agent",
+    "UX/UI Designer Agent",
+    "Frontend Developer Agent",
+    "Backend Developer Agent",
+    "QA/Test Agent",
+    "DevOps Agent",
+    "Security Reviewer Agent",
+    "Cost Controller Agent"
+  ],
+  "tasks_count": 10
+}

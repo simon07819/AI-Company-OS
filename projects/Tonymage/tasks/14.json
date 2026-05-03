@@ -1,0 +1,11 @@
+{
+  "id": 14,
+  "title": "Develop Backup and Recovery",
+  "department": "Backup",
+  "description": "Implement backup and recovery feature for project data storage.",
+  "acceptance_criteria": "Backup and recovery feature is fully functional and ensures data integrity.",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/backup-recovery",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

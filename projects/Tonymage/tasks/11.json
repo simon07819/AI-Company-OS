@@ -1,0 +1,11 @@
+{
+  "id": 11,
+  "title": "Implement Security Measures",
+  "department": "Security",
+  "description": "Develop security measures for project data storage and API endpoints.",
+  "acceptance_criteria": "Security measures are fully functional and secure.",
+  "estimated_cost_usd": 1500,
+  "branch_name": "feature/security-measures",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

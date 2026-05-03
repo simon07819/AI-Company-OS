@@ -1,0 +1,11 @@
+{
+  "id": 7,
+  "title": "Implement AI/ML Model",
+  "department": "AI/ML",
+  "description": "Develop AI-powered project management model using TensorFlow.js.",
+  "acceptance_criteria": "AI/ML model is fully functional and integrated with project initiation feature.",
+  "estimated_cost_usd": 6000,
+  "branch_name": "feature/ai-ml-model",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

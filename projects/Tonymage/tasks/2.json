@@ -1,0 +1,11 @@
+{
+  "id": 2,
+  "title": "Develop Task Management Feature",
+  "department": "Backend",
+  "description": "Implement automated task assignment and tracking feature.",
+  "acceptance_criteria": "Task management feature is fully functional and integrated with project initiation feature.",
+  "estimated_cost_usd": 3000,
+  "branch_name": "feature/task-management",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

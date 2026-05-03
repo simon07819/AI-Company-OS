@@ -1,0 +1,12 @@
+{
+  "id": "TASK-002",
+  "title": "Cahier des charges",
+  "department": "Product Manager Agent",
+  "status": "completed_dry_run",
+  "mode": "DRY_RUN",
+  "branch": "dry-run/task-002",
+  "estimated_cost_usd": 1.5,
+  "completed_at": "2026-05-03T02:01:58.532640",
+  "worker": 2,
+  "cost_usd": 1.5
+}

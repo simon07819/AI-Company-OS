@@ -1,0 +1,11 @@
+{
+  "id": 5,
+  "title": "Implement User Authentication and Authorization",
+  "department": "Backend",
+  "description": "Develop user authentication and authorization feature using JSON Web Tokens (JWT).",
+  "acceptance_criteria": "User authentication and authorization feature is fully functional and secure.",
+  "estimated_cost_usd": 1000,
+  "branch_name": "feature/user-authentication",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

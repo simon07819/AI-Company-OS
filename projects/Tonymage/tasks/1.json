@@ -1,0 +1,11 @@
+{
+  "id": 1,
+  "title": "Implement Project Initiation Feature",
+  "department": "Backend",
+  "description": "Develop AI-powered project initiation feature, including project scope definition, resource allocation, and timeline creation.",
+  "acceptance_criteria": "Project initiation feature is fully functional and integrated with task management feature.",
+  "estimated_cost_usd": 5000,
+  "branch_name": "feature/project-initiation",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

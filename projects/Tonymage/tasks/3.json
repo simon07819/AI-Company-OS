@@ -1,0 +1,11 @@
+{
+  "id": 3,
+  "title": "Implement Collaboration Tools",
+  "department": "Frontend",
+  "description": "Develop integrated collaboration tools for team members to share knowledge and ideas.",
+  "acceptance_criteria": "Collaboration tools are fully functional and integrated with task management feature.",
+  "estimated_cost_usd": 4000,
+  "branch_name": "feature/collaboration-tools",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

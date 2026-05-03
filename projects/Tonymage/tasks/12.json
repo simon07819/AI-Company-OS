@@ -1,0 +1,11 @@
+{
+  "id": 12,
+  "title": "Develop Deployment Script",
+  "department": "Deployment",
+  "description": "Implement deployment script for project deployment to production environment.",
+  "acceptance_criteria": "Deployment script is fully functional and automates project deployment.",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/deployment-script",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

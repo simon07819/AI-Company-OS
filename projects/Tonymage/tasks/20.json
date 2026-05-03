@@ -1,0 +1,11 @@
+{
+  "id": 20,
+  "title": "Implement Compliance and Governance",
+  "department": "Compliance",
+  "description": "Develop compliance and governance feature for project security and performance.",
+  "acceptance_criteria": "Compliance and governance feature is fully functional and ensures project security and performance.",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/compliance-governance",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

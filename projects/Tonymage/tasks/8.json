@@ -1,0 +1,11 @@
+{
+  "id": 8,
+  "title": "Develop Frontend UI Components",
+  "department": "Frontend",
+  "description": "Implement UI components for project initiation, task management, and collaboration tools.",
+  "acceptance_criteria": "Frontend UI components are fully functional and visually appealing.",
+  "estimated_cost_usd": 2500,
+  "branch_name": "feature/frontend-ui",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

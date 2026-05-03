@@ -1,0 +1,11 @@
+{
+  "id": 16,
+  "title": "Implement Caching",
+  "department": "Caching",
+  "description": "Develop caching feature for project performance and scalability.",
+  "acceptance_criteria": "Caching feature is fully functional and ensures project performance and scalability.",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/caching",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

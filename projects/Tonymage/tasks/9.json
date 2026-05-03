@@ -1,0 +1,11 @@
+{
+  "id": 9,
+  "title": "Implement API Endpoints",
+  "department": "Backend",
+  "description": "Develop API endpoints for project initiation, task management, and collaboration tools.",
+  "acceptance_criteria": "API endpoints are fully functional and secure.",
+  "estimated_cost_usd": 2000,
+  "branch_name": "feature/api-endpoints",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

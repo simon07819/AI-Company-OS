@@ -1,0 +1,11 @@
+{
+  "id": 19,
+  "title": "Implement Disaster Recovery",
+  "department": "Disaster Recovery",
+  "description": "Develop disaster recovery feature for project data storage and performance.",
+  "acceptance_criteria": "Disaster recovery feature is fully functional and ensures project data storage and performance.",
+  "estimated_cost_usd": 1000,
+  "branch_name": "feature/disaster-recovery",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}
