@@ -623,9 +623,9 @@ def ensure_worker_worktree(repo_path, index, entries):
     return True
 
 
-def run_worker_once(repo_path, worker_repo_path, index, task_id):
+def run_worker_once(repo_path, worker_repo_path, index, task_id, project_name):
     return subprocess.run(
-        worker_command(repo_path, worker_repo_path, index, task_id),
+        worker_command(repo_path, worker_repo_path, index, task_id, project_name),
         cwd=repo_path,
         check=False,
         capture_output=True,
@@ -633,9 +633,9 @@ def run_worker_once(repo_path, worker_repo_path, index, task_id):
     )
 
 
-def start_worker_once(repo_path, worker_repo_path, index, task_id):
+def start_worker_once(repo_path, worker_repo_path, index, task_id, project_name):
     return subprocess.Popen(
-        worker_command(repo_path, worker_repo_path, index, task_id),
+        worker_command(repo_path, worker_repo_path, index, task_id, project_name),
         cwd=repo_path,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -643,8 +643,8 @@ def start_worker_once(repo_path, worker_repo_path, index, task_id):
     )
 
 
-def worker_command(repo_path, worker_repo_path, index, task_id):
-    project_path = os.path.join(worker_repo_path, "projects", "Tonymage")
+def worker_command(repo_path, worker_repo_path, index, task_id, project_name):
+    project_path = os.path.join(worker_repo_path, "projects", project_name)
     return [
         sys.executable,
         os.path.join(repo_path, "run_worker.py"),
@@ -655,6 +655,8 @@ def worker_command(repo_path, worker_repo_path, index, task_id):
         worker_repo_path,
         "--project-path",
         project_path,
+        "--project",
+        project_name,
         "--base-branch",
         worker_branch(index),
     ]
@@ -687,9 +689,10 @@ def prepare_worker(repo_path, entries, index, assigned):
 def execute_workers(repo_path, project_path, workers, parallel=False):
     tasks = queued_tasks(project_path)
     entries = worktree_entries(repo_path)
+    project_name = os.path.basename(project_path)
 
     if parallel:
-        return execute_workers_parallel(repo_path, tasks, entries, workers)
+        return execute_workers_parallel(repo_path, project_name, tasks, entries, workers)
 
     pr_urls = []
     for index in range(1, workers + 1):
@@ -703,7 +706,7 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
         task_file = assigned_pair[0]
         print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
-        result = run_worker_once(repo_path, worktree, index, assigned.get("id"))
+        result = run_worker_once(repo_path, worktree, index, assigned.get("id"), project_name)
         if result.stdout.strip():
             print(result.stdout.strip())
         if result.stderr.strip():
@@ -722,7 +725,7 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
     return 0, pr_urls
 
 
-def execute_workers_parallel(repo_path, tasks, entries, workers):
+def execute_workers_parallel(repo_path, project_name, tasks, entries, workers):
     processes = []
     summary = {}
     pr_urls = []
@@ -739,7 +742,7 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
         task_file = assigned_pair[0]
         print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
-        process = start_worker_once(repo_path, worktree, index, assigned.get("id"))
+        process = start_worker_once(repo_path, worktree, index, assigned.get("id"), project_name)
         processes.append((worker, worktree, index, task_file, process))
 
     for worker, worktree, index, task_file, process in processes:
@@ -803,7 +806,8 @@ def main():
     parser.add_argument("--auto-merge", action="store_true")
     parser.add_argument("--rebase-before-merge", action="store_true")
     parser.add_argument("--auto-resolve-conflicts", action="store_true")
-    parser.add_argument("--project-path", default=DEFAULT_PROJECT)
+    parser.add_argument("--project", default="Tonymage")
+    parser.add_argument("--project-path")
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
 
@@ -818,7 +822,10 @@ def main():
         print(f"repo path: {repo_path}")
         return 0 if clean_worktrees(repo_path) else 1
 
-    project_path = os.path.abspath(os.path.expanduser(args.project_path))
+    project_path = os.path.abspath(os.path.expanduser(
+        args.project_path or os.path.join(repo_path, "projects", args.project)
+    ))
+    print(f"Active project: {os.path.basename(project_path)}")
 
     if not ensure_main_ready(repo_path):
         return 1
