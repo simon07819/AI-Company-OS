@@ -3,6 +3,7 @@ import path from "path";
 import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists } from "./workspaceStore";
 import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
 import { generateMissionDeliverables } from "./missionDeliverables";
+import { updateAgentState } from "./agentRuntime";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -250,7 +251,7 @@ function buildTasks(project: string, idea: string, agents: string[], missionType
   const missionPhaseIds = new Set(phases.map((p) => p.id));
   const filteredTasks = taskDefs.filter((t) => missionPhaseIds.has(t.phase));
 
-  return filteredTasks.map((def, index) => {
+  const rawTasks = filteredTasks.map((def, index) => {
     const phaseAgent = phases.find((p) => p.id === def.phase)?.agent ?? "product_agent";
     const agent = selectedAgents.includes(phaseAgent) ? phaseAgent : selectedAgents[index % selectedAgents.length] ?? "product_agent";
     return {
@@ -266,6 +267,52 @@ function buildTasks(project: string, idea: string, agents: string[], missionType
       createdAt: now,
       updatedAt: now,
     };
+  });
+
+  return populateDependencies(rawTasks);
+}
+
+const PHASE_ORDER: AutopilotPhase[] = [
+  "idea", "planning", "architecture", "frontend", "backend", "validation", "build", "runtime",
+];
+
+function populateDependencies(tasks: AutopilotTask[]): AutopilotTask[] {
+  const byPhase = new Map<string, AutopilotTask[]>();
+  for (const task of tasks) {
+    if (!byPhase.has(task.phase)) byPhase.set(task.phase, []);
+    byPhase.get(task.phase)!.push(task);
+  }
+
+  const lastIdOf = new Map<AutopilotPhase, string>();
+  for (const phase of PHASE_ORDER) {
+    const phaseTasks = byPhase.get(phase);
+    if (phaseTasks && phaseTasks.length > 0) {
+      lastIdOf.set(phase, phaseTasks[phaseTasks.length - 1].id);
+    }
+  }
+
+  function getGateDeps(phase: AutopilotPhase): string[] {
+    if (phase === "validation") {
+      const deps: string[] = [];
+      if (lastIdOf.has("frontend")) deps.push(lastIdOf.get("frontend")!);
+      if (lastIdOf.has("backend")) deps.push(lastIdOf.get("backend")!);
+      return deps;
+    }
+    const idx = PHASE_ORDER.indexOf(phase);
+    for (let i = idx - 1; i >= 0; i--) {
+      const prev = PHASE_ORDER[i];
+      if (lastIdOf.has(prev as AutopilotPhase)) return [lastIdOf.get(prev as AutopilotPhase)!];
+    }
+    return [];
+  }
+
+  return tasks.map((task) => {
+    const phaseGroup = byPhase.get(task.phase)!;
+    const indexInPhase = phaseGroup.findIndex((t) => t.id === task.id);
+    if (indexInPhase === 0) {
+      return { ...task, dependencies: getGateDeps(task.phase as AutopilotPhase) };
+    }
+    return { ...task, dependencies: [phaseGroup[indexInPhase - 1].id] };
   });
 }
 
@@ -603,6 +650,18 @@ export function runStep(sessionId: string): RunStepResult {
   // Find the next task to execute
   let targetIndex = tasks.findIndex((t) => t.status === "running");
   if (targetIndex === -1) {
+    // Apply dependency-aware scheduling: unblock satisfied tasks, block unsatisfied queued tasks
+    const completedIds = new Set(tasks.filter((t) => t.status === "completed").map((t) => t.id));
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].status === "blocked" && tasks[i].dependencies.every((d) => completedIds.has(d))) {
+        tasks[i] = { ...tasks[i], status: "queued", updatedAt: now };
+      }
+    }
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].status === "queued" && !tasks[i].dependencies.every((d) => completedIds.has(d))) {
+        tasks[i] = { ...tasks[i], status: "blocked", updatedAt: now };
+      }
+    }
     targetIndex = tasks.findIndex((t) => t.status === "queued");
   }
 
@@ -634,6 +693,16 @@ export function runStep(sessionId: string): RunStepResult {
   // Mark task as running (if it was queued)
   tasks[targetIndex] = { ...task, status: "running", progress: 15, updatedAt: now };
 
+  // Update agent runtime state
+  updateAgentState(agent, {
+    status: "executing",
+    currentTaskId: task.id,
+    currentMissionId: sessionId,
+    progress: 15,
+    startedAt: now,
+    retryCount: 0,
+  });
+
   // Log: agent started
   appendLog(sessionId, {
     timestamp: now,
@@ -644,15 +713,44 @@ export function runStep(sessionId: string): RunStepResult {
   });
 
   // Simulate NVIDIA runtime execution
-  // In production this would call the real NVIDIA API / runner.ts
-  // For now: deterministic success with realistic delay simulation
   const executionOk = simulateExecution(agent, task);
+  const execNow = new Date().toISOString();
 
   // Update the task based on result
   if (executionOk) {
-    tasks[targetIndex] = { ...tasks[targetIndex], status: "completed", progress: 100, updatedAt: new Date().toISOString() };
+    tasks[targetIndex] = { ...tasks[targetIndex], status: "completed", progress: 100, updatedAt: execNow };
+    // Unblock dependent tasks
+    const completedIds = new Set(tasks.filter((t) => t.status === "completed").map((t) => t.id));
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].status === "blocked" && tasks[i].dependencies.every((d) => completedIds.has(d))) {
+        tasks[i] = { ...tasks[i], status: "queued", updatedAt: execNow };
+      }
+    }
+    updateAgentState(agent, { status: "completed", progress: 100, currentTaskId: null });
   } else {
-    tasks[targetIndex] = { ...tasks[targetIndex], status: "failed", progress: 0, updatedAt: new Date().toISOString() };
+    tasks[targetIndex] = { ...tasks[targetIndex], status: "failed", progress: 0, updatedAt: execNow };
+    // Cascade failure to dependent tasks
+    const failedIds = new Set(tasks.filter((t) => t.status === "failed").map((t) => t.id));
+    let cascadeChanged = true;
+    while (cascadeChanged) {
+      cascadeChanged = false;
+      for (let i = 0; i < tasks.length; i++) {
+        if (tasks[i].status !== "blocked" && tasks[i].status !== "queued") continue;
+        if (tasks[i].dependencies.some((d) => failedIds.has(d))) {
+          tasks[i] = { ...tasks[i], status: "failed", updatedAt: execNow };
+          failedIds.add(tasks[i].id);
+          cascadeChanged = true;
+        }
+      }
+    }
+    updateAgentState(agent, { status: "failed", progress: 0, currentTaskId: null });
+    appendLog(sessionId, {
+      timestamp: execNow,
+      level: "warning",
+      agent,
+      message: `${agent} blocked: dependency chain failure from ${task.title}`,
+      source: "runtime",
+    });
   }
 
   // Recalculate progress
@@ -810,12 +908,30 @@ const MAX_RUN_ALL_STEPS = 10;
 
 /**
  * Execute multiple steps up to MAX_RUN_ALL_STEPS.
+ * Tracks agent runtime states and respects dependency ordering.
  * Stops when: session completes, a task fails, or limit reached.
  */
 export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllResult {
   const steps: RunStepResult[] = [];
   let stepsExecuted = 0;
   let session = getSession(sessionId);
+
+  // Emit runtime health log at start
+  if (session) {
+    updateAgentState("autopilot", {
+      status: "planning",
+      currentMissionId: sessionId,
+      currentTaskId: null,
+      progress: session.progress,
+    });
+    appendLog(sessionId, {
+      timestamp: new Date().toISOString(),
+      level: "info",
+      agent: "autopilot",
+      message: `Runtime scheduler started — ${session.tasks.filter((t) => t.status === "queued" || t.status === "running").length} tasks queued`,
+      source: "runtime",
+    });
+  }
 
   for (let i = 0; i < maxSteps; i++) {
     // Re-read session to get latest state
@@ -832,6 +948,20 @@ export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllR
         message: "Autopilot resumed for run-all execution.",
         source: "control",
       });
+    }
+
+    // Check for blocked tasks and emit a runtime health warning if all remaining are blocked
+    const pending = session.tasks.filter((t) => t.status === "queued" || t.status === "running" || t.status === "blocked");
+    const allBlocked = pending.length > 0 && pending.every((t) => t.status === "blocked");
+    if (allBlocked) {
+      appendLog(sessionId, {
+        timestamp: new Date().toISOString(),
+        level: "warning",
+        agent: "autopilot",
+        message: `Runtime health warning: ${pending.length} tasks blocked — dependency resolution stalled`,
+        source: "runtime",
+      });
+      break;
     }
 
     const result = runStep(sessionId);

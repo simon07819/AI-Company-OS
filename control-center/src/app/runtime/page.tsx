@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -11,8 +11,12 @@ import {
   Cpu,
   Gauge,
   Layers3,
+  Lock,
+  Pause,
+  Play,
   Radio,
   RefreshCw,
+  RotateCcw,
   Server,
   Terminal,
   Timer,
@@ -24,6 +28,8 @@ import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useTasks, type TaskWithProject } from "@/hooks/useTasks";
 import AutopilotPanel from "@/components/AutopilotPanel";
 import AutopilotSessionBanner from "@/components/AutopilotSessionBanner";
+import type { AgentRuntimeState } from "@/lib/agentRuntime";
+import type { QueuedTask, QueueStats } from "@/lib/runtimeQueue";
 
 type InferenceStatus = "streaming" | "inference" | "queued" | "retrying" | "idle" | "error";
 
@@ -348,6 +354,161 @@ function LiveNvidiaPanel({
   );
 }
 
+const AGENT_STATUS_COLOR: Record<string, string> = {
+  idle: "#64748b",
+  planning: "#a78bfa",
+  executing: "#76b900",
+  waiting: "#f59e0b",
+  blocked: "#fb7185",
+  retrying: "#fbbf24",
+  completed: "#22c55e",
+  failed: "#ef4444",
+};
+
+function MissionControlCard({
+  agentState,
+  agentDef,
+  onPause,
+  onResume,
+}: {
+  agentState: AgentRuntimeState;
+  agentDef: AgentDef;
+  onPause: () => void;
+  onResume: () => void;
+}) {
+  const statusColor = AGENT_STATUS_COLOR[agentState.status] ?? "#64748b";
+  const isActive = agentState.status === "executing" || agentState.status === "planning";
+  const isBlocked = agentState.status === "blocked";
+  const isRetrying = agentState.status === "retrying";
+
+  return (
+    <motion.div
+      className="runtime-agent-card"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{ borderColor: `${statusColor}30`, boxShadow: `0 0 42px ${statusColor}0f` }}
+      data-testid={`mission-control-card-${agentState.agentId}`}
+    >
+      <div className="runtime-agent-top">
+        <div style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
+          <div className="runtime-agent-avatar" style={{ background: `${agentDef.color}18`, color: agentDef.color, borderColor: `${agentDef.color}30` }}>
+            {agentDef.name.charAt(0)}
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div className="runtime-agent-name">{agentDef.name}</div>
+            <div className="runtime-agent-sub">{agentDef.role.split(",")[0]}</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="runtime-pill" style={{ color: statusColor, background: `${statusColor}14` }}>
+            <motion.span
+              style={{ width: 7, height: 7, borderRadius: 99, background: statusColor, display: "inline-block", marginRight: 5 }}
+              animate={isActive ? { scale: [1, 1.45, 1], opacity: [1, 0.45, 1] } : {}}
+              transition={{ duration: 1.4, repeat: Infinity }}
+            />
+            {agentState.status}
+          </div>
+          <button
+            type="button"
+            onClick={agentState.status === "idle" ? onResume : onPause}
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--text-3)", padding: 4 }}
+            title={agentState.status === "idle" ? "Resume agent" : "Pause agent"}
+          >
+            {agentState.status === "idle" ? <Play size={12} /> : <Pause size={12} />}
+          </button>
+        </div>
+      </div>
+
+      <div className="runtime-agent-grid" style={{ marginTop: 12 }}>
+        <div>
+          <span>Task</span>
+          <strong style={{ fontSize: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block", maxWidth: 100 }}>
+            {agentState.currentTaskId ?? "—"}
+          </strong>
+        </div>
+        <div>
+          <span>Progress</span>
+          <strong style={{ color: statusColor }}>{agentState.progress}%</strong>
+        </div>
+        <div>
+          <span>Retries</span>
+          <strong style={{ color: agentState.retryCount > 0 ? "#fbbf24" : "var(--text)" }}>{agentState.retryCount}</strong>
+        </div>
+        <div>
+          <span>Since</span>
+          <strong style={{ fontSize: 10 }}>{agentState.startedAt ? new Date(agentState.startedAt).toLocaleTimeString() : "—"}</strong>
+        </div>
+      </div>
+
+      {isBlocked && (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, color: "#fb7185", fontSize: 11 }}>
+          <Lock size={11} />
+          <span>Blocked — waiting on dependency</span>
+        </div>
+      )}
+      {isRetrying && (
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, color: "#fbbf24", fontSize: 11 }}>
+          <RotateCcw size={11} />
+          <span>Retrying — attempt {agentState.retryCount}</span>
+        </div>
+      )}
+
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)", marginBottom: 7, marginTop: 10 }}>
+          <span>Progress</span>
+          <span>{agentState.progress}%</span>
+        </div>
+        <div className="runtime-progress">
+          <motion.div
+            className="runtime-progress-fill"
+            animate={{ width: `${agentState.progress}%` }}
+            style={{ background: `linear-gradient(90deg, ${agentDef.color}, ${statusColor})` }}
+          />
+        </div>
+      </div>
+
+      <div className="runtime-last-event" style={{ marginTop: 10 }}>
+        <Radio size={12} color={agentDef.color} />
+        <span style={{ fontSize: 10 }}>{agentState.lastActivity ? new Date(agentState.lastActivity).toLocaleTimeString() : "No activity"}</span>
+      </div>
+    </motion.div>
+  );
+}
+
+function QueuePanel({ queue, stats }: { queue: QueuedTask[]; stats: QueueStats | null }) {
+  return (
+    <div className="runtime-rail-card">
+      <div className="runtime-rail-title"><Timer size={14} /> Runtime Queue</div>
+      {stats && (
+        <div style={{ display: "flex", gap: 12, marginBottom: 10, fontSize: 11 }}>
+          <span style={{ color: "#22c55e" }}>{stats.runnable} runnable</span>
+          <span style={{ color: "#fb7185" }}>{stats.blocked} blocked</span>
+          <span style={{ color: "var(--text-3)" }}>{stats.total} total</span>
+        </div>
+      )}
+      <div className="runtime-queue-list">
+        {queue.slice(0, 6).map((item, i) => (
+          <div key={`${item.sessionId}-${item.taskId}`} className="runtime-queue-item">
+            <span>{i + 1}</span>
+            <div>
+              <strong style={{ fontSize: 11 }}>{item.taskId}</strong>
+              <em style={{ fontSize: 10 }}>{item.agentId} · {item.phase} · p{item.priority}</em>
+              {item.dependencies.length > 0 && (
+                <div style={{ fontSize: 10, color: "#f59e0b", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                  <Lock size={9} /> {item.dependencies.length} dep{item.dependencies.length > 1 ? "s" : ""}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {queue.length === 0 && (
+          <div style={{ color: "var(--text-3)", fontSize: 12, padding: "8px 0" }}>Queue empty — all agents idle</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function RuntimePage() {
   const { status, refresh: refreshStatus } = useSystemStatus(3500);
   const { tasks, summary, refresh: refreshTasks } = useTasks(undefined, 4500);
@@ -355,6 +516,10 @@ export default function RuntimePage() {
   const [logs, setLogs] = useState<BackendLogEntry[]>([]);
   const [runtimeCheck, setRuntimeCheck] = useState<string>("Auto updating");
   const [checkingRuntime, setCheckingRuntime] = useState(false);
+  const [agentStates, setAgentStates] = useState<AgentRuntimeState[]>([]);
+  const [runtimeQueue, setRuntimeQueue] = useState<QueuedTask[]>([]);
+  const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
+  const [resettingRuntime, setResettingRuntime] = useState(false);
 
   useLogStream((entry) => {
     setLogs((prev) => [entry, ...prev].slice(0, 16));
@@ -364,6 +529,52 @@ export default function RuntimePage() {
     const iv = setInterval(() => setTick((v) => v + 1), 1700);
     return () => clearInterval(iv);
   }, []);
+
+  const fetchRuntimeData = useCallback(async () => {
+    try {
+      const [agentsRes, queueRes] = await Promise.all([
+        fetch("/api/runtime/agents", { cache: "no-store" }),
+        fetch("/api/runtime/queue", { cache: "no-store" }),
+      ]);
+      if (agentsRes.ok) {
+        const data = await agentsRes.json() as { agents: AgentRuntimeState[] };
+        setAgentStates(data.agents ?? []);
+      }
+      if (queueRes.ok) {
+        const data = await queueRes.json() as { queue: QueuedTask[]; stats: QueueStats };
+        setRuntimeQueue(data.queue ?? []);
+        setQueueStats(data.stats ?? null);
+      }
+    } catch {
+      // non-fatal — runtime data is supplemental
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchRuntimeData();
+    const iv = setInterval(() => void fetchRuntimeData(), 5000);
+    return () => clearInterval(iv);
+  }, [fetchRuntimeData]);
+
+  const handlePauseAgent = async (agentId: string) => {
+    await fetch(`/api/runtime/agent/${agentId}/pause`, { method: "POST" });
+    void fetchRuntimeData();
+  };
+
+  const handleResumeAgent = async (agentId: string) => {
+    await fetch(`/api/runtime/agent/${agentId}/resume`, { method: "POST" });
+    void fetchRuntimeData();
+  };
+
+  const handleResetRuntime = async () => {
+    setResettingRuntime(true);
+    try {
+      await fetch("/api/runtime/reset", { method: "POST" });
+      void fetchRuntimeData();
+    } finally {
+      setResettingRuntime(false);
+    }
+  };
 
   const runtimes = useMemo(() => {
     return AGENTS.map((agent, index) => {
@@ -460,7 +671,107 @@ export default function RuntimePage() {
       <AutopilotPanel />
       <AutopilotSessionBanner />
 
-      <section className="runtime-workspace">
+      {/* Mission Control: live agent runtime states */}
+      <section className="runtime-workspace" style={{ marginTop: 32 }} data-testid="mission-control-section">
+        <div className="runtime-agent-section">
+          <div className="section-header">
+            <div>
+              <h2>Mission Control</h2>
+              <p className="runtime-section-sub">Live agent runtime states, dependency blocking, concurrency indicators and retry tracking.</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void fetchRuntimeData()}
+                style={{ fontSize: 12 }}
+              >
+                <RefreshCw size={13} /> Refresh
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => void handleResetRuntime()}
+                disabled={resettingRuntime}
+                style={{ fontSize: 12, color: "#fb7185" }}
+              >
+                <RotateCcw size={13} /> {resettingRuntime ? "Resetting..." : "Reset Runtime"}
+              </button>
+            </div>
+          </div>
+
+          {/* Agent concurrency summary */}
+          <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
+            {(["executing", "blocked", "retrying", "idle"] as const).map((s) => {
+              const count = agentStates.filter((a) => a.status === s).length;
+              return (
+                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: AGENT_STATUS_COLOR[s] }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: AGENT_STATUS_COLOR[s], display: "inline-block" }} />
+                  {count} {s}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="runtime-agent-grid-cards">
+            {AGENTS.map((agent) => {
+              const state = agentStates.find((s) => s.agentId === agent.id);
+              if (!state) return (
+                <div key={agent.id} className="runtime-agent-card" style={{ borderColor: `${agent.color}20`, opacity: 0.5 }}>
+                  <div className="runtime-agent-name">{agent.name}</div>
+                  <div className="runtime-agent-sub" style={{ marginTop: 6 }}>Loading...</div>
+                </div>
+              );
+              return (
+                <MissionControlCard
+                  key={agent.id}
+                  agentState={state}
+                  agentDef={agent}
+                  onPause={() => void handlePauseAgent(agent.id)}
+                  onResume={() => void handleResumeAgent(agent.id)}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="runtime-side-rail">
+          <QueuePanel queue={runtimeQueue} stats={queueStats} />
+
+          <div className="runtime-rail-card">
+            <div className="runtime-rail-title"><AlertTriangle size={14} /> Inference Errors</div>
+            <div className="runtime-error-stat">{inferenceErrors}</div>
+            <p className="runtime-section-sub">Recent failed or error-like events from the live backend stream.</p>
+            <div className="runtime-error-row">
+              <span>Blocked agents</span>
+              <strong style={{ color: "#fb7185" }}>{agentStates.filter((a) => a.status === "blocked").length}</strong>
+            </div>
+            <div className="runtime-error-row">
+              <span>Retrying agents</span>
+              <strong style={{ color: "#fbbf24" }}>{agentStates.filter((a) => a.status === "retrying").length}</strong>
+            </div>
+          </div>
+
+          <div className="runtime-rail-card">
+            <div className="runtime-rail-title"><Radio size={14} /> Dynamic Logs</div>
+            <div className="runtime-live-log">
+              {visibleLogs.map((entry, i) => (
+                <motion.div
+                  key={`${entry.timestamp}-${i}`}
+                  className="runtime-log-line"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <span>{entry.agent ?? "runtime"}</span>
+                  <p>{entry.message ?? entry.event ?? entry.task_title ?? "inference event received"}</p>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section className="runtime-workspace" style={{ marginTop: 32 }}>
         <div className="runtime-agent-section">
           <div className="section-header">
             <div>
@@ -496,33 +807,6 @@ export default function RuntimePage() {
                     <em>runtime mock · queued</em>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="runtime-rail-card">
-            <div className="runtime-rail-title"><AlertTriangle size={14} /> Inference Errors</div>
-            <div className="runtime-error-stat">{inferenceErrors}</div>
-            <p className="runtime-section-sub">Recent failed or error-like events from the live backend stream.</p>
-            <div className="runtime-error-row">
-              <span>Retry budget</span>
-              <strong>{runtimes.reduce((sum, r) => sum + r.retries, 0)} active</strong>
-            </div>
-          </div>
-
-          <div className="runtime-rail-card">
-            <div className="runtime-rail-title"><Radio size={14} /> Dynamic Logs</div>
-            <div className="runtime-live-log">
-              {visibleLogs.map((entry, i) => (
-                <motion.div
-                  key={`${entry.timestamp}-${i}`}
-                  className="runtime-log-line"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <span>{entry.agent ?? "runtime"}</span>
-                  <p>{entry.message ?? entry.event ?? entry.task_title ?? "inference event received"}</p>
-                </motion.div>
               ))}
             </div>
           </div>
