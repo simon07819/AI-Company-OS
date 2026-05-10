@@ -15,6 +15,7 @@ import {
   Home,
   Play,
   PlusCircle,
+  Rocket,
   Settings,
   TerminalSquare,
   Zap,
@@ -36,6 +37,12 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/projects", label: "Projects", description: "Products and task state", icon: <FolderKanban size={16} /> },
       { href: "/projects/new", label: "New Project", description: "Create a product", icon: <PlusCircle size={16} /> },
       { href: "/demo", label: "Demo", description: "Guided product mode", icon: <Play size={16} /> },
+    ],
+  },
+  {
+    label: "Autopilot",
+    items: [
+      { href: "/autopilot", label: "Autopilot", description: "AI agency sessions", icon: <Rocket size={16} /> },
     ],
   },
   {

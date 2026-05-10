@@ -23,6 +23,7 @@ import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useTasks, type TaskWithProject } from "@/hooks/useTasks";
 import AutopilotPanel from "@/components/AutopilotPanel";
+import AutopilotSessionBanner from "@/components/AutopilotSessionBanner";
 
 type InferenceStatus = "streaming" | "inference" | "queued" | "retrying" | "idle" | "error";
 
@@ -457,6 +458,7 @@ export default function RuntimePage() {
       />
 
       <AutopilotPanel />
+      <AutopilotSessionBanner />
 
       <section className="runtime-workspace">
         <div className="runtime-agent-section">

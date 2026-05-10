@@ -138,6 +138,66 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/logs")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true, logs: [] }),
+    };
+  }
+
+  if (url.includes("/api/autopilot/sessions/")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        session: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null,
+          template: null,
+          stack: null,
+          status: "running",
+          currentPhase: "idea",
+          progress: 0,
+          assignedAgents: [{ agentId: "product_agent", role: "Product analysis", status: "available", provider: "NVIDIA API" }],
+          roadmap: ["Step 1"],
+          tasks: [{ id: "AP-001", title: "Analyze idea", description: "Test task", phase: "idea", agent: "product_agent", status: "running", priority: 1, progress: 10, dependencies: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }],
+          logs: [{ id: "log-1", timestamp: new Date().toISOString(), level: "info", agent: "product_agent", message: "Autopilot started", source: "autopilot" }],
+          runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 1, lastEvent: "Started" },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    };
+  }
+
+  if (url.includes("/api/autopilot/sessions")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        sessions: [{
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null,
+          template: null,
+          stack: null,
+          status: "running",
+          currentPhase: "idea",
+          progress: 0,
+          assignedAgents: [{ agentId: "product_agent", role: "Product analysis", status: "available", provider: "NVIDIA API" }],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }],
+      }),
+    };
+  }
+
   return {
     ok: true,
     status: 200,

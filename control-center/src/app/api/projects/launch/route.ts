@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAction } from "@/lib/runner";
 import { bridgeFromRun, sanitizeProjectName } from "@/lib/orchestrationBridge";
-import { startAutopilot } from "@/lib/autopilot";
+import { createSession } from "@/lib/autopilotStore";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +13,7 @@ type LaunchBody = {
   agents?: string[];
   stack?: string | null;
   autonomy?: string | null;
+  priorities?: string[];
 };
 
 export async function POST(req: NextRequest) {
@@ -31,10 +32,14 @@ export async function POST(req: NextRequest) {
     project,
     idea: details || "New AI Company OS product launched from Control Center",
   });
-  const session = startAutopilot({ ...body, name: project, idea: details || body.idea });
+  const session = createSession({ ...body, name: project, idea: details || body.idea });
 
   return NextResponse.json({
     ...bridgeFromRun("launch-project", project, result),
-    data: { project, mode: result.ok ? "real" : "mock-fallback", autopilot: session },
+    data: {
+      project,
+      mode: result.ok ? "real" : "mock-fallback",
+      autopilot: { sessionId: session.sessionId },
+    },
   }, { status: result.ok ? 200 : 400 });
 }

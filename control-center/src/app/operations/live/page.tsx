@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { BackendStatusBar } from "@/components/BackendStatusBar";
 import AutopilotPanel from "@/components/AutopilotPanel";
+import AutopilotSessionBanner from "@/components/AutopilotSessionBanner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -655,6 +656,7 @@ export default function LiveOpsPage() {
           </div>
 
           <AutopilotPanel compact />
+          <AutopilotSessionBanner />
 
           {/* Metrics */}
           <MetricsBar activeCount={activeCount} />

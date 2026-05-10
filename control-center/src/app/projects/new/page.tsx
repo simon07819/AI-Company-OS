@@ -28,7 +28,7 @@ interface LaunchResponse {
   ok: boolean;
   message?: string;
   project?: string;
-  data?: { project?: string };
+  data?: { project?: string; autopilot?: { sessionId?: string } };
   stderr?: string;
 }
 
@@ -406,12 +406,14 @@ function Step5({
   launching,
   launched,
   projectId,
+  autopilotSessionId,
 }: {
   form: FormState;
   onLaunch: () => void;
   launching: boolean;
   launched: boolean;
   projectId: string | null;
+  autopilotSessionId: string | null;
 }) {
   const router  = useRouter();
   const tpl     = TEMPLATES.find((t) => t.id === form.template);
@@ -428,6 +430,11 @@ function Step5({
   ];
 
   if (launched && projectId) {
+    // Auto-redirect to autopilot session after 2.5 seconds
+    if (autopilotSessionId) {
+      setTimeout(() => router.push(`/autopilot/${autopilotSessionId}`), 2500);
+    }
+
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
@@ -480,7 +487,18 @@ function Step5({
 
         <div style={{ display: "flex", gap: 10 }}>
           <button
-            onClick={() => router.push("/operations/live")}
+            onClick={() => {
+              // The autopilot session was created during launch; find it via the API
+              fetch("/api/autopilot/sessions", { cache: "no-store" })
+                .then((r) => r.json())
+                .then((data) => {
+                  const sessions = (data as { sessions?: { sessionId: string; projectName: string }[] }).sessions ?? [];
+                  const match = sessions.find((s) => s.projectName === form.name);
+                  if (match) router.push(`/autopilot/${match.sessionId}`);
+                  else router.push("/autopilot");
+                })
+                .catch(() => router.push("/autopilot"));
+            }}
             style={{
               padding: "12px 24px", borderRadius: "var(--radius-sm)",
               background: "var(--accent)", color: "#fff", fontWeight: 700, fontSize: 14,
@@ -488,7 +506,7 @@ function Step5({
               boxShadow: "0 4px 16px var(--accent-glow)",
             }}
           >
-            Watch Live Ops →
+            Open Autopilot →
           </button>
           <button
             onClick={() => router.push("/projects")}
@@ -710,6 +728,8 @@ export default function NewProjectPage() {
     setStep(next);
   };
 
+  const [autopilotSessionId, setAutopilotSessionId] = useState<string | null>(null);
+
   const handleLaunch = async () => {
     setLaunching(true);
     setLaunchError(null);
@@ -724,6 +744,8 @@ export default function NewProjectPage() {
         throw new Error(payload.stderr || payload.message || "Launch bridge failed");
       }
 
+      const apSessionId = payload.data?.autopilot?.sessionId ?? null;
+      setAutopilotSessionId(apSessionId);
       setProjectId(payload.data?.project ?? payload.project ?? form.name ?? generateProjectId());
       setLaunched(true);
     } catch (error) {
@@ -795,6 +817,7 @@ export default function NewProjectPage() {
                 launching={launching}
                 launched={launched}
                 projectId={projectId}
+                autopilotSessionId={autopilotSessionId}
               />
             )}
           </motion.div>
