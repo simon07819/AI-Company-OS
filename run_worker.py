@@ -267,7 +267,10 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
         ], repo_path).stdout.strip()
 
         task = mark_task_completed_real(task_file, pr_url)
-        commit_all(repo_path, f"AI task status: {task['title']}")
+        if not git_clean(repo_path):
+            commit_all(repo_path, f"AI task status: {task['title']}")
+        else:
+            print("no worktree changes to commit for task status update")
         run_cmd(["git", "push", "-u", "origin", branch], repo_path)
         checkout_branch(repo_path, base_branch)
 
@@ -276,9 +279,12 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
             cleanup_dirty(repo_path)
             mark_task_failed(task_file, exc)
             try:
-                commit_all(repo_path, f"AI task failed: {task['title']}")
-                if branch and not branch_exists(repo_path, branch):
-                    run_cmd(["git", "push", "-u", "origin", branch], repo_path, check=False)
+                if not git_clean(repo_path):
+                    commit_all(repo_path, f"AI task failed: {task['title']}")
+                    if branch and not branch_exists(repo_path, branch):
+                        run_cmd(["git", "push", "-u", "origin", branch], repo_path, check=False)
+                else:
+                    print("no worktree changes to commit for task status update")
             except Exception:
                 cleanup_dirty(repo_path)
         checkout_branch(repo_path, base_branch)
