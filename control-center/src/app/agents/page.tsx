@@ -1,11 +1,17 @@
 import { AGENTS } from "@/lib/agents";
+import Link from "next/link";
 
 export default function AgentsPage() {
   const available = AGENTS.filter((a) => a.status === "available").length;
 
   return (
     <main className="page">
-      <h1>AI Agents</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <h1 style={{ margin: 0 }}>AI Agents</h1>
+        <Link href="/agents/activity" style={{ fontSize: 13 }}>
+          View live activity →
+        </Link>
+      </div>
 
       {/* Summary bar */}
       <div className="stat-grid" style={{ marginBottom: 32 }}>

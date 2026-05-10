@@ -1,5 +1,6 @@
 import { getAllProjects, computeStats } from "@/lib/projects";
 import { AGENTS } from "@/lib/agents";
+import { getRecentActivity, formatTimestamp } from "@/lib/activity";
 import Link from "next/link";
 
 function statusBadge(status?: string) {
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const projects = getAllProjects();
   const stats = computeStats(projects);
   const availableAgents = AGENTS.filter((a) => a.status === "available").length;
+  const recentActivity = getRecentActivity(5);
 
   return (
     <main className="page">
@@ -132,6 +134,54 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+      </div>
+
+      <div className="section">
+        <h2>Live Agent Activity</h2>
+        {recentActivity.length === 0 ? (
+          <div className="card" style={{ color: "var(--muted)", fontStyle: "italic" }}>
+            No activity logged yet. Run auto_build.py to start tracking.
+          </div>
+        ) : (
+          <div className="card" style={{ padding: 0 }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Agent</th>
+                  <th>Task</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentActivity.map((e, i) => (
+                  <tr key={i}>
+                    <td style={{ whiteSpace: "nowrap", fontSize: 11, color: "var(--muted)" }}>
+                      {formatTimestamp(e.timestamp)}
+                    </td>
+                    <td style={{ fontSize: 11, fontFamily: "ui-monospace, monospace", color: "var(--accent)" }}>
+                      {e.agent}
+                    </td>
+                    <td style={{ fontSize: 12 }}>
+                      <span style={{ color: "var(--muted)" }}>[{e.task_id}]</span>{" "}
+                      {e.task_title}
+                    </td>
+                    <td>
+                      <span className={`badge ${e.status === "completed" ? "badge-green" : e.status === "selected" ? "badge-yellow" : e.status === "error" ? "badge-red" : "badge-gray"}`}>
+                        {e.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)" }}>
+              <Link href="/agents/activity" style={{ fontSize: 12 }}>
+                View all activity →
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="section">

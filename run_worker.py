@@ -406,12 +406,16 @@ def write_task_code(repo_path, task, project_path=None):
         app_dir = os.path.join(repo_path, "projects", project_name, "app")
         if os.path.isdir(app_dir):
             print(f"Using SaaS template context for project: {project_name}")
+            _selected_agent = None
             try:
                 from agent_router import select_agent
                 from shared_context import build_context
+                from agent_activity import log_agent_activity
                 context = build_context(repo_path, task, project_path)
                 agent = select_agent(task, context)
+                _selected_agent = agent.name
                 print(f"Selected agent: {agent.name}")
+                log_agent_activity(project_name, task.get("id"), task.get("title", ""), agent.name, "selected", f"Selected {agent.name} for task {task.get('id')}", repo_path)
                 result = agent.run(task, context)
                 files_map = result.get("files", {})
                 # Handle backend_agent Python stub (no SaaS target)
@@ -422,15 +426,22 @@ def write_task_code(repo_path, task, project_path=None):
                     os.makedirs(os.path.dirname(full_path), exist_ok=True)
                     with open(full_path, "w", encoding="utf-8") as f:
                         f.write(files_map["__python_stub__"])
+                    log_agent_activity(project_name, task.get("id"), task.get("title", ""), agent.name, "completed", f"{agent.name} generated stub for task {task.get('id')}", repo_path)
                     return [path]
                 if files_map:
                     if result.get("notes"):
                         print(f"Agent notes: {result['notes']}")
                     written = _write_agent_files(app_dir, repo_path, files_map)
+                    log_agent_activity(project_name, task.get("id"), task.get("title", ""), agent.name, "completed", result.get("notes") or f"{agent.name} completed task {task.get('id')}", repo_path)
                     run_npm_steps(app_dir)
                     return written
             except Exception as exc:
                 print(f"Agent error: {exc} — falling back to legacy SaaS path")
+                try:
+                    from agent_activity import log_agent_activity
+                    log_agent_activity(project_name, task.get("id"), task.get("title", ""), _selected_agent or "unknown", "error", str(exc)[:300], repo_path)
+                except Exception:
+                    pass
             # Legacy fallback
             targets = resolve_saas_targets(task.get("title", ""))
             if targets:
