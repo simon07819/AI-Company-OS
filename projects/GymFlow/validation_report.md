@@ -16,8 +16,8 @@ Pricing file present. 2 plan(s) configured.
 Project status: active
 Project priority: medium
 Tasks total: 5
-Tasks queued: 1
-Tasks completed_real: 4
+Tasks queued: 0
+Tasks completed_real: 5
 
 ## Risk Checklist
 - None
