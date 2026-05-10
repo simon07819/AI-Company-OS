@@ -19,6 +19,9 @@ export default function RootLayout({
           <a href="/">Dashboard</a>
           <a href="/projects">Projects</a>
           <a href="/agents">Agents</a>
+          <a href="/agents/activity">Activity</a>
+          <a href="/actions">Actions</a>
+          <a href="/logs">Logs</a>
         </nav>
         {children}
       </body>

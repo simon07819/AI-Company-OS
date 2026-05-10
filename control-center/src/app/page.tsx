@@ -33,7 +33,7 @@ export default function DashboardPage() {
   const projects = getAllProjects();
   const stats = computeStats(projects);
   const availableAgents = AGENTS.filter((a) => a.status === "available").length;
-  const recentActivity = getRecentActivity(5);
+  const recentActivity = getRecentActivity(10);
 
   return (
     <main className="page">

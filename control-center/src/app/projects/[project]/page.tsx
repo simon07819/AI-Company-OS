@@ -1,6 +1,11 @@
 import { getProject } from "@/lib/projects";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import fs from "fs";
+import path from "path";
+import ProjectActions from "@/components/ProjectActions";
+
+const REPO_ROOT = path.resolve(process.cwd(), "..");
 
 function taskBadge(status: string) {
   const map: Record<string, string> = {
@@ -36,13 +41,57 @@ export default function ProjectPage({
 
   const sortedTasks = [...project.tasks].sort((a, b) => a.id - b.id);
 
+  const appDir = path.join(REPO_ROOT, "projects", params.project, "app");
+  const hasApp = fs.existsSync(path.join(appDir, "package.json"));
+  let appPackageName: string | null = null;
+  let devCommand = "npm run dev";
+  if (hasApp) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(appDir, "package.json"), "utf8")) as {
+        name?: string;
+        scripts?: Record<string, string>;
+      };
+      appPackageName = pkg.name ?? null;
+      if (pkg.scripts?.dev) devCommand = "npm run dev";
+    } catch { /* ignore */ }
+  }
+
   return (
     <main className="page">
       <Link href="/projects" className="back-link">
         ← All Projects
       </Link>
 
-      <h1>{project.name}</h1>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24, gap: 16 }}>
+        <h1 style={{ margin: 0 }}>{project.name}</h1>
+        {hasApp && (
+          <span className="badge badge-green" style={{ marginTop: 6 }}>has app</span>
+        )}
+      </div>
+
+      <div className="section">
+        <h2>Actions</h2>
+        <ProjectActions projectName={params.project} />
+      </div>
+
+      {hasApp && (
+        <div className="section">
+          <h2>App</h2>
+          <div className="card">
+            <p style={{ fontSize: 13, color: "var(--muted)", marginBottom: 8 }}>
+              {appPackageName ? (
+                <><strong style={{ color: "var(--text)" }}>{appPackageName}</strong> — Next.js app detected</>
+              ) : (
+                "Next.js app detected"
+              )}
+            </p>
+            <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>Run locally:</p>
+            <pre className="output-box" style={{ marginTop: 0 }}>
+              cd projects/{params.project}/app{"\n"}{devCommand}
+            </pre>
+          </div>
+        </div>
+      )}
 
       <div className="section">
         <h2>Meta</h2>
