@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { createWorkspaceForSession, updateWorkspaceAfterStep } from "./workspaceStore";
+import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact } from "./workspaceStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -449,6 +449,7 @@ export type RunStepResult = {
   task: AutopilotTask | null;
   log: AutopilotLog | null;
   completed: boolean;
+  artifactPaths: string[];
   session: AutopilotSession | null;
 };
 
@@ -463,11 +464,11 @@ export type RunStepResult = {
 export function runStep(sessionId: string): RunStepResult {
   const session = getSession(sessionId);
   if (!session) {
-    return { ok: false, task: null, log: null, completed: false, session: null };
+    return { ok: false, task: null, log: null, completed: false, artifactPaths: [], session: null };
   }
 
   if (session.status !== "running") {
-    return { ok: false, task: null, log: null, completed: false, session };
+    return { ok: false, task: null, log: null, completed: false, artifactPaths: [], session };
   }
 
   const now = new Date().toISOString();
@@ -495,9 +496,9 @@ export function runStep(sessionId: string): RunStepResult {
         message: "Autopilot completed — all tasks finished successfully.",
         source: "autopilot",
       });
-      return { ok: true, task: null, log: doneLog?.logs[0] ?? null, completed: true, session: updated };
+      return { ok: true, task: null, log: doneLog?.logs[0] ?? null, completed: true, artifactPaths: [], session: updated };
     }
-    return { ok: false, task: null, log: null, completed: false, session: getSession(sessionId) };
+    return { ok: false, task: null, log: null, completed: false, artifactPaths: [], session: getSession(sessionId) };
   }
 
   const task = tasks[targetIndex];
@@ -584,6 +585,24 @@ export function runStep(sessionId: string): RunStepResult {
     source: executionOk ? "agent" : "agent",
   });
 
+  // Generate agent artifact on success
+  let artifactPaths: string[] = [];
+  if (executionOk) {
+    const latestBeforeArtifact = getSession(sessionId);
+    if (latestBeforeArtifact) {
+      artifactPaths = generateAgentArtifact(latestBeforeArtifact, tasks[targetIndex]);
+      if (artifactPaths.length > 0) {
+        appendLog(sessionId, {
+          timestamp: new Date().toISOString(),
+          level: "info",
+          agent,
+          message: `Artifact generated: ${artifactPaths.join(", ")}`,
+          source: "workspace",
+        });
+      }
+    }
+  }
+
   // Update workspace files on disk
   const latestSession = getSession(sessionId);
   if (latestSession) {
@@ -600,6 +619,7 @@ export function runStep(sessionId: string): RunStepResult {
     task: tasks[targetIndex],
     log: resultLog?.logs[0] ?? null,
     completed: allDone,
+    artifactPaths,
     session: updatedSession ?? getSession(sessionId),
   };
 }

@@ -149,4 +149,176 @@ describe("workspaceStore", () => {
     expect(phaseFile).toBeDefined();
     expect(phaseFile![1]).toContain("completed");
   });
+
+  // ─── Agent Artifact Tests ──────────────────────────────────────────────────
+
+  it("generateAgentArtifact creates product/brief.md for product_agent", async () => {
+    const { createWorkspaceForSession, generateAgentArtifact } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-artifact-product",
+      projectName: "ArtifactTest",
+      projectIdea: "Test product artifacts",
+      template: null, stack: "nextjs-prisma",
+      status: "running" as const, currentPhase: "idea" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+
+    const task = {
+      id: "AP-101", title: "Analyze idea", description: "Deep analysis",
+      phase: "idea" as const, agent: "product_agent", status: "completed" as const,
+      priority: 1, progress: 100, dependencies: [],
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+
+    const paths = generateAgentArtifact(session, task);
+
+    expect(paths).toContain("product/brief.md");
+    expect(paths).toContain("product/user-stories.md");
+
+    const briefContent = [...writtenFiles.entries()].find(([p]) => p.endsWith("product/brief.md") && p.includes("ap-artifact-product"));
+    expect(briefContent).toBeDefined();
+    expect(briefContent![1]).toContain("Product Brief");
+    expect(briefContent![1]).toContain("ArtifactTest");
+    expect(briefContent![1]).toContain("AP-101");
+    expect(briefContent![1]).toContain("product_agent");
+  });
+
+  it("generateAgentArtifact creates architecture/system-design.md for architect_agent", async () => {
+    const { createWorkspaceForSession, generateAgentArtifact } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-artifact-arch",
+      projectName: "ArchTest",
+      projectIdea: "Test architecture artifacts",
+      template: null, stack: "nextjs-prisma",
+      status: "running" as const, currentPhase: "architecture" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+
+    const task = {
+      id: "AP-201", title: "Design system", description: "System architecture",
+      phase: "architecture" as const, agent: "architect_agent", status: "completed" as const,
+      priority: 1, progress: 100, dependencies: [],
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+
+    const paths = generateAgentArtifact(session, task);
+
+    expect(paths).toContain("architecture/system-design.md");
+    expect(paths).toContain("architecture/data-model.md");
+
+    const designContent = [...writtenFiles.entries()].find(([p]) => p.endsWith("architecture/system-design.md") && p.includes("ap-artifact-arch"));
+    expect(designContent).toBeDefined();
+    expect(designContent![1]).toContain("System Design");
+    expect(designContent![1]).toContain("architect_agent");
+  });
+
+  it("generateAgentArtifact returns empty array for unknown agent", async () => {
+    const { createWorkspaceForSession, generateAgentArtifact } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-artifact-unknown",
+      projectName: "UnknownTest",
+      projectIdea: "Test",
+      template: null, stack: null,
+      status: "running" as const, currentPhase: "idea" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+
+    const task = {
+      id: "AP-999", title: "Unknown task", description: "N/A",
+      phase: "idea" as const, agent: "mystery_agent", status: "completed" as const,
+      priority: 1, progress: 100, dependencies: [],
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+
+    const paths = generateAgentArtifact(session, task);
+    expect(paths).toEqual([]);
+  });
+
+  it("generateAgentArtifact creates all 6 agent artifact sets", async () => {
+    const { createWorkspaceForSession, generateAgentArtifact } = await import("@/lib/workspaceStore");
+
+    const agentFiles: Record<string, string[]> = {
+      product_agent: ["product/brief.md", "product/user-stories.md"],
+      architect_agent: ["architecture/system-design.md", "architecture/data-model.md"],
+      frontend_agent: ["frontend/ui-plan.md", "frontend/routes.md"],
+      backend_agent: ["backend/api-plan.md", "backend/services.md"],
+      qa_agent: ["qa/test-plan.md", "qa/risks.md"],
+      devops_agent: ["devops/deployment-plan.md", "devops/env-checklist.md"],
+    };
+
+    for (const [agent, expectedPaths] of Object.entries(agentFiles)) {
+      const sid = `ap-all-artifacts-${agent}`;
+      const session = {
+        sessionId: sid,
+        projectName: `${agent}Test`,
+        projectIdea: "Test",
+        template: null, stack: "nextjs-prisma",
+        status: "running" as const, currentPhase: "idea" as const, progress: 0,
+        assignedAgents: [], roadmap: [], tasks: [], logs: [],
+        runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+      };
+
+      createWorkspaceForSession(session);
+
+      const task = {
+        id: `AP-${agent}`, title: `${agent} task`, description: "Test",
+        phase: "idea" as const, agent, status: "completed" as const,
+        priority: 1, progress: 100, dependencies: [],
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+
+      const paths = generateAgentArtifact(session, task);
+      expect(paths).toEqual(expectedPaths);
+    }
+  });
+
+  it("generateAgentArtifact includes objectives, decisions, and next actions", async () => {
+    const { createWorkspaceForSession, generateAgentArtifact } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-artifact-content",
+      projectName: "ContentTest",
+      projectIdea: "Test content quality",
+      template: null, stack: "nextjs-prisma",
+      status: "running" as const, currentPhase: "backend" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+
+    const task = {
+      id: "AP-301", title: "Implement API routes", description: "Build auth and CRUD routes",
+      phase: "backend" as const, agent: "backend_agent", status: "completed" as const,
+      priority: 1, progress: 100, dependencies: [],
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+    };
+
+    generateAgentArtifact(session, task);
+
+    const apiPlan = [...writtenFiles.entries()].find(([p]) => p.endsWith("backend/api-plan.md") && p.includes("ap-artifact-content"));
+    expect(apiPlan).toBeDefined();
+    expect(apiPlan![1]).toContain("## Objectives");
+    expect(apiPlan![1]).toContain("## Key Decisions");
+    expect(apiPlan![1]).toContain("## Next Actions");
+    expect(apiPlan![1]).toContain("AP-301");
+    expect(apiPlan![1]).toContain("backend_agent");
+  });
 });

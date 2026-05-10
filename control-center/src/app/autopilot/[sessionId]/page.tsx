@@ -17,6 +17,7 @@ import {
   FileText,
   FolderOpen,
   Layers3,
+  Package,
   Pause,
   Play,
   Radio,
@@ -587,6 +588,10 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
                   {tasks.map((task) => {
                     const tc = TASK_STATUS_CONFIG[task.status];
                     const ac = AGENT_COLORS[task.agent] ?? "#8b97b2";
+                    // Check if any log mentions an artifact for this task's agent
+                    const hasArtifact = task.status === "completed" && session.logs.some(
+                      (log) => log.agent === task.agent && log.source === "workspace" && log.message.startsWith("Artifact generated:")
+                    );
                     return (
                       <div key={task.id} style={{
                         display: "flex", alignItems: "center", gap: 10,
@@ -606,6 +611,17 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
                         <span style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
                           {task.title}
                         </span>
+                        {hasArtifact && (
+                          <span style={{
+                            fontSize: 9, fontWeight: 700,
+                            padding: "1px 7px", borderRadius: 4,
+                            background: "rgba(99,102,241,0.12)", color: "#818cf8",
+                            display: "flex", alignItems: "center", gap: 3,
+                            fontFamily: "ui-monospace, monospace",
+                          }}>
+                            <Package size={9} /> Artifact
+                          </span>
+                        )}
                         <span style={{ fontSize: 10, color: ac, fontFamily: "ui-monospace, monospace", flexShrink: 0 }}>
                           {task.agent.replace("_agent", "")}
                         </span>
@@ -706,33 +722,97 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
             Workspace not yet created. Run a step to generate project files.
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: workspaceFiles.length > 0 ? "260px 1fr" : "1fr", gap: 12 }}>
-            {/* File list */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 320, overflowY: "auto" }}>
-              {workspaceFiles.map((file) => (
-                <button
-                  key={file.path}
-                  onClick={() => loadFileContent(file.path)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 8,
-                    padding: "6px 10px", borderRadius: 4,
-                    background: selectedFile === file.path ? "var(--accent-dim)" : "transparent",
-                    border: `1px solid ${selectedFile === file.path ? "var(--accent)" : "transparent"}`,
-                    cursor: "pointer", textAlign: "left",
-                    fontFamily: "ui-monospace, monospace", fontSize: 11,
-                    color: selectedFile === file.path ? "var(--accent-light)" : "var(--text-2)",
-                    transition: "all 120ms ease",
-                  }}
-                >
-                  <FileText size={12} style={{ flexShrink: 0 }} />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {file.path}
-                  </span>
-                  <span style={{ fontSize: 9, color: "var(--text-3)", flexShrink: 0 }}>
-                    {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
-                  </span>
-                </button>
-              ))}
+          <div style={{ display: "grid", gridTemplateColumns: workspaceFiles.length > 0 ? "280px 1fr" : "1fr", gap: 12 }}>
+            {/* File list grouped by folder */}
+            <div style={{ maxHeight: 380, overflowY: "auto" }}>
+              {(() => {
+                // Group files by directory
+                const groups: { folder: string; label: string; color: string; files: typeof workspaceFiles }[] = [];
+                const ARTIFACT_DIRS = ["product", "architecture", "frontend", "backend", "qa", "devops"];
+                const DIR_COLORS: Record<string, string> = {
+                  product: "#a78bfa", architecture: "#f59e0b", frontend: "#3b82f6",
+                  backend: "#22c55e", qa: "#ef4444", devops: "#6c63ff",
+                  phases: "#6366f1", "": "#8b97b2",
+                };
+
+                const folderMap = new Map<string, typeof workspaceFiles>();
+                for (const file of workspaceFiles) {
+                  const parts = file.path.split("/");
+                  const folder = parts.length > 1 ? parts[0] : "";
+                  if (!folderMap.has(folder)) folderMap.set(folder, []);
+                  folderMap.get(folder)!.push(file);
+                }
+
+                // Artifact folders first, then other folders
+                const sortedFolders = Array.from(folderMap.keys()).sort((a, b) => {
+                  const aIdx = ARTIFACT_DIRS.indexOf(a);
+                  const bIdx = ARTIFACT_DIRS.indexOf(b);
+                  if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+                  if (aIdx !== -1) return -1;
+                  if (bIdx !== -1) return 1;
+                  if (a === "phases") return 1;
+                  return a.localeCompare(b);
+                });
+
+                for (const folder of sortedFolders) {
+                  const files = folderMap.get(folder)!;
+                  const isArtifact = ARTIFACT_DIRS.includes(folder);
+                  groups.push({
+                    folder,
+                    label: isArtifact ? `${folder}_agent` : folder || "root",
+                    color: DIR_COLORS[folder] ?? "#8b97b2",
+                    files,
+                  });
+                }
+
+                return groups.map((group) => (
+                  <div key={group.folder} style={{ marginBottom: 8 }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 700, color: group.color,
+                      textTransform: "uppercase", letterSpacing: "0.5px",
+                      padding: "4px 8px 2px",
+                      display: "flex", alignItems: "center", gap: 4,
+                    }}>
+                      {group.folder ? <FolderOpen size={10} /> : <FileText size={10} />}
+                      {group.label}
+                      {ARTIFACT_DIRS.includes(group.folder) && (
+                        <span style={{
+                          fontSize: 8, fontWeight: 700,
+                          padding: "0px 4px", borderRadius: 3,
+                          background: `${group.color}20`, color: group.color,
+                        }}>
+                          ARTIFACT
+                        </span>
+                      )}
+                    </div>
+                    {group.files.map((file) => (
+                      <button
+                        key={file.path}
+                        onClick={() => loadFileContent(file.path)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 8,
+                          padding: "4px 10px", borderRadius: 4,
+                          background: selectedFile === file.path ? "var(--accent-dim)" : "transparent",
+                          border: `1px solid ${selectedFile === file.path ? "var(--accent)" : "transparent"}`,
+                          cursor: "pointer", textAlign: "left",
+                          fontFamily: "ui-monospace, monospace", fontSize: 11,
+                          color: selectedFile === file.path ? "var(--accent-light)" : "var(--text-2)",
+                          transition: "all 120ms ease",
+                          width: "100%",
+                        }}
+                      >
+                        <FileText size={11} style={{ flexShrink: 0, color: group.color }} />
+                        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {file.path.includes("/") ? file.path.slice(file.path.indexOf("/") + 1) : file.path}
+                        </span>
+                        <span style={{ fontSize: 9, color: "var(--text-3)", flexShrink: 0 }}>
+                          {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ));
+              })()}
             </div>
 
             {/* File preview */}

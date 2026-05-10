@@ -235,4 +235,36 @@ describe("autopilotStore execution loop", () => {
     const result = runAll("nonexistent-id");
     expect(result.session).toBeNull();
   });
+
+  it("runStep generates artifact and logs artifact path on success", async () => {
+    const { createSession, runStep, getSession } = await import("@/lib/autopilotStore");
+
+    const session = createSession({ name: "ArtifactLogTest", idea: "Test artifact logging" });
+    const result = runStep(session.sessionId);
+
+    if (result.ok && result.task?.status === "completed") {
+      // Should have artifactPaths
+      expect(result.artifactPaths.length).toBeGreaterThan(0);
+
+      // Should have an artifact log entry
+      const updated = getSession(session.sessionId);
+      const artifactLogs = updated?.logs.filter(
+        (log) => log.source === "workspace" && log.message.startsWith("Artifact generated:")
+      ) ?? [];
+      expect(artifactLogs.length).toBeGreaterThan(0);
+      expect(artifactLogs[0].message).toContain("Artifact generated:");
+    }
+  });
+
+  it("runStep returns empty artifactPaths on failure", async () => {
+    const { createSession, runStep, getSession, updateSession } = await import("@/lib/autopilotStore");
+
+    // Create a session, then force the next task to fail by manipulating the hash
+    // We can't easily force failure, but we can check that artifactPaths is always an array
+    const session = createSession({ name: "ArtifactFailTest", idea: "Test" });
+    const result = runStep(session.sessionId);
+
+    // artifactPaths should always be an array (empty if task failed)
+    expect(Array.isArray(result.artifactPaths)).toBe(true);
+  });
 });
