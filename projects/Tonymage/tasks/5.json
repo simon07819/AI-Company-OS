@@ -6,6 +6,10 @@
   "acceptance_criteria": "User authentication is implemented with required functionality",
   "estimated_cost_usd": 125,
   "branch_name": "feature/user-auth",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T01:22:19.125184",
+  "completed_at": "2026-05-10T01:22:26.433972",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/124"
 }

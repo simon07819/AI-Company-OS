@@ -6,6 +6,10 @@
   "acceptance_criteria": "API endpoints are created with required functionality",
   "estimated_cost_usd": 100,
   "branch_name": "feature/task-api",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T01:22:18.948412",
+  "completed_at": "2026-05-10T01:22:25.904785",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/122"
 }

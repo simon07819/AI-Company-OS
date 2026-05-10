@@ -6,6 +6,10 @@
   "acceptance_criteria": "Authorization and permissions are implemented with required functionality",
   "estimated_cost_usd": 150,
   "branch_name": "feature/authorization",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T01:22:19.297727",
+  "completed_at": "2026-05-10T01:22:26.554554",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/123"
 }
