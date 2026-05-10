@@ -6,6 +6,10 @@
   "acceptance_criteria": "The project structure is created and the necessary files are in place",
   "estimated_cost_usd": 100,
   "branch_name": "feature/project-structure",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "failed",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T01:49:09.348273",
+  "failed_at": "2026-05-10T01:49:09.605850",
+  "error": "Task 1 is not queued or locked for this worker (status: failed)."
 }
