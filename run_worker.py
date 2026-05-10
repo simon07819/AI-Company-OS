@@ -105,7 +105,141 @@ def commit_all(repo_path, message):
     run_cmd(["git", "commit", "-m", message], repo_path)
 
 
-def write_task_code(repo_path, task):
+SAAS_TASK_MAPPING = {
+    "landing page": ["app/page.tsx"],
+    "dashboard": ["app/dashboard/page.tsx"],
+    "authentication": ["app/api/auth/route.ts", "lib/auth.ts"],
+    "billing": ["app/api/billing/route.ts", "lib/billing.ts"],
+}
+
+
+def resolve_saas_targets(title):
+    lowered = title.lower()
+    for keyword, targets in SAAS_TASK_MAPPING.items():
+        if keyword in lowered:
+            return targets
+    return []
+
+
+def saas_file_content(rel_path, task):
+    title = task.get("title", "")
+    description = task.get("description") or title
+    if rel_path == "app/page.tsx":
+        return (
+            "export default function LandingPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen flex flex-col items-center justify-center p-8">\n'
+            f'      <h1 className="text-4xl font-bold mb-4">{title}</h1>\n'
+            f'      <p className="text-lg text-gray-600 mb-8">{description}</p>\n'
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "app/dashboard/page.tsx":
+        return (
+            "export default function DashboardPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen p-8">\n'
+            '      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>\n'
+            f'      <p className="text-gray-500">{description}</p>\n'
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "app/api/auth/route.ts":
+        return (
+            'import { NextResponse } from "next/server";\n\n'
+            "export async function POST(request: Request) {\n"
+            "  const body = await request.json();\n"
+            "  const { email, password } = body;\n"
+            "  if (!email || !password) {\n"
+            '    return NextResponse.json({ error: "Missing credentials" }, { status: 400 });\n'
+            "  }\n"
+            '  return NextResponse.json({ token: "stub-token", email });\n'
+            "}\n"
+        )
+    if rel_path == "lib/auth.ts":
+        return (
+            "export function verifyToken(token: string): boolean {\n"
+            "  return typeof token === \"string\" && token.length > 0;\n"
+            "}\n\n"
+            "export function getUserFromToken(token: string): { email: string } | null {\n"
+            "  if (!verifyToken(token)) return null;\n"
+            '  return { email: "user@example.com" };\n'
+            "}\n"
+        )
+    if rel_path == "app/api/billing/route.ts":
+        return (
+            'import { NextResponse } from "next/server";\n\n'
+            "export async function GET() {\n"
+            '  return NextResponse.json({ plan: "free", status: "active" });\n'
+            "}\n\n"
+            "export async function POST(request: Request) {\n"
+            "  const body = await request.json();\n"
+            '  return NextResponse.json({ subscribed: true, plan: body.plan ?? "pro" });\n'
+            "}\n"
+        )
+    if rel_path == "lib/billing.ts":
+        return (
+            'export type Plan = "free" | "pro" | "enterprise";\n\n'
+            "export function getPlanLimits(plan: Plan): { requests: number } {\n"
+            "  const limits: Record<Plan, { requests: number }> = {\n"
+            "    free: { requests: 100 },\n"
+            "    pro: { requests: 10000 },\n"
+            "    enterprise: { requests: -1 },\n"
+            "  };\n"
+            "  return limits[plan];\n"
+            "}\n"
+        )
+    return f"// {title}: {description}\n"
+
+
+def write_saas_app_files(app_dir, repo_path, targets, task):
+    written = []
+    for rel_path in targets:
+        full_path = os.path.join(app_dir, rel_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        content = saas_file_content(rel_path, task)
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        repo_rel = os.path.relpath(full_path, repo_path)
+        print(f"Modifying app file: {repo_rel}")
+        written.append(repo_rel)
+    return written
+
+
+def run_npm_steps(app_dir):
+    pkg_path = os.path.join(app_dir, "package.json")
+    if not os.path.isfile(pkg_path):
+        return
+    print("Running npm install...")
+    result = subprocess.run(["npm", "install"], cwd=app_dir, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"npm install warning: {(result.stderr or '').strip()[:300]}")
+    try:
+        with open(pkg_path, "r", encoding="utf-8") as f:
+            pkg = json.load(f)
+        if "lint" in pkg.get("scripts", {}):
+            print("Running npm run lint...")
+            lint = subprocess.run(["npm", "run", "lint"], cwd=app_dir, capture_output=True, text=True)
+            if lint.returncode != 0:
+                print(f"npm run lint warning: {(lint.stdout or '').strip()[:300]}")
+    except Exception:
+        pass
+
+
+def write_task_code(repo_path, task, project_path=None):
+    if project_path:
+        project_name = os.path.basename(project_path)
+        app_dir = os.path.join(repo_path, "projects", project_name, "app")
+        if os.path.isdir(app_dir):
+            print(f"Using SaaS template context for project: {project_name}")
+            targets = resolve_saas_targets(task.get("title", ""))
+            if targets:
+                files = write_saas_app_files(app_dir, repo_path, targets, task)
+                run_npm_steps(app_dir)
+                return files
+
     slug = safe_branch_name(task).split("/")[-1]
     path = os.path.join("backend", f"{slug}.py")
     full_path = os.path.join(repo_path, path)
@@ -236,7 +370,7 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
         running = True
         print(f"Task {task['id']} marked running.")
 
-        files_changed = write_task_code(repo_path, task)
+        files_changed = write_task_code(repo_path, task, project_path)
         print(f"Files changed: {', '.join(files_changed)}")
         if remote_branch_exists(repo_path, branch):
             branch = unique_branch(repo_path, safe_branch_name(task))
