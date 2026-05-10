@@ -6,6 +6,10 @@
   "acceptance_criteria": "Views are created with required functionality",
   "estimated_cost_usd": 100,
   "branch_name": "feature/task-views",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T01:23:59.350750",
+  "completed_at": "2026-05-10T01:24:05.538641",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/126"
 }

@@ -6,6 +6,10 @@
   "acceptance_criteria": "CSS styles are created with required functionality",
   "estimated_cost_usd": 50,
   "branch_name": "feature/user-css",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T01:28:19.239751",
+  "completed_at": "2026-05-10T01:28:25.199531",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/133"
 }

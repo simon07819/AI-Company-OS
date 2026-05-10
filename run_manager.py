@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from datetime import datetime
 
 from task_queue import (
@@ -213,7 +214,95 @@ def pr_ready_to_merge(repo_path, pr_url):
     return True, checks_reason
 
 
-def auto_merge_prs(repo_path, pr_urls):
+def pr_merge_details(repo_path, pr_url):
+    result = run_cmd([
+        "gh",
+        "pr",
+        "view",
+        pr_url,
+        "--json",
+        "url,number,headRefName,isDraft",
+    ], repo_path)
+    if result.returncode != 0:
+        return None, f"gh pr view failed: {short_error(result.stderr)}"
+
+    try:
+        return json.loads(result.stdout), None
+    except json.JSONDecodeError as exc:
+        return None, f"could not parse gh pr view output: {exc}"
+
+
+def mark_pr_ready_if_draft(repo_path, pr_url):
+    pr, error = pr_merge_details(repo_path, pr_url)
+    if error:
+        return False, error
+    if not pr.get("isDraft"):
+        return True, "PR is already ready"
+
+    result = run_cmd(["gh", "pr", "ready", pr_url], repo_path)
+    if result.returncode != 0:
+        return False, f"gh pr ready failed: {short_error(result.stderr)}"
+    return True, "PR marked ready"
+
+
+def rebase_pr_before_merge(repo_path, pr_url):
+    pr, error = pr_merge_details(repo_path, pr_url)
+    if error:
+        return False, error
+
+    branch = pr.get("headRefName")
+    if not branch:
+        return False, "PR head branch is unknown"
+
+    fetch_main = run_cmd(["git", "fetch", "origin", "main"], repo_path)
+    if fetch_main.returncode != 0:
+        return False, f"git fetch origin main failed: {short_error(fetch_main.stderr)}"
+
+    fetch_branch = run_cmd([
+        "git",
+        "fetch",
+        "origin",
+        f"+refs/heads/{branch}:refs/remotes/origin/{branch}",
+    ], repo_path)
+    if fetch_branch.returncode != 0:
+        return False, f"git fetch PR branch failed: {short_error(fetch_branch.stderr)}"
+
+    worktree_root = os.path.join(repo_path, ".worktrees")
+    os.makedirs(worktree_root, exist_ok=True)
+    worktree_path = tempfile.mkdtemp(prefix="auto-merge-", dir=worktree_root)
+    worktree_added = False
+
+    try:
+        add = run_cmd(["git", "worktree", "add", "--detach", worktree_path, f"origin/{branch}"], repo_path)
+        if add.returncode != 0:
+            return False, f"git worktree add failed: {short_error(add.stderr)}"
+        worktree_added = True
+
+        checkout = run_cmd(["git", "checkout", "--detach", f"origin/{branch}"], worktree_path)
+        if checkout.returncode != 0:
+            return False, f"git checkout PR branch failed: {short_error(checkout.stderr)}"
+
+        rebase = run_cmd(["git", "rebase", "origin/main"], worktree_path)
+        if rebase.returncode != 0:
+            run_cmd(["git", "rebase", "--abort"], worktree_path)
+            return False, f"git rebase origin/main failed: {short_error(rebase.stderr)}"
+
+        push = run_cmd(["git", "push", "--force-with-lease", "origin", f"HEAD:refs/heads/{branch}"], worktree_path)
+        if push.returncode != 0:
+            return False, f"git push --force-with-lease failed: {short_error(push.stderr)}"
+
+        return True, f"rebased {branch} onto origin/main"
+    finally:
+        if worktree_added:
+            run_cmd(["git", "worktree", "remove", "--force", worktree_path], repo_path)
+        try:
+            os.rmdir(worktree_path)
+        except OSError:
+            pass
+        checkout_main(repo_path)
+
+
+def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False):
     pr_urls = unique_items(pr_urls)
     if not pr_urls:
         print("auto-merge: no PRs created in this run")
@@ -222,15 +311,23 @@ def auto_merge_prs(repo_path, pr_urls):
     print("auto-merge:")
     ok = True
     for pr_url in pr_urls:
+        rebase_reason = None
+        if rebase_before_merge:
+            rebased, rebase_reason = rebase_pr_before_merge(repo_path, pr_url)
+            if not rebased:
+                print(f"{pr_url} failed: {rebase_reason}")
+                ok = False
+                continue
+
         ready, reason = pr_ready_to_merge(repo_path, pr_url)
         if not ready:
             print(f"{pr_url} failed: {reason}")
             ok = False
             continue
 
-        ready_result = run_cmd(["gh", "pr", "ready", pr_url], repo_path)
-        if ready_result.returncode != 0:
-            print(f"{pr_url} failed: gh pr ready failed: {short_error(ready_result.stderr)}")
+        ready_done, ready_reason = mark_pr_ready_if_draft(repo_path, pr_url)
+        if not ready_done:
+            print(f"{pr_url} failed: {ready_reason}")
             ok = False
             continue
 
@@ -240,7 +337,8 @@ def auto_merge_prs(repo_path, pr_urls):
             ok = False
             continue
 
-        print(f"{pr_url} queued for squash auto-merge ({reason})")
+        details = rebase_reason or reason
+        print(f"{pr_url} queued for squash auto-merge ({details}; {ready_reason})")
 
     return ok
 
@@ -516,6 +614,7 @@ def main():
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--parallel", action="store_true")
     parser.add_argument("--auto-merge", action="store_true")
+    parser.add_argument("--rebase-before-merge", action="store_true")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT)
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
@@ -543,7 +642,7 @@ def main():
         exit_code, pr_urls = execute_workers(repo_path, project_path, args.workers, args.parallel)
         if exit_code != 0:
             return exit_code
-        if args.auto_merge and not auto_merge_prs(repo_path, pr_urls):
+        if args.auto_merge and not auto_merge_prs(repo_path, pr_urls, args.rebase_before_merge):
             return 1
         return 0
 

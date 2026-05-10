@@ -6,6 +6,10 @@
   "acceptance_criteria": "Templates are created with required functionality",
   "estimated_cost_usd": 75,
   "branch_name": "feature/user-templates",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T01:27:06.923393",
+  "completed_at": "2026-05-10T01:27:13.919841",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/129"
 }
