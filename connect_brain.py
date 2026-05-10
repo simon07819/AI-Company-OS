@@ -25,6 +25,84 @@ def write(path, content):
     with open(path, "w") as f:
         f.write(content)
 
+def normalize_title(title):
+    return "".join(str(title).lower().split())
+
+def titles_are_similar(left, right):
+    normalized_left = normalize_title(left)
+    normalized_right = normalize_title(right)
+    if not normalized_left or not normalized_right:
+        return False
+
+    return (
+        normalized_left == normalized_right
+        or normalized_left.startswith(normalized_right)
+        or normalized_right.startswith(normalized_left)
+    )
+
+def load_memory():
+    path = os.path.join(PROJECT, "memory.json")
+    default_memory = {
+        "created_task_titles": [],
+        "last_run_timestamp": "",
+        "runs_count": 0,
+    }
+
+    if not os.path.exists(path):
+        return default_memory
+
+    try:
+        with open(path) as f:
+            loaded = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return default_memory
+
+    memory = default_memory.copy()
+    if isinstance(loaded, dict):
+        if isinstance(loaded.get("created_task_titles"), list):
+            memory["created_task_titles"] = loaded["created_task_titles"]
+        if isinstance(loaded.get("last_run_timestamp"), str):
+            memory["last_run_timestamp"] = loaded["last_run_timestamp"]
+        if isinstance(loaded.get("runs_count"), int):
+            memory["runs_count"] = loaded["runs_count"]
+
+    return memory
+
+def save_memory(memory):
+    path = os.path.join(PROJECT, "memory.json")
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(memory, f, indent=2)
+        f.write("\n")
+
+def read_existing_tasks(tasks_dir):
+    task_files = []
+    titles = []
+    ids = set()
+
+    if not os.path.isdir(tasks_dir):
+        return task_files, titles, ids
+
+    for name in os.listdir(tasks_dir):
+        if not name.endswith(".json"):
+            continue
+
+        task_files.append(name)
+        ids.add(os.path.splitext(name)[0])
+        path = os.path.join(tasks_dir, name)
+
+        try:
+            with open(path) as f:
+                task = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        title = task.get("title") if isinstance(task, dict) else None
+        if isinstance(title, str) and title.strip():
+            titles.append(title)
+
+    return task_files, titles, ids
+
 def clean_trailing_commas(text):
     cleaned = []
     in_string = False
@@ -157,6 +235,18 @@ def normalize_tasks(tasks):
     return valid_tasks
 
 def main():
+    memory = load_memory()
+    memory["runs_count"] += 1
+    memory["last_run_timestamp"] = datetime.utcnow().isoformat()
+    save_memory(memory)
+
+    tasks_dir = os.path.join(PROJECT, "tasks")
+    task_files, existing_titles, existing_ids = read_existing_tasks(tasks_dir)
+    if len(task_files) > 50:
+        save_memory(memory)
+        print("too many tasks, aborting brain generation")
+        return
+
     print("🧠 Génération du cahier des charges...")
     specs = generate_specs(PROJECT_NAME, IDEA)
     write(os.path.join(PROJECT, "docs", "specs_ai.md"), specs)
@@ -174,21 +264,42 @@ def main():
     try:
         tasks = normalize_tasks(parse_tasks_json(tasks_raw))
     except Exception:
+        save_memory(memory)
         print("❌ L’IA n’a pas retourné du JSON parfait.")
         print("Regarde: ~/AI-Company/projects/Tonymage/docs/tasks_raw_ai.json")
         return
 
-    tasks_dir = os.path.join(PROJECT, "tasks")
     os.makedirs(tasks_dir, exist_ok=True)
+
+    known_titles = existing_titles + [
+        title for title in memory["created_task_titles"]
+        if isinstance(title, str)
+    ]
+    created_titles = []
 
     for task in tasks:
         task_id = task["id"]
+        title = task["title"]
+
+        if any(titles_are_similar(title, existing_title) for existing_title in known_titles):
+            print(f"⚠️ Tâche ignorée: titre similaire existant ({title}).")
+            continue
+        if task_id in existing_ids:
+            print(f"⚠️ Tâche ignorée: id existant ({task_id}).")
+            continue
+
         with open(os.path.join(tasks_dir, f"{task_id}.json"), "w") as f:
             json.dump(task, f, indent=2)
 
+        existing_ids.add(task_id)
+        known_titles.append(title)
+        created_titles.append(title)
         log("ai_task_created", task)
 
-    print(f"✅ Brain connecté. {len(tasks)} tâches IA créées.")
+    memory["created_task_titles"].extend(created_titles)
+    save_memory(memory)
+
+    print(f"✅ Brain connecté. {len(created_titles)} tâches IA créées.")
     print("📄 Specs: projects/Tonymage/docs/specs_ai.md")
     print("🏗️ Architecture: projects/Tonymage/docs/architecture_ai.md")
     print("📋 Tâches: projects/Tonymage/tasks/")
