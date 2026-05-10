@@ -6,6 +6,7 @@
   "acceptance_criteria": "Role-based access control is implemented and working as expected",
   "estimated_cost_usd": 620,
   "branch_name": "feature/role-based-access-control",
-  "status": "queued",
+  "status": "archived",
+  "archive_reason": "generic task generated before duplicate protection",
   "mode": "DRY_RUN"
 }

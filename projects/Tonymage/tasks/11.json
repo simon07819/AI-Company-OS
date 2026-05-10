@@ -6,6 +6,7 @@
   "acceptance_criteria": "AI model training is implemented and working as expected",
   "estimated_cost_usd": 380,
   "branch_name": "feature/ai-model-training",
-  "status": "queued",
+  "status": "archived",
+  "archive_reason": "generic task generated before duplicate protection",
   "mode": "DRY_RUN"
 }
