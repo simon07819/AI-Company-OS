@@ -78,6 +78,16 @@ interface AutopilotSessionSummary {
   status: string;
 }
 
+interface Proposal {
+  proposalId: string;
+  leadId: string | null;
+  clientId: string | null;
+  missionId: string | null;
+  missionType: string;
+  status: "draft" | "sent" | "viewed" | "accepted" | "rejected";
+  amount: number;
+}
+
 interface CrmOverview {
   totalLeads: number;
   activeLeads: number;
@@ -125,6 +135,7 @@ export default function CrmPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [sessions, setSessions] = useState<AutopilotSessionSummary[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
@@ -164,6 +175,13 @@ export default function CrmPage() {
           setSessions(d.sessions ?? []);
         }
       } catch { /* missions optional */ }
+      try {
+        const rRes = await fetch("/api/revenue/proposals");
+        if (rRes.ok) {
+          const d = await rRes.json();
+          setProposals(d.proposals ?? []);
+        }
+      } catch { /* revenue optional */ }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -206,6 +224,36 @@ export default function CrmPage() {
       body: JSON.stringify({ sessionId }),
     });
     setMissionSelections((current) => ({ ...current, [clientId]: "" }));
+    loadData();
+  };
+
+  const handleCreateLeadProposal = async (lead: Lead) => {
+    await fetch("/api/revenue/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `${lead.name} proposal`,
+        leadId: lead.leadId,
+        amount: lead.estimatedValue || undefined,
+        status: "sent",
+      }),
+    });
+    loadData();
+  };
+
+  const handleCreateClientProposal = async (client: Client) => {
+    const missionId = client.linkedMissionIds[0] ?? null;
+    await fetch("/api/revenue/proposals", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: `${client.name} proposal`,
+        clientId: client.clientId,
+        missionId,
+        amount: client.totalValue || undefined,
+        status: "sent",
+      }),
+    });
     loadData();
   };
 
@@ -285,6 +333,7 @@ export default function CrmPage() {
                 { label: "Open Opportunities", value: overview.openOpportunities, icon: <Briefcase size={15} />, color: "#fb923c" },
                 { label: "Pipeline Value", value: `$${overview.pipelineValue.toLocaleString()}`, icon: <DollarSign size={15} />, color: "#a78bfa" },
                 { label: "Won Value", value: `$${overview.wonValue.toLocaleString()}`, icon: <DollarSign size={15} />, color: "#22c55e" },
+                { label: "Proposal Value", value: `$${proposals.reduce((sum, proposal) => sum + proposal.amount, 0).toLocaleString()}`, icon: <FileText size={15} />, color: "#38bdf8" },
               ].map(({ label, value, icon, color }) => (
                 <div key={label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "14px 16px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -325,6 +374,9 @@ export default function CrmPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {leads.filter((l) => l.status !== "won" && l.status !== "lost").map((lead) => {
                   const cfg = LEAD_STATUS_CFG[lead.status];
+                  const leadProposalValue = proposals
+                    .filter((proposal) => proposal.leadId === lead.leadId)
+                    .reduce((sum, proposal) => sum + proposal.amount, 0);
                   return (
                     <div key={lead.leadId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <div style={{ flex: 1 }}>
@@ -332,9 +384,15 @@ export default function CrmPage() {
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>{lead.email} {lead.company ? `— ${lead.company}` : ""}</div>
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)" }}>${lead.estimatedValue.toLocaleString()}</span>
+                      {leadProposalValue > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#38bdf8" }}>${leadProposalValue.toLocaleString()} proposed</span>
+                      )}
                       <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
                         {cfg.label}
                       </span>
+                      <button onClick={() => handleCreateLeadProposal(lead)} style={{ fontSize: 10, background: "#6366f1", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                        <FileText size={10} /> Proposal
+                      </button>
                       <button onClick={() => handleConvertLead(lead.leadId)} style={{ fontSize: 10, background: "#22c55e", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
                         <CheckCircle2 size={10} /> Convert
                       </button>
@@ -356,6 +414,9 @@ export default function CrmPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {clients.map((client) => {
                   const cfg = CLIENT_STATUS_CFG[client.status];
+                  const clientProposalValue = proposals
+                    .filter((proposal) => proposal.clientId === client.clientId)
+                    .reduce((sum, proposal) => sum + proposal.amount, 0);
                   return (
                     <div key={client.clientId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
                       <div style={{ flex: 1 }}>
@@ -368,9 +429,15 @@ export default function CrmPage() {
                         </div>
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)" }}>${client.totalValue.toLocaleString()}</span>
+                      {clientProposalValue > 0 && (
+                        <span style={{ fontSize: 10, fontWeight: 600, color: "#38bdf8" }}>${clientProposalValue.toLocaleString()} proposed</span>
+                      )}
                       <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
                         {cfg.label}
                       </span>
+                      <button onClick={() => handleCreateClientProposal(client)} style={{ fontSize: 10, background: "#8b5cf6", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "5px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                        <FileText size={10} /> Proposal
+                      </button>
                       <select
                         value={missionSelections[client.clientId] ?? ""}
                         onChange={(e) => setMissionSelections((current) => ({ ...current, [client.clientId]: e.target.value }))}

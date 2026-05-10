@@ -105,6 +105,7 @@ export default function BusinessPage() {
   const [pipeline, setPipeline] = useState<PipelineEntry[]>([]);
   const [actions, setActions] = useState<RecommendedAction[]>([]);
   const [crmSnapshot, setCrmSnapshot] = useState<{ activeLeads: number; activeClients: number; openOpportunities: number; pipelineValue: number } | null>(null);
+  const [revenueSnapshot, setRevenueSnapshot] = useState<{ monthlyRevenue: number; proposalConversionRate: number; outstandingInvoices: number; outstandingInvoiceValue: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -122,6 +123,10 @@ export default function BusinessPage() {
         const crmRes = await fetch("/api/crm/overview");
         if (crmRes.ok) { const d = await crmRes.json(); setCrmSnapshot(d.overview); }
       } catch { /* CRM optional */ }
+      try {
+        const revenueRes = await fetch("/api/revenue/overview");
+        if (revenueRes.ok) { const d = await revenueRes.json(); setRevenueSnapshot(d.overview); }
+      } catch { /* Revenue optional */ }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -279,6 +284,33 @@ export default function BusinessPage() {
                   { label: "Active Clients", value: crmSnapshot.activeClients, color: "#22c55e" },
                   { label: "Open Opportunities", value: crmSnapshot.openOpportunities, color: "#fb923c" },
                   { label: "Pipeline Value", value: `$${crmSnapshot.pipelineValue.toLocaleString()}`, color: "#a78bfa" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── REVENUE SNAPSHOT ── */}
+          {revenueSnapshot && (
+            <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                  <DollarSign size={12} style={{ display: "inline", marginRight: 4 }} /> Revenue Snapshot
+                </div>
+                <Link href="/revenue" style={{ fontSize: 11, color: "#6366f1", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
+                  Open Revenue <ArrowRight size={11} />
+                </Link>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+                {[
+                  { label: "Monthly Revenue", value: `$${revenueSnapshot.monthlyRevenue.toLocaleString()}`, color: "#22c55e" },
+                  { label: "Proposal Conversion", value: `${revenueSnapshot.proposalConversionRate}%`, color: "#f59e0b" },
+                  { label: "Outstanding Invoices", value: revenueSnapshot.outstandingInvoices, color: "#fb923c" },
+                  { label: "Outstanding Value", value: `$${revenueSnapshot.outstandingInvoiceValue.toLocaleString()}`, color: "#a78bfa" },
                 ].map(({ label, value, color }) => (
                   <div key={label} style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
                     <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
