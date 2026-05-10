@@ -6,6 +6,10 @@
   "acceptance_criteria": "JavaScript code is created with required functionality",
   "estimated_cost_usd": 100,
   "branch_name": "feature/task-js",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T01:31:00.620985",
+  "completed_at": "2026-05-10T01:31:07.271719",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/134"
 }
