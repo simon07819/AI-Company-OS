@@ -115,10 +115,37 @@ def write_task_code(repo_path, task):
     return [path]
 
 
-def run_one(project_path, repo_path):
-    task_file, task = next_queued_task(project_path)
+def task_by_id(project_path, task_id):
+    requested = str(task_id)
+    for task_file in list_task_files(project_path):
+        task = load_task_file(task_file)
+        if str(task.get("id")) == requested:
+            return task_file, task
+    return None, None
+
+
+def select_task(project_path, task_id=None):
+    if task_id is None:
+        return next_queued_task(project_path)
+
+    task_file, task = task_by_id(project_path, task_id)
     if not task:
-        print("No queued task found.")
+        print(f"Task {task_id} not found.", file=sys.stderr)
+        return None, None
+    if task.get("status") != "queued":
+        print(
+            f"Task {task_id} is not queued (status: {task.get('status', 'unknown')}).",
+            file=sys.stderr,
+        )
+        return None, None
+    return task_file, task
+
+
+def run_one(project_path, repo_path, task_id=None):
+    task_file, task = select_task(project_path, task_id)
+    if not task:
+        if task_id is None:
+            print("No queued task found.")
         return False
 
     print(f"Selected task {task['id']}: {task['title']}")
@@ -210,6 +237,7 @@ def main():
     parser.add_argument("--once", action="store_true", help="Run exactly one queued task.")
     parser.add_argument("--limit", type=int, help="Run up to this many queued tasks.")
     parser.add_argument("--doctor", action="store_true", help="Print worker diagnostics.")
+    parser.add_argument("--task-id", help="Run one specific queued task id.")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT, help="AI Company project path.")
     parser.add_argument("--repo-path", default=os.getcwd(), help="Git repo where the worker commits.")
     args = parser.parse_args()
@@ -222,6 +250,8 @@ def main():
         limit = args.limit
     if args.once:
         limit = 1
+    if args.task_id is not None:
+        limit = 1
 
     project_path = os.path.abspath(os.path.expanduser(args.project_path))
     repo_path = os.path.abspath(os.path.expanduser(args.repo_path))
@@ -231,12 +261,14 @@ def main():
 
     completed = 0
     for _ in range(limit):
-        if run_one(project_path, repo_path):
+        if run_one(project_path, repo_path, args.task_id):
             completed += 1
         else:
             break
 
     print(f"Worker stopped. Completed tasks this run: {completed}")
+    if args.task_id is not None and completed == 0:
+        return 1
     return 0 if completed or limit else 1
 
 

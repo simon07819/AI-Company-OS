@@ -93,19 +93,21 @@ def ensure_worker_worktree(repo_path, index, entries):
     return True
 
 
-def run_worker_once(repo_path, worker_repo_path):
+def run_worker_once(repo_path, worker_repo_path, task_id):
     project_path = os.path.join(worker_repo_path, "projects", "Tonymage")
     return subprocess.run(
         [
             sys.executable,
-            "run_worker.py",
+            os.path.join(repo_path, "run_worker.py"),
             "--once",
+            "--task-id",
+            str(task_id),
             "--repo-path",
             worker_repo_path,
             "--project-path",
             project_path,
         ],
-        cwd=worker_repo_path,
+        cwd=repo_path,
         check=False,
         capture_output=True,
         text=True,
@@ -138,7 +140,7 @@ def execute_workers(repo_path, project_path, workers):
                 print(checkout.stderr.strip())
             continue
 
-        result = run_worker_once(repo_path, worktree)
+        result = run_worker_once(repo_path, worktree, assigned.get("id"))
         if result.stdout.strip():
             print(result.stdout.strip())
         if result.stderr.strip():
