@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists } from "./workspaceStore";
+import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -62,6 +63,7 @@ export interface AutopilotSession {
   productType: string | null;
   template: string | null;
   stack: string | null;
+  missionType: string;
   status: SessionStatus;
   currentPhase: AutopilotPhase;
   progress: number;
@@ -80,6 +82,7 @@ export interface CreateSessionInput {
   market?: string;
   template?: string | null;
   stack?: string | null;
+  missionType?: string | null;
   agents?: string[];
   autonomy?: string | null;
   priorities?: string[];
@@ -149,32 +152,106 @@ function phaseForTaskOrder(index: number): AutopilotPhase {
   return AUTOPILOT_PHASES[Math.min(index, AUTOPILOT_PHASES.length - 1)].id;
 }
 
-function buildTasks(project: string, idea: string, agents: string[]): AutopilotTask[] {
+function buildTasks(project: string, idea: string, agents: string[], missionTypeId: string): AutopilotTask[] {
   const now = new Date().toISOString();
-  const selectedAgents = agents.length > 0 ? agents : AUTOPILOT_PHASES.map((p) => p.agent);
+  const missionType = getMissionType(missionTypeId);
+  const phases = missionType?.defaultPhases ?? AUTOPILOT_PHASES.map((p) => ({ id: p.id, label: p.label, agent: p.agent }));
+  const selectedAgents = agents.length > 0 ? agents : phases.map((p) => p.agent);
 
-  const taskDefs: { phase: AutopilotPhase; title: string; description: string; priority: number }[] = [
-    { phase: "idea",         title: `Analyze ICP and pain points for ${project}`,             description: `Identify target customers, core problems and value proposition for ${project}. Map jobs-to-be-done and user personas.`, priority: 1 },
-    { phase: "idea",         title: "Validate market opportunity and competitive landscape",  description: "Research market size, existing solutions, differentiation opportunities. Score viability.", priority: 2 },
-    { phase: "planning",     title: "Generate MVP roadmap and acceptance criteria",           description: "Define minimum viable product scope, key milestones, feature prioritization and success metrics.", priority: 1 },
-    { phase: "planning",     title: "Define user stories and feature specifications",         description: "Write detailed user stories for core flows. Define acceptance criteria and edge cases.", priority: 2 },
-    { phase: "architecture", title: "Define data model and API surface",                      description: "Design database schema, API endpoints, integration map. Document architecture decisions.", priority: 1 },
-    { phase: "architecture", title: "Design module boundaries and service contracts",         description: "Define service interfaces, module responsibilities, and integration patterns between components.", priority: 2 },
-    { phase: "frontend",     title: "Create dashboard and onboarding pages",                  description: "Build main dashboard view, user onboarding flow, and navigation structure with responsive design.", priority: 1 },
-    { phase: "frontend",     title: "Build workspace UI and design system components",        description: "Implement workspace views, reusable design system components, and page layouts.", priority: 2 },
-    { phase: "backend",      title: "Implement authentication and core API routes",            description: "Build auth module, core CRUD API endpoints, middleware and request validation.", priority: 1 },
-    { phase: "backend",      title: "Create business logic services and database layer",       description: "Implement business logic services, Prisma schema, migrations and data access layer.", priority: 2 },
-    { phase: "validation",   title: "Write unit and integration test suite",                   description: "Create comprehensive test suite covering API routes, services, and edge cases.", priority: 1 },
-    { phase: "validation",   title: "Run smoke tests and validate API contracts",             description: "Execute smoke tests, validate API contracts, check error handling and security.", priority: 2 },
-    { phase: "build",        title: "Prepare production build and env configuration",          description: "Configure production build, environment variables, and deployment manifest.", priority: 1 },
-    { phase: "build",        title: "Create deployment plan and CI/CD pipeline",               description: "Set up CI/CD pipeline, Docker configuration, and staging/production deployment workflow.", priority: 2 },
-    { phase: "runtime",      title: "Monitor NVIDIA inference and orchestration health",       description: "Set up runtime monitoring, health checks, and alerting for NVIDIA API integration.", priority: 1 },
-    { phase: "runtime",      title: "Verify worker health and task queue throughput",         description: "Check worker pool status, task queue metrics, and overall system performance.", priority: 2 },
-  ];
+  // Mission-specific task definitions
+  const MISSION_TASKS: Record<string, { phase: AutopilotPhase; title: string; description: string; priority: number }[]> = {
+    saas_project: [
+      { phase: "idea", title: `Analyze ICP and pain points for ${project}`, description: `Identify target customers, core problems and value proposition for ${project}. Map jobs-to-be-done and user personas.`, priority: 1 },
+      { phase: "idea", title: "Validate market opportunity and competitive landscape", description: "Research market size, existing solutions, differentiation opportunities. Score viability.", priority: 2 },
+      { phase: "planning", title: "Generate MVP roadmap and acceptance criteria", description: "Define minimum viable product scope, key milestones, feature prioritization and success metrics.", priority: 1 },
+      { phase: "planning", title: "Define user stories and feature specifications", description: "Write detailed user stories for core flows. Define acceptance criteria and edge cases.", priority: 2 },
+      { phase: "architecture", title: "Define data model and API surface", description: "Design database schema, API endpoints, integration map. Document architecture decisions.", priority: 1 },
+      { phase: "architecture", title: "Design module boundaries and service contracts", description: "Define service interfaces, module responsibilities, and integration patterns between components.", priority: 2 },
+      { phase: "frontend", title: "Create dashboard and onboarding pages", description: "Build main dashboard view, user onboarding flow, and navigation structure with responsive design.", priority: 1 },
+      { phase: "frontend", title: "Build workspace UI and design system components", description: "Implement workspace views, reusable design system components, and page layouts.", priority: 2 },
+      { phase: "backend", title: "Implement authentication and core API routes", description: "Build auth module, core CRUD API endpoints, middleware and request validation.", priority: 1 },
+      { phase: "backend", title: "Create business logic services and database layer", description: "Implement business logic services, Prisma schema, migrations and data access layer.", priority: 2 },
+      { phase: "validation", title: "Write unit and integration test suite", description: "Create comprehensive test suite covering API routes, services, and edge cases.", priority: 1 },
+      { phase: "validation", title: "Run smoke tests and validate API contracts", description: "Execute smoke tests, validate API contracts, check error handling and security.", priority: 2 },
+      { phase: "build", title: "Prepare production build and env configuration", description: "Configure production build, environment variables, and deployment manifest.", priority: 1 },
+      { phase: "build", title: "Create deployment plan and CI/CD pipeline", description: "Set up CI/CD pipeline, Docker configuration, and staging/production deployment workflow.", priority: 2 },
+      { phase: "runtime", title: "Monitor NVIDIA inference and orchestration health", description: "Set up runtime monitoring, health checks, and alerting for NVIDIA API integration.", priority: 1 },
+      { phase: "runtime", title: "Verify worker health and task queue throughput", description: "Check worker pool status, task queue metrics, and overall system performance.", priority: 2 },
+    ],
+    website: [
+      { phase: "idea", title: `Gather client brief for ${project}`, description: "Understand target audience, goals, key messages and brand requirements for the website.", priority: 1 },
+      { phase: "idea", title: "Define site structure and sitemap", description: "Map pages, navigation flow and content hierarchy.", priority: 2 },
+      { phase: "planning", title: "Plan page content and SEO strategy", description: "Define copy, keywords, meta tags and content for each page.", priority: 1 },
+      { phase: "planning", title: "Choose design direction and responsive approach", description: "Select visual style, breakpoints and component patterns.", priority: 2 },
+      { phase: "frontend", title: "Build landing page and hero section", description: "Create hero, features section, testimonials and CTA with responsive design.", priority: 1 },
+      { phase: "frontend", title: "Build about, contact and blog pages", description: "Implement secondary pages with consistent design system.", priority: 2 },
+      { phase: "validation", title: "Cross-browser and responsive testing", description: "Test on mobile, tablet and desktop across major browsers.", priority: 1 },
+      { phase: "validation", title: "Accessibility and performance audit", description: "Run Lighthouse, check WCAG compliance and optimize Core Web Vitals.", priority: 2 },
+      { phase: "build", title: "Deploy to hosting and configure domain", description: "Set up Vercel/Netlify deployment, DNS and SSL.", priority: 1 },
+    ],
+    branding_pack: [
+      { phase: "idea", title: `Brand discovery for ${project}`, description: "Research brand values, personality, target audience and competitive positioning.", priority: 1 },
+      { phase: "idea", title: "Define brand voice and messaging", description: "Articulate tone, key messages and value proposition.", priority: 2 },
+      { phase: "planning", title: "Plan brand identity components", description: "Define logo variants, color palette, typography and iconography scope.", priority: 1 },
+      { phase: "planning", title: "Create mood board and style direction", description: "Collect visual references and define aesthetic direction.", priority: 2 },
+      { phase: "frontend", title: "Design logo and visual identity", description: "Create primary and secondary logos, favicon and app icons.", priority: 1 },
+      { phase: "frontend", title: "Define color palette and typography system", description: "Select primary/secondary colors, heading and body fonts, spacing system.", priority: 2 },
+      { phase: "validation", title: "Brand consistency review", description: "Check all elements align with brand strategy and visual coherence.", priority: 1 },
+    ],
+    flyer: [
+      { phase: "idea", title: `Flyer brief for ${project}`, description: "Define purpose, audience, key message and call-to-action for the flyer.", priority: 1 },
+      { phase: "planning", title: "Draft headline and body copy", description: "Write attention-grabbing headline, supporting text and CTA.", priority: 1 },
+      { phase: "frontend", title: "Design flyer layout", description: "Create print-ready layout with visual hierarchy, imagery and typography.", priority: 1 },
+      { phase: "validation", title: "Proof review and print check", description: "Verify copy accuracy, bleed, resolution and color mode.", priority: 1 },
+    ],
+    business_card: [
+      { phase: "idea", title: `Card brief for ${project}`, description: "Define contact info, title, brand elements and card orientation.", priority: 1 },
+      { phase: "planning", title: "Plan information hierarchy", description: "Prioritize name, title, phone, email, website and social handles.", priority: 1 },
+      { phase: "frontend", title: "Design card layout", description: "Create front and back layout with brand-consistent styling.", priority: 1 },
+      { phase: "validation", title: "Proof review", description: "Check spelling, alignment, print specs and brand compliance.", priority: 1 },
+    ],
+    ecommerce_store: [
+      { phase: "idea", title: `Store concept for ${project}`, description: "Define product categories, target buyers, pricing strategy and brand positioning.", priority: 1 },
+      { phase: "idea", title: "Research competitors and shipping logistics", description: "Analyze competing stores, shipping options and fulfillment strategy.", priority: 2 },
+      { phase: "planning", title: "Plan product catalog and checkout flow", description: "Define product schema, cart UX and checkout steps.", priority: 1 },
+      { phase: "planning", title: "Define payment and shipping integration", description: "Select payment provider, shipping API and tax handling approach.", priority: 2 },
+      { phase: "architecture", title: "Design store data model and API", description: "Schema for products, orders, customers. REST API for cart and checkout.", priority: 1 },
+      { phase: "frontend", title: "Build storefront and product pages", description: "Create product grid, detail page, cart drawer and checkout flow.", priority: 1 },
+      { phase: "frontend", title: "Build account and order tracking pages", description: "Customer dashboard with order history, tracking and returns.", priority: 2 },
+      { phase: "backend", title: "Implement cart, checkout and payment API", description: "Cart management, Stripe integration, order processing and webhook handling.", priority: 1 },
+      { phase: "validation", title: "End-to-end checkout testing", description: "Test full purchase flow, payment processing and order confirmation.", priority: 1 },
+      { phase: "build", title: "Deploy store and configure payment", description: "Production deployment, Stripe live mode and shipping integration.", priority: 1 },
+    ],
+    social_campaign: [
+      { phase: "idea", title: `Campaign brief for ${project}`, description: "Define campaign goals, target audience, platforms and KPIs.", priority: 1 },
+      { phase: "idea", title: "Research platform best practices", description: "Study format specs, posting times and engagement patterns per platform.", priority: 2 },
+      { phase: "planning", title: "Create content calendar", description: "Plan post schedule, themes and content types across platforms.", priority: 1 },
+      { phase: "planning", title: "Define creative formats and templates", description: "Specify post sizes, video lengths and caption styles per platform.", priority: 2 },
+      { phase: "frontend", title: "Design post templates and creatives", description: "Create reusable templates for Instagram, LinkedIn, X and TikTok.", priority: 1 },
+      { phase: "frontend", title: "Write captions and hashtag strategy", description: "Draft copy for each post, define hashtag sets and CTAs.", priority: 2 },
+      { phase: "validation", title: "Brand and legal review", description: "Verify brand compliance, disclosures and legal requirements.", priority: 1 },
+    ],
+    automation_workflow: [
+      { phase: "idea", title: `Workflow discovery for ${project}`, description: "Identify manual processes to automate, pain points and efficiency goals.", priority: 1 },
+      { phase: "idea", title: "Map current process steps", description: "Document existing workflow, inputs, outputs and bottlenecks.", priority: 2 },
+      { phase: "planning", title: "Define automation steps and triggers", description: "Specify trigger events, conditional logic and action sequence.", priority: 1 },
+      { phase: "planning", title: "Select integration tools and APIs", description: "Choose webhooks, APIs and connectors for each step.", priority: 2 },
+      { phase: "architecture", title: "Design integration architecture", description: "Map data flows, error handling, retry logic and monitoring.", priority: 1 },
+      { phase: "backend", title: "Implement pipeline code", description: "Build automation steps, API connectors and data transformations.", priority: 1 },
+      { phase: "backend", title: "Add error handling and logging", description: "Implement retry logic, dead letter queues and execution logs.", priority: 2 },
+      { phase: "validation", title: "Test end-to-end flow", description: "Run test events through full pipeline, verify outputs and timing.", priority: 1 },
+      { phase: "build", title: "Deploy and schedule automation", description: "Set up cron/trigger scheduling, monitoring and alerting.", priority: 1 },
+    ],
+  };
 
-  return taskDefs.map((def, index) => {
-    const phaseAgent = AUTOPILOT_PHASES.find((p) => p.id === def.phase)!.agent;
-    const agent = selectedAgents.includes(phaseAgent) ? phaseAgent : selectedAgents[index % selectedAgents.length]!;
+  // Filter tasks to only those whose phase exists in the mission's phases
+  const taskDefs = MISSION_TASKS[missionTypeId] ?? MISSION_TASKS.saas_project;
+  const missionPhaseIds = new Set(phases.map((p) => p.id));
+  const filteredTasks = taskDefs.filter((t) => missionPhaseIds.has(t.phase));
+
+  return filteredTasks.map((def, index) => {
+    const phaseAgent = phases.find((p) => p.id === def.phase)?.agent ?? "product_agent";
+    const agent = selectedAgents.includes(phaseAgent) ? phaseAgent : selectedAgents[index % selectedAgents.length] ?? "product_agent";
     return {
       id: taskId(),
       title: def.title,
@@ -191,18 +268,61 @@ function buildTasks(project: string, idea: string, agents: string[]): AutopilotT
   });
 }
 
-function buildRoadmap(project: string, idea: string): string[] {
-  return [
-    `${project}: validate target market and core value proposition`,
-    "Design data model, API surface and integration architecture",
-    "Build dashboard, onboarding and workspace UI",
-    "Implement auth, core APIs and business logic services",
-    "Run validation suite, prepare production build",
-    `Autopilot brief: ${idea || "AI-generated SaaS product"}`,
-  ];
+function buildRoadmap(project: string, idea: string, missionTypeId: string): string[] {
+  const ROADMAPS: Record<string, string[]> = {
+    saas_project: [
+      `${project}: validate target market and core value proposition`,
+      "Design data model, API surface and integration architecture",
+      "Build dashboard, onboarding and workspace UI",
+      "Implement auth, core APIs and business logic services",
+      "Run validation suite, prepare production build",
+      `Autopilot brief: ${idea || "AI-generated SaaS product"}`,
+    ],
+    website: [
+      `${project}: gather client brief and define site structure`,
+      "Plan page content, SEO and responsive design",
+      "Build landing page, about and contact pages",
+      "Test cross-browser, deploy to hosting",
+    ],
+    branding_pack: [
+      `${project}: brand discovery and personality definition`,
+      "Plan brand identity: logo, colors, typography",
+      "Design visual identity elements",
+      "Review brand consistency",
+    ],
+    flyer: [
+      `${project}: flyer brief and copy draft`,
+      "Design print-ready flyer layout",
+      "Proof review and print check",
+    ],
+    business_card: [
+      `${project}: card brief and info hierarchy`,
+      "Design front and back layout",
+      "Proof review",
+    ],
+    ecommerce_store: [
+      `${project}: store concept and catalog plan`,
+      "Design store data model and checkout architecture",
+      "Build storefront, cart and payment API",
+      "End-to-end checkout testing and deployment",
+    ],
+    social_campaign: [
+      `${project}: campaign brief and platform strategy`,
+      "Create content calendar and creative templates",
+      "Design post creatives and write captions",
+      "Brand and legal review",
+    ],
+    automation_workflow: [
+      `${project}: workflow discovery and process mapping`,
+      "Define automation steps, triggers and integrations",
+      "Implement pipeline and error handling",
+      "Test end-to-end and deploy scheduling",
+    ],
+  };
+  return ROADMAPS[missionTypeId] ?? ROADMAPS.saas_project;
 }
 
-function buildAgentAssignments(agents: string[]): AutopilotAgentAssignment[] {
+function buildAgentAssignments(agents: string[], missionTypeId?: string): AutopilotAgentAssignment[] {
   const ROLES: Record<string, string> = {
     product_agent:   "Product analysis, roadmap and user stories",
     architect_agent: "System architecture, API design and data model",
@@ -212,9 +332,10 @@ function buildAgentAssignments(agents: string[]): AutopilotAgentAssignment[] {
     devops_agent:    "Build, deployment and runtime monitoring",
   };
 
+  const missionAgents = missionTypeId ? (getMissionType(missionTypeId)?.recommendedAgents ?? Object.keys(ROLES)) : Object.keys(ROLES);
   const selected = agents.length > 0
     ? agents
-    : Object.keys(ROLES);
+    : missionAgents;
 
   return selected.map((id) => ({
     agentId: id,
@@ -238,12 +359,15 @@ export function getSession(sessionId: string): AutopilotSession | null {
 
 export function createSession(input: CreateSessionInput): AutopilotSession {
   const project = sanitizeName(input.name);
-  const idea = input.idea?.trim() || `Create a SaaS product for ${project}`;
+  const missionTypeId = input.missionType ?? "saas_project";
+  const missionType = getMissionType(missionTypeId);
+  const idea = input.idea?.trim() || `Create a ${missionType?.label ?? "SaaS project"} for ${project}`;
   const agents = input.agents ?? [];
   const now = new Date().toISOString();
-  const firstPhase = AUTOPILOT_PHASES[0];
+  const phases = missionType?.defaultPhases ?? AUTOPILOT_PHASES.map((p) => ({ id: p.id, label: p.label, agent: p.agent }));
+  const firstPhase = phases[0];
 
-  const tasks = buildTasks(project, idea, agents);
+  const tasks = buildTasks(project, idea, agents, missionTypeId);
   tasks[0].status = "running";
   tasks[0].progress = 10;
 
@@ -254,18 +378,19 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
     productType: input.template ?? null,
     template: input.template ?? null,
     stack: input.stack ?? null,
+    missionType: missionTypeId,
     status: "running",
     currentPhase: firstPhase.id,
     progress: 0,
-    assignedAgents: buildAgentAssignments(agents),
-    roadmap: buildRoadmap(project, idea),
+    assignedAgents: buildAgentAssignments(agents, missionTypeId),
+    roadmap: buildRoadmap(project, idea, missionTypeId),
     tasks,
     logs: [{
       id: logId(),
       timestamp: now,
       level: "info",
       agent: firstPhase.agent,
-      message: `Autopilot started for ${project}: ${idea}`,
+      message: `Autopilot started for ${project} [${missionType?.label ?? missionTypeId}]: ${idea}`,
       source: "autopilot",
     }],
     runtime: {

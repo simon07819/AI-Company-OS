@@ -80,6 +80,7 @@ interface AutopilotSession {
   productType: string | null;
   template: string | null;
   stack: string | null;
+  missionType: string;
   status: SessionStatus;
   currentPhase: string;
   progress: number;
@@ -135,6 +136,58 @@ const AGENT_COLORS: Record<string, string> = {
   backend_agent: "#22c55e",
   qa_agent: "#ef4444",
   devops_agent: "#6c63ff",
+};
+
+const MISSION_LABELS: Record<string, string> = {
+  saas_project: "SaaS Project",
+  website: "Website",
+  branding_pack: "Branding Pack",
+  flyer: "Flyer",
+  business_card: "Business Card",
+  ecommerce_store: "E-Commerce Store",
+  social_campaign: "Social Campaign",
+  automation_workflow: "Automation Workflow",
+};
+
+const MISSION_DELIVERABLES: Record<string, { name: string; path: string }[]> = {
+  saas_project: [
+    { name: "SaaS Application", path: "project/" },
+    { name: "Product Brief", path: "product/brief.md" },
+    { name: "System Design", path: "architecture/system-design.md" },
+  ],
+  website: [
+    { name: "Website", path: "project/" },
+    { name: "Site Brief", path: "product/brief.md" },
+    { name: "UI Plan", path: "frontend/ui-plan.md" },
+  ],
+  branding_pack: [
+    { name: "Brand Guidelines", path: "brand/guidelines.md" },
+    { name: "Color Palette", path: "brand/colors.md" },
+    { name: "Typography Guide", path: "brand/typography.md" },
+  ],
+  flyer: [
+    { name: "Flyer Layout", path: "deliverables/flyer.md" },
+    { name: "Copy Draft", path: "product/brief.md" },
+  ],
+  business_card: [
+    { name: "Business Card", path: "deliverables/business-card.md" },
+    { name: "Print Specs", path: "deliverables/print-specs.md" },
+  ],
+  ecommerce_store: [
+    { name: "E-Commerce App", path: "project/" },
+    { name: "Product Catalog", path: "product/brief.md" },
+    { name: "API Plan", path: "backend/api-plan.md" },
+  ],
+  social_campaign: [
+    { name: "Campaign Plan", path: "campaign/plan.md" },
+    { name: "Content Calendar", path: "campaign/calendar.md" },
+    { name: "Creative Templates", path: "deliverables/creatives.md" },
+  ],
+  automation_workflow: [
+    { name: "Workflow Definition", path: "workflow/definition.md" },
+    { name: "Integration Map", path: "architecture/system-design.md" },
+    { name: "Pipeline Code", path: "backend/services.md" },
+  ],
 };
 
 function formatTime(iso: string): string {
@@ -523,6 +576,7 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 14 }}>
           {[
             { label: "Idea", value: session.projectIdea },
+            { label: "Mission Type", value: session.missionType ? MISSION_LABELS[session.missionType] ?? session.missionType : "SaaS Project" },
             { label: "Product Type", value: session.productType ?? "—" },
             { label: "Template", value: session.template ?? "—" },
             { label: "Stack", value: session.stack ?? "—" },
@@ -938,7 +992,8 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
         )}
       </section>
 
-      {/* ── GENERATED SAAS PROJECT ── */}
+      {/* ── GENERATED SAAS PROJECT (only for saas_project mission) ── */}
+      {session.missionType === "saas_project" && (
       <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
@@ -1130,6 +1185,37 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
           </div>
         )}
       </section>
+      )}
+
+      {/* ── MISSION DELIVERABLES (non-SaaS missions) ── */}
+      {session.missionType !== "saas_project" && (
+        <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+              <Package size={12} style={{ display: "inline", marginRight: 4 }} /> Mission Deliverables
+            </div>
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
+              {MISSION_LABELS[session.missionType] ?? session.missionType}
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
+            {(MISSION_DELIVERABLES[session.missionType] ?? []).map((d) => (
+              <div key={d.name} style={{
+                padding: "10px 14px", borderRadius: "var(--radius-sm)",
+                background: "var(--bg-2)", border: "1px solid var(--border)",
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{d.name}</div>
+                <div style={{ fontSize: 10, color: "var(--text-3)", fontFamily: "ui-monospace, monospace" }}>{d.path}</div>
+              </div>
+            ))}
+          </div>
+          {workspaceExists && projectFiles.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>
+              {projectFiles.length} file{projectFiles.length !== 1 ? "s" : ""} in workspace
+            </div>
+          )}
+        </section>
+      )}
 
       {/* ── RUNTIME HEALTH ── */}
       <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 40 }}>

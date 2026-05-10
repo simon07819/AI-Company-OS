@@ -17,6 +17,7 @@ interface FormState {
   name:        string;
   idea:        string;
   market:      string;
+  missionType: MissionTypeId;
   template:    Template | null;
   agents:      AgentId[];
   stack:       StackId | null;
@@ -42,6 +43,19 @@ const TEMPLATES = [
   { id: "ai-product",  emoji: "🤖", label: "AI Product",      desc: "LLM-powered features, agents or copilots",            color: "#a78bfa" },
   { id: "marketplace", emoji: "🛒", label: "Marketplace",     desc: "Two-sided platform with listings & payments",         color: "#34d399" },
 ] as const;
+
+const MISSION_TYPES = [
+  { id: "saas_project",        emoji: "🏢", label: "SaaS Project",        desc: "Full-stack app with auth, billing and API",     color: "#6366f1" },
+  { id: "website",             emoji: "🌐", label: "Website",             desc: "Professional site with landing and blog",      color: "#38bdf8" },
+  { id: "branding_pack",       emoji: "🎨", label: "Branding Pack",      desc: "Logo, colors, typography, guidelines",         color: "#f472b6" },
+  { id: "flyer",              emoji: "📄", label: "Flyer",               desc: "Print-ready promotional flyer",                color: "#fb923c" },
+  { id: "business_card",      emoji: "💳", label: "Business Card",      desc: "Professional card with print specs",           color: "#a78bfa" },
+  { id: "ecommerce_store",    emoji: "🛒", label: "E-Commerce Store",   desc: "Online store with cart and payments",          color: "#34d399" },
+  { id: "social_campaign",    emoji: "📣", label: "Social Campaign",    desc: "Multi-platform content and creatives",         color: "#f59e0b" },
+  { id: "automation_workflow", emoji: "⚡", label: "Automation Workflow", desc: "Automated pipeline with integrations",       color: "#818cf8" },
+] as const;
+
+type MissionTypeId = typeof MISSION_TYPES[number]["id"];
 
 const AGENTS = [
   { id: "product_agent",   emoji: "🧠", label: "Product Agent",    desc: "PRD, roadmap, user stories",             color: "#a78bfa" },
@@ -75,6 +89,7 @@ const AUTONOMY_LEVELS: { id: Autonomy; emoji: string; label: string; desc: strin
 ];
 
 const STEPS = [
+  { id: 0, label: "Mission Type" },
   { id: 1, label: "Project Idea" },
   { id: 2, label: "Product Type" },
   { id: 3, label: "AI Team" },
@@ -190,6 +205,38 @@ function SelectCard({
 }
 
 // ─── Steps ────────────────────────────────────────────────────────────────────
+
+function Step0({ form, set }: { form: FormState; set: (f: Partial<FormState>) => void }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      <div>
+        <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 6 }}>What would you like AI Company to produce?</h3>
+        <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 16 }}>Select a mission type. Each type has its own agents, phases and deliverables.</p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+        {MISSION_TYPES.map((mt) => (
+          <button
+            key={mt.id}
+            onClick={() => set({ missionType: mt.id as MissionTypeId })}
+            style={{
+              padding: "14px 16px", borderRadius: "var(--radius-sm)",
+              background: form.missionType === mt.id ? `${mt.color}14` : "var(--surface)",
+              border: `1.5px solid ${form.missionType === mt.id ? mt.color : "var(--border)"}`,
+              cursor: "pointer", textAlign: "left",
+              transition: "all 150ms ease",
+            }}
+          >
+            <div style={{ fontSize: 22, marginBottom: 6 }}>{mt.emoji}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: form.missionType === mt.id ? mt.color : "var(--text)", marginBottom: 3 }}>
+              {mt.label}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.4 }}>{mt.desc}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function Step1({ form, set }: { form: FormState; set: (f: Partial<FormState>) => void }) {
   return (
@@ -688,7 +735,7 @@ function Step5({
           </>
         ) : (
           <>
-            🚀 Launch AI Agency
+            🚀 Launch AI Company Mission
           </>
         )}
       </motion.button>
@@ -700,6 +747,7 @@ function Step5({
 
 const EMPTY: FormState = {
   name: "", idea: "", market: "",
+  missionType: "saas_project",
   template: null, agents: [], stack: null,
   priorities: [], autonomy: null,
 };
@@ -713,7 +761,7 @@ function canProceed(step: number, form: FormState): boolean {
 }
 
 export default function NewProjectPage() {
-  const [step,      setStep]      = useState(1);
+  const [step,      setStep]      = useState(0);
   const [dir,       setDir]       = useState(1);
   const [form,      setForm]      = useState<FormState>(EMPTY);
   const [launching, setLaunching] = useState(false);
@@ -775,7 +823,7 @@ export default function NewProjectPage() {
           </div>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "var(--text)", margin: 0 }}>
-              Launch AI Agency
+              Launch AI Company Mission
             </h1>
             <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 3 }}>
               Configure your project and deploy an autonomous AI team.
@@ -806,6 +854,7 @@ export default function NewProjectPage() {
             exit="exit"
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
           >
+            {step === 0 && <Step0 form={form} set={set} />}
             {step === 1 && <Step1 form={form} set={set} />}
             {step === 2 && <Step2 form={form} set={set} />}
             {step === 3 && <Step3 form={form} set={set} />}

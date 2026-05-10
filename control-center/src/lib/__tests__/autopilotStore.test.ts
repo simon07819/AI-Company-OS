@@ -132,6 +132,46 @@ describe("autopilotStore", () => {
     expect(phases).toContain("build");
     expect(phases).toContain("runtime");
   });
+
+  it("createSession defaults to saas_project missionType", async () => {
+    const { createSession } = await import("@/lib/autopilotStore");
+
+    const session = createSession({ name: "DefaultMission" });
+    expect(session.missionType).toBe("saas_project");
+  });
+
+  it("createSession accepts website missionType", async () => {
+    const { createSession } = await import("@/lib/autopilotStore");
+
+    const session = createSession({ name: "WebProject", missionType: "website" });
+    expect(session.missionType).toBe("website");
+    expect(session.tasks.length).toBeGreaterThan(0);
+    // Website should not have architecture/backend phases
+    const phases = [...new Set(session.tasks.map((t) => t.phase))];
+    expect(phases).not.toContain("architecture");
+    expect(phases).not.toContain("backend");
+    expect(phases).toContain("frontend");
+  });
+
+  it("createSession accepts branding_pack missionType", async () => {
+    const { createSession } = await import("@/lib/autopilotStore");
+
+    const session = createSession({ name: "BrandPack", missionType: "branding_pack" });
+    expect(session.missionType).toBe("branding_pack");
+    expect(session.assignedAgents.length).toBeGreaterThan(0);
+    // Branding should only have recommended agents
+    const agentIds = session.assignedAgents.map((a) => a.agentId);
+    expect(agentIds).toContain("product_agent");
+    expect(agentIds).toContain("frontend_agent");
+  });
+
+  it("createSession accepts flyer missionType with fewer tasks", async () => {
+    const { createSession } = await import("@/lib/autopilotStore");
+
+    const session = createSession({ name: "FlyerProj", missionType: "flyer" });
+    expect(session.missionType).toBe("flyer");
+    expect(session.tasks.length).toBeLessThan(8);
+  });
 });
 
 describe("autopilotStore execution loop", () => {
