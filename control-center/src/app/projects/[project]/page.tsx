@@ -29,8 +29,9 @@ function statusClass(status?: string) {
   return map[status ?? ""] ?? "badge-gray";
 }
 
-export default function ProjectPage({ params }: { params: { project: string } }) {
-  const project = getProject(params.project);
+export default async function ProjectPage({ params }: { params: Promise<{ project: string }> }) {
+  const { project: projectName } = await params;
+  const project = getProject(projectName);
   if (!project) notFound();
 
   const tasksByStatus = project.tasks.reduce((acc, t) => {
@@ -44,7 +45,7 @@ export default function ProjectPage({ params }: { params: { project: string } })
   const failed = project.tasks.filter((t) => t.status === "failed").length;
   const rate   = project.tasks.length > 0 ? Math.round((done / project.tasks.length) * 100) : 0;
 
-  const appDir    = path.join(REPO_ROOT, "projects", params.project, "app");
+  const appDir    = path.join(REPO_ROOT, "projects", projectName, "app");
   const hasApp    = fs.existsSync(path.join(appDir, "package.json"));
   let appName: string | null = null;
   if (hasApp) {
@@ -121,7 +122,7 @@ export default function ProjectPage({ params }: { params: { project: string } })
       <div className="section">
         <h2>Actions</h2>
         <div className="card">
-          <ProjectActions projectName={params.project} />
+          <ProjectActions projectName={projectName} />
         </div>
       </div>
 
@@ -144,7 +145,7 @@ export default function ProjectPage({ params }: { params: { project: string } })
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, marginBottom: 4 }}>{appName ?? "Next.js App"}</div>
               <code style={{ fontFamily: "ui-monospace, monospace", fontSize: 12, color: "var(--text-3)" }}>
-                cd projects/{params.project}/app &amp;&amp; npm run dev
+                cd projects/{projectName}/app &amp;&amp; npm run dev
               </code>
             </div>
           </div>

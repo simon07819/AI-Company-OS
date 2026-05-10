@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { workspaceId: string } },
+  { params }: { params: Promise<{ workspaceId: string }> },
 ) {
-  const workspace = getWorkspace(params.workspaceId);
+  const { workspaceId } = await params;
+  const workspace = getWorkspace(workspaceId);
   if (!workspace) {
     return NextResponse.json({ ok: false, message: "Workspace not found" }, { status: 404 });
   }

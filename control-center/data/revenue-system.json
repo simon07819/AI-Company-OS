@@ -1,5 +1,72 @@
 {
-  "proposals": [],
-  "invoices": [],
-  "records": []
+  "proposals": [
+    {
+      "proposalId": "prop-mp0f8zcj",
+      "title": "Demo Website Launch Proposal",
+      "leadId": null,
+      "clientId": "cli-mp0f8zcg",
+      "missionId": "ap-mp0f8zcv-9bgt",
+      "missionType": "website",
+      "status": "accepted",
+      "estimate": {
+        "estimateId": "est-mp0f8zci",
+        "missionType": "website",
+        "complexity": "medium",
+        "progress": 100,
+        "basePrice": 2500,
+        "complexityMultiplier": 1,
+        "progressAdjustment": 1.2,
+        "estimatedValue": 3000,
+        "monthlyRecurring": 240,
+        "createdAt": "2026-05-10T23:46:21.835Z"
+      },
+      "amount": 7500,
+      "currency": "USD",
+      "validUntil": "2026-05-24T23:46:21.835Z",
+      "createdAt": "2026-05-10T23:46:21.835Z",
+      "updatedAt": "2026-05-10T23:46:21.836Z",
+      "acceptedAt": "2026-05-10T23:46:21.836Z",
+      "rejectedAt": null
+    }
+  ],
+  "invoices": [
+    {
+      "invoiceId": "inv-mp0f8zck",
+      "proposalId": "prop-mp0f8zcj",
+      "clientId": "cli-mp0f8zcg",
+      "missionId": "ap-mp0f8zcv-9bgt",
+      "status": "pending",
+      "amount": 7500,
+      "currency": "USD",
+      "dueDate": "2026-05-24T23:46:21.836Z",
+      "paidAt": null,
+      "createdAt": "2026-05-10T23:46:21.836Z",
+      "updatedAt": "2026-05-10T23:46:21.836Z"
+    },
+    {
+      "invoiceId": "inv-mp0f8zcl",
+      "proposalId": "prop-mp0f8zcj",
+      "clientId": "cli-mp0f8zcg",
+      "missionId": "ap-mp0f8zcv-9bgt",
+      "status": "paid",
+      "amount": 7500,
+      "currency": "USD",
+      "dueDate": "2026-05-24T23:46:21.837Z",
+      "paidAt": "2026-05-10T23:46:21.837Z",
+      "createdAt": "2026-05-10T23:46:21.837Z",
+      "updatedAt": "2026-05-10T23:46:21.837Z"
+    }
+  ],
+  "records": [
+    {
+      "recordId": "rev-mp0f8zcm",
+      "invoiceId": "inv-mp0f8zcl",
+      "proposalId": "prop-mp0f8zcj",
+      "clientId": "cli-mp0f8zcg",
+      "missionId": "ap-mp0f8zcv-9bgt",
+      "amount": 7500,
+      "currency": "USD",
+      "recordedAt": "2026-05-10T23:46:21.837Z"
+    }
+  ]
 }

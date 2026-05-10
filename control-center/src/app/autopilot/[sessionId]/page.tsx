@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -271,15 +271,7 @@ function formatDate(iso: string): string {
 }
 
 export default function AutopilotSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
-  const { sessionId } = (() => {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const [id, setId] = useState("");
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      params.then((p) => setId(p.sessionId));
-    }, [params]);
-    return { sessionId: id };
-  })();
+  const { sessionId } = use(params);
 
   const router = useRouter();
   const [session, setSession] = useState<AutopilotSession | null>(null);

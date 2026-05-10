@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { proposalId: string } },
+  { params }: { params: Promise<{ proposalId: string }> },
 ) {
-  const proposal = rejectProposal(params.proposalId);
+  const { proposalId } = await params;
+  const proposal = rejectProposal(proposalId);
   if (!proposal) {
     return NextResponse.json({ ok: false, message: "Proposal not found" }, { status: 404 });
   }

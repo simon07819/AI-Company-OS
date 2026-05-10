@@ -1,6 +1,29 @@
 {
   "leads": [],
-  "clients": [],
+  "clients": [
+    {
+      "clientId": "cli-mp0f8zcg",
+      "name": "Demo Client",
+      "email": "demo.client@example.com",
+      "company": "Demo Client Inc.",
+      "status": "active",
+      "linkedMissionIds": [
+        "ap-mp0f8zcv-9bgt"
+      ],
+      "totalValue": 7500,
+      "createdAt": "2026-05-10T23:46:21.821Z",
+      "updatedAt": "2026-05-10T23:46:21.834Z"
+    }
+  ],
   "opportunities": [],
-  "interactions": []
+  "interactions": [
+    {
+      "interactionId": "int-mp0f8zch",
+      "clientId": "cli-mp0f8zcg",
+      "leadId": null,
+      "type": "note",
+      "summary": "Mission ap-mp0f8zcv-9bgt linked to client",
+      "createdAt": "2026-05-10T23:46:21.834Z"
+    }
+  ]
 }

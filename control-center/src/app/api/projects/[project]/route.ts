@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(
   _req: Request,
-  { params }: { params: { project: string } }
+  { params }: { params: Promise<{ project: string }> }
 ) {
-  const project = getProject(params.project);
+  const { project: projectName } = await params;
+  const project = getProject(projectName);
   if (!project) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

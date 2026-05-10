@@ -5,9 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { invoiceId: string } },
+  { params }: { params: Promise<{ invoiceId: string }> },
 ) {
-  const invoice = markInvoicePaid(params.invoiceId);
+  const { invoiceId } = await params;
+  const invoice = markInvoicePaid(invoiceId);
   if (!invoice) {
     return NextResponse.json({ ok: false, message: "Invoice not found" }, { status: 404 });
   }

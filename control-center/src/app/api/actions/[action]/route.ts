@@ -5,8 +5,10 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { action: string } }
+  { params }: { params: Promise<{ action: string }> }
 ) {
+  const { action } = await params;
+
   let body: Record<string, string> = {};
   try {
     body = await req.json();
@@ -14,6 +16,6 @@ export async function POST(
     // empty body is fine for some actions
   }
 
-  const result = await runAction(params.action, body);
+  const result = await runAction(action, body);
   return NextResponse.json(result, { status: result.ok ? 200 : 400 });
 }
