@@ -19,6 +19,7 @@ import {
   Repeat,
   ShieldCheck,
   Sparkles,
+  Users,
   Zap,
 } from "lucide-react";
 
@@ -103,6 +104,7 @@ export default function BusinessPage() {
   const [overview, setOverview] = useState<BusinessOverview | null>(null);
   const [pipeline, setPipeline] = useState<PipelineEntry[]>([]);
   const [actions, setActions] = useState<RecommendedAction[]>([]);
+  const [crmSnapshot, setCrmSnapshot] = useState<{ activeLeads: number; activeClients: number; openOpportunities: number; pipelineValue: number } | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -116,6 +118,10 @@ export default function BusinessPage() {
       if (oRes.ok) { const d = await oRes.json(); setOverview(d.overview); }
       if (pRes.ok) { const d = await pRes.json(); setPipeline(d.pipeline); }
       if (aRes.ok) { const d = await aRes.json(); setActions(d.actions); }
+      try {
+        const crmRes = await fetch("/api/crm/overview");
+        if (crmRes.ok) { const d = await crmRes.json(); setCrmSnapshot(d.overview); }
+      } catch { /* CRM optional */ }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -255,6 +261,33 @@ export default function BusinessPage() {
               </div>
             )}
           </section>
+
+          {/* ── CRM SNAPSHOT ── */}
+          {crmSnapshot && (
+            <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                  <Users size={12} style={{ display: "inline", marginRight: 4 }} /> CRM Snapshot
+                </div>
+                <Link href="/crm" style={{ fontSize: 11, color: "#6366f1", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
+                  Open CRM <ArrowRight size={11} />
+                </Link>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 10 }}>
+                {[
+                  { label: "Active Leads", value: crmSnapshot.activeLeads, color: "#3b82f6" },
+                  { label: "Active Clients", value: crmSnapshot.activeClients, color: "#22c55e" },
+                  { label: "Open Opportunities", value: crmSnapshot.openOpportunities, color: "#fb923c" },
+                  { label: "Pipeline Value", value: `$${crmSnapshot.pipelineValue.toLocaleString()}`, color: "#a78bfa" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+                    <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ── RECOMMENDED ACTIONS ── */}
           <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
