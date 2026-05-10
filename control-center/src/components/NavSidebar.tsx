@@ -19,6 +19,7 @@ import {
   PlusCircle,
   Rocket,
   Settings,
+  Shield,
   TerminalSquare,
   Users,
   Zap,
@@ -74,6 +75,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "System",
     items: [
+      { href: "/system", label: "System Health", description: "Health checks and backups", icon: <Shield size={16} /> },
       { href: "/settings", label: "Settings", description: "Environment and controls", icon: <Settings size={16} /> },
     ],
   },
