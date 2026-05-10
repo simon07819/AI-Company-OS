@@ -24,6 +24,44 @@ def checkout_main(repo_path):
     return run_cmd(["git", "checkout", "--ignore-other-worktrees", "main"], repo_path)
 
 
+def main_exists(repo_path):
+    result = run_cmd(["git", "show-ref", "--verify", "refs/heads/main"], repo_path)
+    return result.returncode == 0
+
+
+def ensure_main_ready(repo_path):
+    if not main_exists(repo_path):
+        print("ready: false")
+        print("reason: local main branch does not exist")
+        return False
+
+    checkout = checkout_main(repo_path)
+    if checkout.returncode != 0:
+        print("ready: false")
+        print("reason: could not checkout main")
+        if checkout.stderr.strip():
+            print(checkout.stderr.strip())
+        return False
+
+    fetch = run_cmd(["git", "fetch", "origin", "main"], repo_path)
+    if fetch.returncode != 0:
+        print("ready: false")
+        print("reason: could not fetch origin/main")
+        if fetch.stderr.strip():
+            print(fetch.stderr.strip())
+        return False
+
+    pull = run_cmd(["git", "pull", "--ff-only", "origin", "main"], repo_path)
+    if pull.returncode != 0:
+        print("ready: false")
+        print("reason: could not fast-forward main from origin/main")
+        if pull.stderr.strip():
+            print(pull.stderr.strip())
+        return False
+
+    return True
+
+
 def queued_tasks(project_path):
     tasks = []
     for task_file in sorted(list_task_files(project_path), key=task_sort_key):
@@ -68,20 +106,56 @@ def worker_relative_path(index):
     return os.path.join(".worktrees", f"worker-{index}")
 
 
+def worker_branch(index):
+    return f"worktree/worker-{index}"
+
+
+def checkout_worker_branch(repo_path, index):
+    return run_cmd(["git", "checkout", worker_branch(index)], repo_path)
+
+
+def ensure_worker_branch(repo_path, index):
+    branch = worker_branch(index)
+    exists = run_cmd(["git", "show-ref", "--verify", f"refs/heads/{branch}"], repo_path)
+    if exists.returncode == 0:
+        return True
+    else:
+        result = run_cmd(["git", "branch", branch, "main"], repo_path)
+
+    if result.returncode != 0:
+        print("ready: false")
+        print(f"reason: failed to prepare {branch}")
+        if result.stderr.strip():
+            print(result.stderr.strip())
+        return False
+    return True
+
+
 def ensure_worker_worktree(repo_path, index, entries):
     path = worker_path(repo_path, index)
     relative_path = worker_relative_path(index)
+    branch = worker_branch(index)
+
+    if not ensure_worker_branch(repo_path, index):
+        return False
 
     if os.path.exists(path):
         if path not in entries:
             print(f"ready: false")
             print(f"reason: {relative_path} exists but is not a git worktree")
             return False
+        checkout = checkout_worker_branch(path, index)
+        if checkout.returncode != 0:
+            print("ready: false")
+            print(f"reason: failed to checkout {branch} in {relative_path}")
+            if checkout.stderr.strip():
+                print(checkout.stderr.strip())
+            return False
         return True
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
     result = run_cmd(
-        ["git", "worktree", "add", "--force", relative_path, "main"],
+        ["git", "worktree", "add", "--force", relative_path, branch],
         repo_path,
     )
     if result.returncode != 0:
@@ -93,7 +167,7 @@ def ensure_worker_worktree(repo_path, index, entries):
     return True
 
 
-def run_worker_once(repo_path, worker_repo_path, task_id):
+def run_worker_once(repo_path, worker_repo_path, index, task_id):
     project_path = os.path.join(worker_repo_path, "projects", "Tonymage")
     return subprocess.run(
         [
@@ -106,6 +180,8 @@ def run_worker_once(repo_path, worker_repo_path, task_id):
             worker_repo_path,
             "--project-path",
             project_path,
+            "--base-branch",
+            worker_branch(index),
         ],
         cwd=repo_path,
         check=False,
@@ -133,14 +209,14 @@ def execute_workers(repo_path, project_path, workers):
             print(f"{worker} skipped: worktree is not clean")
             continue
 
-        checkout = checkout_main(worktree)
+        checkout = checkout_worker_branch(worktree, index)
         if checkout.returncode != 0:
-            print(f"{worker} skipped: could not checkout main")
+            print(f"{worker} skipped: could not checkout {worker_branch(index)}")
             if checkout.stderr.strip():
                 print(checkout.stderr.strip())
             continue
 
-        result = run_worker_once(repo_path, worktree, assigned.get("id"))
+        result = run_worker_once(repo_path, worktree, index, assigned.get("id"))
         if result.stdout.strip():
             print(result.stdout.strip())
         if result.stderr.strip():
@@ -148,7 +224,7 @@ def execute_workers(repo_path, project_path, workers):
         if result.returncode != 0:
             print(f"{worker} failed with exit code {result.returncode}")
         if git_clean(worktree):
-            checkout_main(worktree)
+            checkout_worker_branch(worktree, index)
 
     return 0
 
@@ -199,6 +275,9 @@ def main():
         return 0 if clean_worktrees(repo_path) else 1
 
     project_path = os.path.abspath(os.path.expanduser(args.project_path))
+
+    if not ensure_main_ready(repo_path):
+        return 1
 
     if args.execute:
         print("AI Company OS run manager execution")

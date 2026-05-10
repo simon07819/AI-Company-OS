@@ -35,10 +35,10 @@ def gh_auth_ok(repo_path):
     return run_cmd(["gh", "auth", "status"], repo_path, check=False).returncode == 0
 
 
-def preflight(repo_path):
+def preflight(repo_path, base_branch):
     branch = current_branch(repo_path)
-    if branch != "main":
-        raise GitHubWorkerError(f"Refusing to work: current branch must be main, got {branch}")
+    if branch != base_branch:
+        raise GitHubWorkerError(f"Refusing to work: current branch must be {base_branch}, got {branch}")
     if not git_clean(repo_path):
         raise GitHubWorkerError("Refusing to work: git status is not clean")
     if not gh_auth_ok(repo_path):
@@ -74,8 +74,8 @@ def checkout_new_branch(repo_path, branch):
     run_cmd(["git", "checkout", "-b", branch], repo_path)
 
 
-def checkout_main(repo_path):
-    run_cmd(["git", "checkout", "main"], repo_path, check=False)
+def checkout_branch(repo_path, branch):
+    run_cmd(["git", "checkout", branch], repo_path, check=False)
 
 
 def cleanup_dirty(repo_path):
@@ -141,7 +141,7 @@ def select_task(project_path, task_id=None):
     return task_file, task
 
 
-def run_one(project_path, repo_path, task_id=None):
+def run_one(project_path, repo_path, task_id=None, base_branch="main"):
     task_file, task = select_task(project_path, task_id)
     if not task:
         if task_id is None:
@@ -155,7 +155,7 @@ def run_one(project_path, repo_path, task_id=None):
     branch = None
     running = False
     try:
-        preflight(repo_path)
+        preflight(repo_path, base_branch)
         branch = unique_branch(repo_path, safe_branch_name(task))
         print(f"Creating branch: {branch}")
         checkout_new_branch(repo_path, branch)
@@ -195,7 +195,7 @@ def run_one(project_path, repo_path, task_id=None):
         task = mark_task_completed_real(task_file, pr_url)
         commit_all(repo_path, f"AI task status: {task['title']}")
         run_cmd(["git", "push", "-u", "origin", branch], repo_path)
-        checkout_main(repo_path)
+        checkout_branch(repo_path, base_branch)
 
     except GitHubWorkerError as exc:
         if running:
@@ -207,7 +207,7 @@ def run_one(project_path, repo_path, task_id=None):
                     run_cmd(["git", "push", "-u", "origin", branch], repo_path, check=False)
             except Exception:
                 cleanup_dirty(repo_path)
-        checkout_main(repo_path)
+        checkout_branch(repo_path, base_branch)
         print(f"Worker failed for task {task['id']}: {exc}", file=sys.stderr)
         return False
 
@@ -240,6 +240,7 @@ def main():
     parser.add_argument("--task-id", help="Run one specific queued task id.")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT, help="AI Company project path.")
     parser.add_argument("--repo-path", default=os.getcwd(), help="Git repo where the worker commits.")
+    parser.add_argument("--base-branch", default="main", help="Branch the worker must start from and return to.")
     args = parser.parse_args()
 
     limit = 1
@@ -261,7 +262,7 @@ def main():
 
     completed = 0
     for _ in range(limit):
-        if run_one(project_path, repo_path, args.task_id):
+        if run_one(project_path, repo_path, args.task_id, args.base_branch):
             completed += 1
         else:
             break
