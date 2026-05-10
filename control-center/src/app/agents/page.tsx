@@ -6,197 +6,132 @@ export default function AgentsPage() {
 
   return (
     <main className="page">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-        <h1 style={{ margin: 0 }}>AI Agents</h1>
-        <Link href="/agents/activity" style={{ fontSize: 13 }}>
-          View live activity →
-        </Link>
-      </div>
-
-      {/* Summary bar */}
-      <div className="stat-grid" style={{ marginBottom: 32 }}>
-        <div className="stat-card">
-          <div className="stat-label">Total Agents</div>
-          <div className="stat-value accent">{AGENTS.length}</div>
+      {/* Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">AI Agent Team</h1>
+          <p className="page-subtitle">
+            {AGENTS.length} specialized agents · {available} online · Autonomous task execution
+          </p>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Available</div>
-          <div className="stat-value green">{available}</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Last Selected</div>
-          <div className="stat-value" style={{ fontSize: 13, color: "var(--muted)", paddingTop: 6 }}>
-            not tracked yet
-          </div>
+        <div className="page-actions">
+          <Link href="/agents/activity" className="btn btn-ghost">
+            <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+            </svg>
+            Live Activity
+          </Link>
         </div>
       </div>
 
-      {/* Agent cards */}
-      <div className="section">
-        <h2>Specialized Agents</h2>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {AGENTS.map((agent) => (
-            <div
-              key={agent.id}
-              className="card"
-              style={{
-                borderLeft: `3px solid ${agent.color}`,
-                marginBottom: 0,
-              }}
-            >
-              {/* Header */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      background: `${agent.color}22`,
-                      border: `1px solid ${agent.color}44`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: agent.color,
-                    }}
-                  >
-                    {agent.name.charAt(0)}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
-                      {agent.name}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--muted)" }}>
-                      {agent.id}
-                    </div>
-                  </div>
+      {/* Summary */}
+      <div className="metric-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)", maxWidth: 520, marginBottom: 32 }}>
+        <div className="metric-card">
+          <div className="metric-label">Total Agents</div>
+          <div className="metric-value accent" style={{ marginTop: 8 }}>{AGENTS.length}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">Online</div>
+          <div className="metric-value green" style={{ marginTop: 8 }}>{available}</div>
+        </div>
+        <div className="metric-card">
+          <div className="metric-label">Specializations</div>
+          <div className="metric-value" style={{ marginTop: 8 }}>6</div>
+        </div>
+      </div>
+
+      {/* Agent Cards Grid */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+          gap: 16,
+          alignItems: "start",
+        }}
+      >
+        {AGENTS.map((agent) => (
+          <div
+            key={agent.id}
+            className="agent-card"
+            style={{ borderTop: `3px solid ${agent.color}` }}
+          >
+            {/* Card top: avatar + name + online */}
+            <div className="agent-card-top">
+              <div className="agent-card-header">
+                <div
+                  className="agent-avatar"
+                  style={{
+                    background: `${agent.color}18`,
+                    color: agent.color,
+                    border: `1px solid ${agent.color}30`,
+                  }}
+                >
+                  {agent.name.charAt(0)}
                 </div>
-                <span className="badge badge-green">available</span>
+                <div className="agent-info">
+                  <div className="agent-name">{agent.name}</div>
+                  <div className="agent-id">{agent.id}</div>
+                </div>
+                <span className="online-badge">
+                  <span className="status-dot online" />
+                  online
+                </span>
               </div>
+              <p className="agent-role">{agent.role}</p>
+            </div>
 
-              {/* Role */}
-              <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14, lineHeight: 1.5 }}>
-                {agent.role}
-              </p>
-
+            {/* Card body */}
+            <div className="agent-card-body">
               {/* Responsibilities */}
-              <div style={{ marginBottom: 14 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "var(--muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    marginBottom: 6,
-                  }}
-                >
-                  Responsibilities
-                </div>
-                <ul style={{ paddingLeft: 14, margin: 0 }}>
+              <div>
+                <div className="agent-section-label">Responsibilities</div>
+                <div className="agent-resps">
                   {agent.responsibilities.map((r) => (
-                    <li
-                      key={r}
-                      style={{ fontSize: 12, color: "var(--text)", marginBottom: 3, lineHeight: 1.4 }}
-                    >
-                      {r}
-                    </li>
+                    <div key={r} className="agent-resp">{r}</div>
                   ))}
-                </ul>
+                </div>
               </div>
 
-              {/* Task examples */}
-              <div style={{ marginBottom: 14 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "var(--muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    marginBottom: 6,
-                  }}
-                >
-                  Example Tasks
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {/* Example Tasks */}
+              <div>
+                <div className="agent-section-label">Example Tasks</div>
+                <div className="agent-pills">
                   {agent.examples.map((ex) => (
-                    <span
-                      key={ex}
-                      style={{
-                        fontSize: 11,
-                        padding: "2px 8px",
-                        borderRadius: 9999,
-                        background: "rgba(255,255,255,0.05)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text)",
-                      }}
-                    >
-                      {ex}
-                    </span>
+                    <span key={ex} className="agent-pill">{ex}</span>
                   ))}
                 </div>
               </div>
 
               {/* Keywords */}
               <div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: "var(--muted)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                    marginBottom: 6,
-                  }}
-                >
-                  Routing Keywords
-                </div>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {agent.keywords.slice(0, 6).map((kw) => (
+                <div className="agent-section-label">Routing Keywords</div>
+                <div className="agent-pills">
+                  {agent.keywords.slice(0, 7).map((kw) => (
                     <span
                       key={kw}
+                      className="agent-keyword"
                       style={{
-                        fontSize: 10,
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        background: `${agent.color}18`,
+                        background: `${agent.color}14`,
                         color: agent.color,
-                        fontFamily: "ui-monospace, monospace",
+                        border: `1px solid ${agent.color}28`,
                       }}
                     >
                       {kw}
                     </span>
                   ))}
-                  {agent.keywords.length > 6 && (
+                  {agent.keywords.length > 7 && (
                     <span
-                      style={{
-                        fontSize: 10,
-                        padding: "1px 6px",
-                        color: "var(--muted)",
-                        fontFamily: "ui-monospace, monospace",
-                      }}
+                      className="agent-keyword"
+                      style={{ background: "var(--surface-2)", color: "var(--text-3)", border: "1px solid var(--border)" }}
                     >
-                      +{agent.keywords.length - 6} more
+                      +{agent.keywords.length - 7} more
                     </span>
                   )}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </main>
   );

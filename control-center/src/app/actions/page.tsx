@@ -6,10 +6,14 @@ export default function ActionsPage() {
 
   return (
     <main className="page">
-      <h1>Actions</h1>
-      <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 28, marginTop: -16 }}>
-        Trigger factory scripts directly from the Control Center. Each action runs the corresponding Python script in the repo root.
-      </p>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Actions</h1>
+          <p className="page-subtitle">
+            Trigger factory scripts from the browser — each action runs securely in the repo root.
+          </p>
+        </div>
+      </div>
       <ActionsForms projectNames={projectNames} />
     </main>
   );

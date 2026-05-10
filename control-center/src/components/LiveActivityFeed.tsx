@@ -14,7 +14,7 @@ interface ActivityEntry {
 
 const STATUS_CLASS: Record<string, string> = {
   completed: "badge-green",
-  selected:  "badge-yellow",
+  selected:  "badge-accent",
   error:     "badge-red",
 };
 
@@ -54,7 +54,7 @@ export default function LiveActivityFeed({ limit = 50, compact = false }: Props)
       setEntries((data.activities ?? []).slice(0, limit));
       setUpdatedAt(new Date());
     } catch {
-      // fail silently — keep stale data
+      // keep stale data
     } finally {
       setLoading(false);
     }
@@ -68,16 +68,36 @@ export default function LiveActivityFeed({ limit = 50, compact = false }: Props)
 
   if (loading) {
     return (
-      <div style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
-        Loading activity…
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            style={{
+              height: 44,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-sm)",
+              animation: "fadeInUp 0.3s ease forwards",
+              opacity: 1 - i * 0.2,
+            }}
+          />
+        ))}
       </div>
     );
   }
 
   if (entries.length === 0) {
     return (
-      <div className="card empty" style={{ fontStyle: "italic" }}>
-        No activity logged yet. Run <code style={{ fontFamily: "monospace" }}>auto_build.py</code> to start tracking.
+      <div className="card">
+        <div className="empty-state" style={{ padding: 32 }}>
+          <svg width="40" height="40" viewBox="0 0 20 20" fill="var(--text-3)">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd"/>
+          </svg>
+          <div className="empty-state-title">No activity yet</div>
+          <div className="empty-state-sub">
+            Run <code style={{ fontFamily: "monospace", fontSize: 12, color: "var(--accent-light)" }}>auto_build.py</code> to start the factory.
+          </div>
+        </div>
       </div>
     );
   }
@@ -87,11 +107,12 @@ export default function LiveActivityFeed({ limit = 50, compact = false }: Props)
   return (
     <div>
       {!compact && updatedAt && (
-        <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="live-dot" style={{ width: 5, height: 5 }} />
           Auto-refreshing every 5s · Updated {updatedAt.toLocaleTimeString()}
         </div>
       )}
-      <div className="card" style={{ padding: 0 }}>
+      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         <table>
           <thead>
             <tr>
@@ -104,41 +125,66 @@ export default function LiveActivityFeed({ limit = 50, compact = false }: Props)
             </tr>
           </thead>
           <tbody>
-            {shown.map((e, i) => (
-              <tr key={i}>
-                <td style={{ whiteSpace: "nowrap", fontSize: 11, color: "var(--muted)" }}>
-                  {fmt(e.timestamp)}
-                </td>
-                <td>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontFamily: "ui-monospace, monospace",
-                      color: AGENT_COLORS[e.agent] ?? "var(--text)",
-                    }}
-                  >
-                    {e.agent}
-                  </span>
-                </td>
-                {!compact && (
-                  <td style={{ fontSize: 12, color: "var(--muted)" }}>{e.project}</td>
-                )}
-                <td style={{ fontSize: 12 }}>
-                  <span style={{ color: "var(--muted)" }}>[{e.task_id}]</span>{" "}
-                  {e.task_title}
-                </td>
-                <td>
-                  <span className={`badge ${STATUS_CLASS[e.status] ?? "badge-gray"}`}>
-                    {e.status}
-                  </span>
-                </td>
-                {!compact && (
-                  <td style={{ fontSize: 11, color: "var(--muted)", maxWidth: 260 }}>
-                    {e.message}
+            {shown.map((e, i) => {
+              const agentColor = AGENT_COLORS[e.agent] ?? "var(--text-2)";
+              return (
+                <tr key={i} className="animate-in" style={{ animationDelay: `${i * 20}ms` }}>
+                  <td style={{ whiteSpace: "nowrap", fontSize: 11, color: "var(--text-3)" }}>
+                    {fmt(e.timestamp)}
                   </td>
-                )}
-              </tr>
-            ))}
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: agentColor,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: "ui-monospace, monospace",
+                          color: agentColor,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {e.agent}
+                      </span>
+                    </div>
+                  </td>
+                  {!compact && (
+                    <td style={{ fontSize: 12, color: "var(--text-3)" }}>{e.project}</td>
+                  )}
+                  <td style={{ fontSize: 12 }}>
+                    <span style={{ color: "var(--text-3)", marginRight: 4 }}>[{e.task_id}]</span>
+                    {e.task_title}
+                  </td>
+                  <td>
+                    <span className={`badge ${STATUS_CLASS[e.status] ?? "badge-gray"}`}>
+                      {e.status}
+                    </span>
+                  </td>
+                  {!compact && (
+                    <td
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-3)",
+                        maxWidth: 240,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={e.message}
+                    >
+                      {e.message}
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
