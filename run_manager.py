@@ -168,21 +168,8 @@ def ensure_worker_worktree(repo_path, index, entries):
 
 
 def run_worker_once(repo_path, worker_repo_path, index, task_id):
-    project_path = os.path.join(worker_repo_path, "projects", "Tonymage")
     return subprocess.run(
-        [
-            sys.executable,
-            os.path.join(repo_path, "run_worker.py"),
-            "--once",
-            "--task-id",
-            str(task_id),
-            "--repo-path",
-            worker_repo_path,
-            "--project-path",
-            project_path,
-            "--base-branch",
-            worker_branch(index),
-        ],
+        worker_command(repo_path, worker_repo_path, index, task_id),
         cwd=repo_path,
         check=False,
         capture_output=True,
@@ -190,30 +177,69 @@ def run_worker_once(repo_path, worker_repo_path, index, task_id):
     )
 
 
-def execute_workers(repo_path, project_path, workers):
+def start_worker_once(repo_path, worker_repo_path, index, task_id):
+    return subprocess.Popen(
+        worker_command(repo_path, worker_repo_path, index, task_id),
+        cwd=repo_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+
+def worker_command(repo_path, worker_repo_path, index, task_id):
+    project_path = os.path.join(worker_repo_path, "projects", "Tonymage")
+    return [
+        sys.executable,
+        os.path.join(repo_path, "run_worker.py"),
+        "--once",
+        "--task-id",
+        str(task_id),
+        "--repo-path",
+        worker_repo_path,
+        "--project-path",
+        project_path,
+        "--base-branch",
+        worker_branch(index),
+    ]
+
+
+def prepare_worker(repo_path, entries, index, assigned):
+    worker = f"worker-{index}"
+    worktree = worker_path(repo_path, index)
+    label = f"task {assigned.get('id')} | {assigned.get('title')}" if assigned else "idle"
+    print(f"{worker} -> {label}")
+
+    if not assigned:
+        return None
+    if not ensure_worker_worktree(repo_path, index, entries):
+        return None
+    if not git_clean(worktree):
+        print(f"{worker} skipped: worktree is not clean")
+        return None
+
+    checkout = checkout_worker_branch(worktree, index)
+    if checkout.returncode != 0:
+        print(f"{worker} skipped: could not checkout {worker_branch(index)}")
+        if checkout.stderr.strip():
+            print(checkout.stderr.strip())
+        return None
+
+    return worktree
+
+
+def execute_workers(repo_path, project_path, workers, parallel=False):
     tasks = queued_tasks(project_path)
     entries = worktree_entries(repo_path)
 
+    if parallel:
+        return execute_workers_parallel(repo_path, tasks, entries, workers)
+
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
-        worktree = worker_path(repo_path, index)
         assigned = tasks[index - 1][1] if index - 1 < len(tasks) else None
-        label = f"task {assigned.get('id')} | {assigned.get('title')}" if assigned else "idle"
-        print(f"{worker} -> {label}")
-
-        if not assigned:
-            continue
-        if not ensure_worker_worktree(repo_path, index, entries):
-            continue
-        if not git_clean(worktree):
-            print(f"{worker} skipped: worktree is not clean")
-            continue
-
-        checkout = checkout_worker_branch(worktree, index)
-        if checkout.returncode != 0:
-            print(f"{worker} skipped: could not checkout {worker_branch(index)}")
-            if checkout.stderr.strip():
-                print(checkout.stderr.strip())
+        worktree = prepare_worker(repo_path, entries, index, assigned)
+        if not worktree:
             continue
 
         result = run_worker_once(repo_path, worktree, index, assigned.get("id"))
@@ -225,6 +251,42 @@ def execute_workers(repo_path, project_path, workers):
             print(f"{worker} failed with exit code {result.returncode}")
         if git_clean(worktree):
             checkout_worker_branch(worktree, index)
+
+    return 0
+
+
+def execute_workers_parallel(repo_path, tasks, entries, workers):
+    processes = []
+    summary = {}
+
+    for index in range(1, workers + 1):
+        worker = f"worker-{index}"
+        assigned = tasks[index - 1][1] if index - 1 < len(tasks) else None
+        worktree = prepare_worker(repo_path, entries, index, assigned)
+        if not worktree:
+            summary[worker] = False
+            continue
+
+        process = start_worker_once(repo_path, worktree, index, assigned.get("id"))
+        processes.append((worker, worktree, index, process))
+
+    for worker, worktree, index, process in processes:
+        stdout, stderr = process.communicate()
+        if stdout.strip():
+            print(stdout.strip())
+        if stderr.strip():
+            print(stderr.strip())
+        summary[worker] = process.returncode == 0
+        if process.returncode != 0:
+            print(f"{worker} failed with exit code {process.returncode}")
+        if git_clean(worktree):
+            checkout_worker_branch(worktree, index)
+
+    print("summary:")
+    for index in range(1, workers + 1):
+        worker = f"worker-{index}"
+        status = "success" if summary.get(worker) else "fail"
+        print(f"{worker} {status}")
 
     return 0
 
@@ -259,6 +321,7 @@ def main():
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--clean-worktrees", action="store_true")
     parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--parallel", action="store_true")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT)
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
@@ -283,7 +346,7 @@ def main():
         print("AI Company OS run manager execution")
         print(f"repo path: {repo_path}")
         print(f"workers planned: {args.workers}")
-        return execute_workers(repo_path, project_path, args.workers)
+        return execute_workers(repo_path, project_path, args.workers, args.parallel)
 
     branch = current_branch(repo_path)
     clean = git_clean(repo_path)
