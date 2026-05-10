@@ -220,6 +220,7 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
         return False
 
     print(f"Selected task {task['id']}: {task['title']}")
+    print(f"task path: {os.path.relpath(task_file, repo_path)}")
     print(f"Repo path: {repo_path}")
     print("Running preflight checks...")
 

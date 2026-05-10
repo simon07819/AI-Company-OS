@@ -727,7 +727,7 @@ def start_worker_once(repo_path, worker_repo_path, index, task_id, project_name)
 
 
 def worker_command(repo_path, worker_repo_path, index, task_id, project_name):
-    project_path = os.path.join(worker_repo_path, "projects", project_name)
+    project_path = os.path.join(repo_path, "projects", project_name)
     return [
         sys.executable,
         os.path.join(repo_path, "run_worker.py"),
