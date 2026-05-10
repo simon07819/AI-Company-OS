@@ -15,6 +15,9 @@ from task_queue import (
 )
 
 
+PROJECT_PRIORITIES = {"high": 0, "medium": 1, "low": 2}
+
+
 def run_cmd(command, repo_path, env=None):
     command_env = None
     if env:
@@ -100,6 +103,59 @@ def queued_tasks(project_path):
                 continue
             tasks.append((task_file, task))
     return sorted(tasks, key=lambda item: queued_task_sort_key(item[1]))
+
+
+def parse_project_names(projects_arg, fallback_project):
+    if not projects_arg:
+        return [fallback_project]
+    return [
+        name.strip()
+        for name in projects_arg.split(",")
+        if name.strip()
+    ]
+
+
+def load_project_priority(project_path):
+    path = os.path.join(project_path, "project.json")
+    if not os.path.exists(path):
+        return "low"
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            data = json.load(file)
+    except (json.JSONDecodeError, OSError):
+        return "low"
+
+    priority = str(data.get("project_priority", "low")).lower()
+    return priority if priority in PROJECT_PRIORITIES else "low"
+
+
+def project_configs(repo_path, project_names, project_path=None):
+    if project_path:
+        path = os.path.abspath(os.path.expanduser(project_path))
+        return [{
+            "name": os.path.basename(path),
+            "path": path,
+            "priority": load_project_priority(path),
+        }]
+
+    projects = []
+    for name in project_names:
+        path = os.path.abspath(os.path.join(repo_path, "projects", name))
+        projects.append({
+            "name": name,
+            "path": path,
+            "priority": load_project_priority(path),
+        })
+    return projects
+
+
+def scheduled_tasks(projects):
+    scheduled = []
+    for project in sorted(projects, key=lambda item: PROJECT_PRIORITIES[item["priority"]]):
+        print(f"Scheduling project: {project['name']} (priority: {project['priority']})")
+        for task_file, task in queued_tasks(project["path"]):
+            scheduled.append((project["name"], task_file, task))
+    return scheduled
 
 
 def utc_now():
@@ -686,24 +742,23 @@ def prepare_worker(repo_path, entries, index, assigned):
     return worktree
 
 
-def execute_workers(repo_path, project_path, workers, parallel=False):
-    tasks = queued_tasks(project_path)
+def execute_workers(repo_path, projects, workers, parallel=False):
+    tasks = scheduled_tasks(projects)
     entries = worktree_entries(repo_path)
-    project_name = os.path.basename(project_path)
 
     if parallel:
-        return execute_workers_parallel(repo_path, project_name, tasks, entries, workers)
+        return execute_workers_parallel(repo_path, tasks, entries, workers)
 
     pr_urls = []
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
-        assigned_pair = tasks[index - 1] if index - 1 < len(tasks) else None
-        assigned = assigned_pair[1] if assigned_pair else None
+        assigned_item = tasks[index - 1] if index - 1 < len(tasks) else None
+        assigned = assigned_item[2] if assigned_item else None
         worktree = prepare_worker(repo_path, entries, index, assigned)
         if not worktree:
             continue
 
-        task_file = assigned_pair[0]
+        project_name, task_file, _ = assigned_item
         print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
         result = run_worker_once(repo_path, worktree, index, assigned.get("id"), project_name)
@@ -725,21 +780,21 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
     return 0, pr_urls
 
 
-def execute_workers_parallel(repo_path, project_name, tasks, entries, workers):
+def execute_workers_parallel(repo_path, tasks, entries, workers):
     processes = []
     summary = {}
     pr_urls = []
 
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
-        assigned_pair = tasks[index - 1] if index - 1 < len(tasks) else None
-        assigned = assigned_pair[1] if assigned_pair else None
+        assigned_item = tasks[index - 1] if index - 1 < len(tasks) else None
+        assigned = assigned_item[2] if assigned_item else None
         worktree = prepare_worker(repo_path, entries, index, assigned)
         if not worktree:
             summary[worker] = False
             continue
 
-        task_file = assigned_pair[0]
+        project_name, task_file, _ = assigned_item
         print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
         process = start_worker_once(repo_path, worktree, index, assigned.get("id"), project_name)
@@ -807,6 +862,7 @@ def main():
     parser.add_argument("--rebase-before-merge", action="store_true")
     parser.add_argument("--auto-resolve-conflicts", action="store_true")
     parser.add_argument("--project", default="Tonymage")
+    parser.add_argument("--projects")
     parser.add_argument("--project-path")
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
@@ -822,10 +878,9 @@ def main():
         print(f"repo path: {repo_path}")
         return 0 if clean_worktrees(repo_path) else 1
 
-    project_path = os.path.abspath(os.path.expanduser(
-        args.project_path or os.path.join(repo_path, "projects", args.project)
-    ))
-    print(f"Active project: {os.path.basename(project_path)}")
+    project_names = parse_project_names(args.projects, args.project)
+    projects = project_configs(repo_path, project_names, args.project_path if not args.projects else None)
+    print(f"Active projects: {[project['name'] for project in projects]}")
 
     if not ensure_main_ready(repo_path):
         return 1
@@ -834,7 +889,7 @@ def main():
         print("AI Company OS run manager execution")
         print(f"repo path: {repo_path}")
         print(f"workers planned: {args.workers}")
-        exit_code, pr_urls = execute_workers(repo_path, project_path, args.workers, args.parallel)
+        exit_code, pr_urls = execute_workers(repo_path, projects, args.workers, args.parallel)
         if exit_code != 0:
             return exit_code
         if args.auto_merge and not auto_merge_prs(
@@ -844,7 +899,9 @@ def main():
             args.auto_resolve_conflicts,
         ):
             return 1
-        print_metrics(project_path)
+        for project in projects:
+            print(f"Metrics project: {project['name']}")
+            print_metrics(project["path"])
         return 0
 
     branch = current_branch(repo_path)
@@ -855,6 +912,7 @@ def main():
     print(f"current branch: {branch}")
     print(f"git clean: {str(clean).lower()}")
     print(f"workers planned: {args.workers}")
+    scheduled_tasks(projects)
 
     entries = worktree_entries(repo_path)
     for index in range(1, args.workers + 1):
@@ -862,7 +920,9 @@ def main():
             return 1
         print(f"worker-{index} path: {worker_path(repo_path, index)}")
 
-    print_metrics(project_path)
+    for project in projects:
+        print(f"Metrics project: {project['name']}")
+        print_metrics(project["path"])
     return 0
 
 
