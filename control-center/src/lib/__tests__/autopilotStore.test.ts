@@ -2,24 +2,59 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 // ─── Mock setup ──────────────────────────────────────────────────────────────
 // We simulate a JSON file store by intercepting reads/writes.
+// Only the sessions JSON file is tracked via `store`; workspace files are
+// written to a Map and ignored for JSON parsing.
 
 let store: unknown[] = [];
+const workspaceFiles = new Map<string, string>();
 
 vi.mock("fs", () => ({
   default: {
     mkdirSync: vi.fn(),
-    existsSync: vi.fn(() => true),
-    readFileSync: vi.fn(() => JSON.stringify(store)),
-    writeFileSync: vi.fn((_path: string, data: string) => {
-      store = JSON.parse(data);
+    existsSync: vi.fn((p: string) => {
+      if (p.includes("autopilot-sessions.json")) return true;
+      for (const key of workspaceFiles.keys()) {
+        if (p === key || key.startsWith(p + "/")) return true;
+      }
+      return false;
     }),
+    readFileSync: vi.fn((p: string) => {
+      if (p.includes("autopilot-sessions.json")) return JSON.stringify(store);
+      const content = workspaceFiles.get(p);
+      if (content !== undefined) return content;
+      return "[]";
+    }),
+    writeFileSync: vi.fn((p: string, data: string) => {
+      if (p.includes("autopilot-sessions.json")) {
+        try { store = JSON.parse(data); } catch { /* ignore non-JSON */ }
+      } else {
+        workspaceFiles.set(p, data);
+      }
+    }),
+    readdirSync: vi.fn(() => []),
+    statSync: vi.fn(() => ({ size: 100, mtime: new Date() })),
   },
   mkdirSync: vi.fn(),
-  existsSync: vi.fn(() => true),
-  readFileSync: vi.fn(() => JSON.stringify(store)),
-  writeFileSync: vi.fn((_path: string, data: string) => {
-    store = JSON.parse(data);
+  existsSync: vi.fn((p: string) => {
+    if (p.includes("autopilot-sessions.json")) return true;
+    for (const key of workspaceFiles.keys()) {
+      if (p === key || key.startsWith(p + "/")) return true;
+    }
+    return false;
   }),
+  readFileSync: vi.fn((p: string) => {
+    if (p.includes("autopilot-sessions.json")) return JSON.stringify(store);
+    return workspaceFiles.get(p) ?? "[]";
+  }),
+  writeFileSync: vi.fn((p: string, data: string) => {
+    if (p.includes("autopilot-sessions.json")) {
+      try { store = JSON.parse(data); } catch { /* ignore non-JSON */ }
+    } else {
+      workspaceFiles.set(p, data);
+    }
+  }),
+  readdirSync: vi.fn(() => []),
+  statSync: vi.fn(() => ({ size: 100, mtime: new Date() })),
 }));
 
 describe("autopilotStore", () => {
@@ -102,8 +137,10 @@ describe("autopilotStore", () => {
 describe("autopilotStore execution loop", () => {
   beforeEach(() => {
     store = [];
+    workspaceFiles.clear();
     vi.clearAllMocks();
     store = [];
+    workspaceFiles.clear();
   });
 
   it("runStep completes a task", async () => {

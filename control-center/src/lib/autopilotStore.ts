@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { createWorkspaceForSession, updateWorkspaceAfterStep } from "./workspaceStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,6 +281,10 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
   const sessions = readSessionsFile();
   sessions.unshift(session);
   writeSessionsFile(sessions);
+
+  // Create workspace on disk
+  createWorkspaceForSession(session);
+
   return session;
 }
 
@@ -578,6 +583,17 @@ export function runStep(sessionId: string): RunStepResult {
       : `${agent} failed: ${task.title} — will require retry`,
     source: executionOk ? "agent" : "agent",
   });
+
+  // Update workspace files on disk
+  const latestSession = getSession(sessionId);
+  if (latestSession) {
+    updateWorkspaceAfterStep(
+      sessionId,
+      latestSession.tasks,
+      latestSession.logs,
+      tasks[targetIndex],
+    );
+  }
 
   return {
     ok: true,

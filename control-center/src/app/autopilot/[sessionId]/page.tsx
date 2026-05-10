@@ -12,8 +12,10 @@ import {
   CheckCircle2,
   Clock3,
   Cpu,
+  Eye,
   FastForward,
   FileText,
+  FolderOpen,
   Layers3,
   Pause,
   Play,
@@ -162,6 +164,46 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [logFilter, setLogFilter] = useState<string>("all");
+  const [workspaceFiles, setWorkspaceFiles] = useState<{ path: string; name: string; size: number }[]>([]);
+  const [workspaceExists, setWorkspaceExists] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
+
+  const loadWorkspace = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/workspace`, { cache: "no-store" });
+      const payload = (await res.json()) as {
+        ok: boolean;
+        summary?: {
+          exists: boolean;
+          fileCount: number;
+          totalSize: number;
+          files: { path: string; name: string; size: number; modifiedAt: string }[];
+        };
+      };
+      if (payload.ok && payload.summary) {
+        setWorkspaceExists(payload.summary.exists);
+        setWorkspaceFiles(payload.summary.files);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadFileContent = async (filePath: string) => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/workspace/file?path=${encodeURIComponent(filePath)}`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; content?: string };
+      if (payload.ok && payload.content !== undefined) {
+        setSelectedFile(filePath);
+        setSelectedFileContent(payload.content);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const loadSession = async () => {
     if (!sessionId) return;
@@ -180,7 +222,8 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
 
   useEffect(() => {
     void loadSession();
-    const iv = setInterval(() => void loadSession(), 4000);
+    void loadWorkspace();
+    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); }, 4000);
     return () => clearInterval(iv);
   }, [sessionId]);
 
@@ -635,6 +678,109 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
             <div style={{ padding: 20, textAlign: "center", color: "var(--text-3)", fontSize: 12 }}>No logs match the filter.</div>
           )}
         </div>
+      </section>
+
+      {/* ── PROJECT WORKSPACE ── */}
+      <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+            <FolderOpen size={12} style={{ display: "inline", marginRight: 4 }} /> Project Workspace
+          </div>
+          <button
+            onClick={() => loadWorkspace()}
+            style={{
+              padding: "3px 10px", borderRadius: 4,
+              fontSize: 10, fontWeight: 600, cursor: "pointer",
+              border: "1px solid var(--border)",
+              background: "var(--surface-2)", color: "var(--text-3)",
+              display: "flex", alignItems: "center", gap: 4,
+              transition: "all 120ms ease",
+            }}
+          >
+            <RefreshCw size={10} /> Refresh
+          </button>
+        </div>
+
+        {!workspaceExists ? (
+          <div style={{ padding: 20, textAlign: "center", color: "var(--text-3)", fontSize: 12 }}>
+            Workspace not yet created. Run a step to generate project files.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: workspaceFiles.length > 0 ? "260px 1fr" : "1fr", gap: 12 }}>
+            {/* File list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 320, overflowY: "auto" }}>
+              {workspaceFiles.map((file) => (
+                <button
+                  key={file.path}
+                  onClick={() => loadFileContent(file.path)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "6px 10px", borderRadius: 4,
+                    background: selectedFile === file.path ? "var(--accent-dim)" : "transparent",
+                    border: `1px solid ${selectedFile === file.path ? "var(--accent)" : "transparent"}`,
+                    cursor: "pointer", textAlign: "left",
+                    fontFamily: "ui-monospace, monospace", fontSize: 11,
+                    color: selectedFile === file.path ? "var(--accent-light)" : "var(--text-2)",
+                    transition: "all 120ms ease",
+                  }}
+                >
+                  <FileText size={12} style={{ flexShrink: 0 }} />
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {file.path}
+                  </span>
+                  <span style={{ fontSize: 9, color: "var(--text-3)", flexShrink: 0 }}>
+                    {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* File preview */}
+            {selectedFile && selectedFileContent !== null && (
+              <div style={{
+                background: "var(--bg-2)", border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)", overflow: "hidden",
+                display: "flex", flexDirection: "column",
+              }}>
+                <div style={{
+                  padding: "6px 12px", borderBottom: "1px solid var(--border)",
+                  fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                  display: "flex", alignItems: "center", gap: 6,
+                  textTransform: "uppercase", letterSpacing: "0.5px",
+                }}>
+                  <Eye size={11} /> {selectedFile}
+                </div>
+                <pre style={{
+                  margin: 0, padding: "12px",
+                  fontSize: 11, lineHeight: 1.55,
+                  fontFamily: "ui-monospace, monospace",
+                  color: "var(--text-2)",
+                  overflow: "auto", maxHeight: 280,
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                }}>
+                  {selectedFileContent}
+                </pre>
+              </div>
+            )}
+
+            {(!selectedFile || selectedFileContent === null) && workspaceFiles.length > 0 && (
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "var(--text-3)", fontSize: 12, textAlign: "center",
+                background: "var(--bg-2)", border: "1px solid var(--border)",
+                borderRadius: "var(--radius-sm)", padding: 24,
+              }}>
+                Select a file to preview its contents
+              </div>
+            )}
+          </div>
+        )}
+
+        {workspaceExists && (
+          <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>
+            {workspaceFiles.length} file{workspaceFiles.length !== 1 ? "s" : ""} generated
+          </div>
+        )}
       </section>
 
       {/* ── RUNTIME HEALTH ── */}

@@ -214,6 +214,50 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/workspace/file")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        path: "README.md",
+        content: "# TestProject\n\n> Test idea\n\n**Session:** ap-test123\n",
+      }),
+    };
+  }
+
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/workspace")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: "Workspace has 12 files (3.2KB).",
+        summary: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          exists: true,
+          fileCount: 12,
+          totalSize: 3200,
+          files: [
+            { path: "README.md", name: "README.md", size: 256, modifiedAt: new Date().toISOString() },
+            { path: "roadmap.md", name: "roadmap.md", size: 380, modifiedAt: new Date().toISOString() },
+            { path: "tasks.json", name: "tasks.json", size: 1024, modifiedAt: new Date().toISOString() },
+            { path: "logs.md", name: "logs.md", size: 512, modifiedAt: new Date().toISOString() },
+            { path: "phases/01-idea-analysis.md", name: "01-idea-analysis.md", size: 180, modifiedAt: new Date().toISOString() },
+            { path: "phases/02-product-definition.md", name: "02-product-definition.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/03-architecture.md", name: "03-architecture.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/04-frontend-design.md", name: "04-frontend-design.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/05-backend-implementation.md", name: "05-backend-implementation.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/06-validation.md", name: "06-validation.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/07-build-preparation.md", name: "07-build-preparation.md", size: 140, modifiedAt: new Date().toISOString() },
+            { path: "phases/08-runtime-monitoring.md", name: "08-runtime-monitoring.md", size: 140, modifiedAt: new Date().toISOString() },
+          ],
+        },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/")) {
     return {
       ok: true,
