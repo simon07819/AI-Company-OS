@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import unicodedata
 from datetime import datetime
 from brain import generate_specs, generate_architecture, generate_tasks
 
@@ -28,16 +29,71 @@ def write(path, content):
 def normalize_title(title):
     return "".join(str(title).lower().split())
 
+def title_tokens(title):
+    aliases = {
+        "deploiement": "deployment",
+        "securite": "security",
+        "tests": "test",
+        "testing": "test",
+    }
+    stopwords = {
+        "and",
+        "api",
+        "des",
+        "du",
+        "features",
+        "implement",
+        "implementation",
+        "initial",
+        "initiaux",
+        "la",
+        "le",
+        "les",
+        "of",
+        "review",
+        "setup",
+        "the",
+    }
+    normalized = unicodedata.normalize("NFKD", str(title).lower())
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    return {
+        aliases.get(token, token)
+        for token in re.findall(r"[a-z0-9]+", normalized)
+        if aliases.get(token, token) not in stopwords
+    }
+
 def titles_are_similar(left, right):
     normalized_left = normalize_title(left)
     normalized_right = normalize_title(right)
     if not normalized_left or not normalized_right:
         return False
 
-    return (
+    if (
         normalized_left == normalized_right
         or normalized_left.startswith(normalized_right)
         or normalized_right.startswith(normalized_left)
+    ):
+        return True
+
+    left_tokens = title_tokens(left)
+    right_tokens = title_tokens(right)
+    if not left_tokens or not right_tokens:
+        return False
+
+    shared_tokens = left_tokens & right_tokens
+    strong_duplicate_tokens = {
+        "authentication",
+        "authorization",
+        "database",
+        "deployment",
+        "security",
+        "test",
+    }
+    return (
+        len(shared_tokens) >= 2
+        or shared_tokens == left_tokens
+        or shared_tokens == right_tokens
+        or bool(shared_tokens & strong_duplicate_tokens)
     )
 
 def load_memory():
@@ -282,7 +338,7 @@ def main():
         title = task["title"]
 
         if any(titles_are_similar(title, existing_title) for existing_title in known_titles):
-            print(f"⚠️ Tâche ignorée: titre similaire existant ({title}).")
+            print(f"skipping generated task duplicate: {title}")
             continue
         if task_id in existing_ids:
             print(f"⚠️ Tâche ignorée: id existant ({task_id}).")
