@@ -1,4 +1,5 @@
 import { getAllProjects, computeStats } from "@/lib/projects";
+import { AGENTS } from "@/lib/agents";
 import Link from "next/link";
 
 function statusBadge(status?: string) {
@@ -30,6 +31,7 @@ function priorityBadge(priority?: string) {
 export default function DashboardPage() {
   const projects = getAllProjects();
   const stats = computeStats(projects);
+  const availableAgents = AGENTS.filter((a) => a.status === "available").length;
 
   return (
     <main className="page">
@@ -72,6 +74,62 @@ export default function DashboardPage() {
               className="progress-fill"
               style={{ width: `${stats.successRate}%` }}
             />
+          </div>
+        </div>
+      </div>
+
+      <div className="section">
+        <h2>AI Agents</h2>
+        <div className="card" style={{ padding: 0 }}>
+          <table>
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Last Selected</th>
+              </tr>
+            </thead>
+            <tbody>
+              {AGENTS.map((agent) => (
+                <tr key={agent.id}>
+                  <td>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          background: agent.color,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Link href="/agents">{agent.name}</Link>
+                    </div>
+                  </td>
+                  <td style={{ color: "var(--muted)", fontSize: 12 }}>{agent.role}</td>
+                  <td><span className="badge badge-green">available</span></td>
+                  <td style={{ color: "var(--muted)", fontSize: 12 }}>not tracked yet</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div
+            style={{
+              padding: "10px 16px",
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>
+              {AGENTS.length} agents · {availableAgents} available
+            </span>
+            <Link href="/agents" style={{ fontSize: 12 }}>
+              View details →
+            </Link>
           </div>
         </div>
       </div>

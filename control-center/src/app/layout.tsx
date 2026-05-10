@@ -18,6 +18,7 @@ export default function RootLayout({
           <span className="nav-brand">AI Company OS</span>
           <a href="/">Dashboard</a>
           <a href="/projects">Projects</a>
+          <a href="/agents">Agents</a>
         </nav>
         {children}
       </body>
