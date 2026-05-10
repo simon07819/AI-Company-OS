@@ -9,8 +9,9 @@ from task_queue import (
     list_task_files,
     load_task_file,
     mark_task_completed_real,
-    mark_task_failed,
     mark_task_running,
+    utc_now,
+    write_task_file,
 )
 from workers.github_worker import GitHubWorkerError, safe_branch_name
 
@@ -117,6 +118,27 @@ def write_task_code(repo_path, task):
 
 def short_json_error(error):
     return f"{error.msg} at line {error.lineno} column {error.colno}"
+
+
+def short_error(message):
+    line = str(message or "").strip().splitlines()
+    return (line[0] if line else "worker failed")[:500]
+
+
+def mark_task_failed(task_file, error):
+    task = load_task_file(task_file)
+    retry_count = int(task.get("retry_count") or 0) + 1
+    task["retry_count"] = retry_count
+    task["last_error"] = short_error(error)
+    if retry_count >= 3:
+        task["status"] = "failed"
+        task["failed_at"] = utc_now()
+        print(f"task {task.get('id')} marked failed after max retries")
+    else:
+        task["status"] = "queued"
+        print(f"retrying task {task.get('id')} (attempt {retry_count + 1}/3)")
+    write_task_file(task_file, task)
+    return task
 
 
 def load_task_file_or_report(task_file):

@@ -88,7 +88,7 @@ def queued_tasks(project_path):
 
     for task_file, task in all_tasks:
         status = task.get("status")
-        if status in {"completed_real", "failed"}:
+        if status in {"completed_real", "archived", "failed"}:
             task_id = task.get("id") or os.path.basename(task_file)
             print(f"skipping task {task_id} (status: {status})")
             continue
@@ -155,9 +155,16 @@ def mark_task_completed(task_file, pr_url=None):
 
 def mark_task_failed(task_file, error):
     task = load_task_file(task_file)
-    task["status"] = "failed"
-    task["failed_at"] = utc_now()
-    task["error"] = short_error(error)
+    retry_count = int(task.get("retry_count") or 0) + 1
+    task["retry_count"] = retry_count
+    task["last_error"] = short_error(error)
+    if retry_count >= 3:
+        task["status"] = "failed"
+        task["failed_at"] = utc_now()
+        print(f"task {task.get('id')} marked failed after max retries")
+    else:
+        task["status"] = "queued"
+        print(f"retrying task {task.get('id')} (attempt {retry_count + 1}/3)")
     write_task_file(task_file, task)
     return task
 
