@@ -6,6 +6,10 @@
   "acceptance_criteria": "Security measures are fully functional and secure.",
   "estimated_cost_usd": 1500,
   "branch_name": "feature/security-measures",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T00:51:25.232922",
+  "completed_at": "2026-05-10T00:51:31.024928",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/111"
 }

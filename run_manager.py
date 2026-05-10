@@ -2,8 +2,14 @@ import argparse
 import os
 import subprocess
 import sys
+from datetime import datetime
 
-from task_queue import DEFAULT_PROJECT, list_task_files, load_task_file
+from task_queue import (
+    DEFAULT_PROJECT,
+    list_task_files,
+    load_task_file,
+    write_task_file,
+)
 
 
 def run_cmd(command, repo_path):
@@ -69,6 +75,51 @@ def queued_tasks(project_path):
         if task.get("status") == "queued":
             tasks.append((task_file, task))
     return tasks
+
+
+def utc_now():
+    return datetime.utcnow().isoformat()
+
+
+def short_error(message):
+    line = (message or "").strip().splitlines()
+    return (line[0] if line else "worker failed")[:500]
+
+
+def mark_task_locked(task_file, worker):
+    task = load_task_file(task_file)
+    task["status"] = "locked"
+    task["locked_by"] = worker
+    task["locked_at"] = utc_now()
+    write_task_file(task_file, task)
+    return task
+
+
+def mark_task_completed(task_file, pr_url=None):
+    task = load_task_file(task_file)
+    task["status"] = "completed_real"
+    task["completed_at"] = utc_now()
+    if pr_url:
+        task["pr_url"] = pr_url
+    task.pop("error", None)
+    write_task_file(task_file, task)
+    return task
+
+
+def mark_task_failed(task_file, error):
+    task = load_task_file(task_file)
+    task["status"] = "failed"
+    task["failed_at"] = utc_now()
+    task["error"] = short_error(error)
+    write_task_file(task_file, task)
+    return task
+
+
+def task_pr_url(output):
+    for line in output.splitlines():
+        if line.startswith("Draft PR created:"):
+            return line.removeprefix("Draft PR created:").strip()
+    return None
 
 
 def task_sort_key(task_file):
@@ -237,11 +288,14 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
 
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
-        assigned = tasks[index - 1][1] if index - 1 < len(tasks) else None
+        assigned_pair = tasks[index - 1] if index - 1 < len(tasks) else None
+        assigned = assigned_pair[1] if assigned_pair else None
         worktree = prepare_worker(repo_path, entries, index, assigned)
         if not worktree:
             continue
 
+        task_file = assigned_pair[0]
+        mark_task_locked(task_file, worker)
         result = run_worker_once(repo_path, worktree, index, assigned.get("id"))
         if result.stdout.strip():
             print(result.stdout.strip())
@@ -249,6 +303,9 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
             print(result.stderr.strip())
         if result.returncode != 0:
             print(f"{worker} failed with exit code {result.returncode}")
+            mark_task_failed(task_file, result.stderr.strip() or f"{worker} exited with {result.returncode}")
+        else:
+            mark_task_completed(task_file, task_pr_url(result.stdout))
         if git_clean(worktree):
             checkout_worker_branch(worktree, index)
 
@@ -261,16 +318,19 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
 
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
-        assigned = tasks[index - 1][1] if index - 1 < len(tasks) else None
+        assigned_pair = tasks[index - 1] if index - 1 < len(tasks) else None
+        assigned = assigned_pair[1] if assigned_pair else None
         worktree = prepare_worker(repo_path, entries, index, assigned)
         if not worktree:
             summary[worker] = False
             continue
 
+        task_file = assigned_pair[0]
+        mark_task_locked(task_file, worker)
         process = start_worker_once(repo_path, worktree, index, assigned.get("id"))
-        processes.append((worker, worktree, index, process))
+        processes.append((worker, worktree, index, task_file, process))
 
-    for worker, worktree, index, process in processes:
+    for worker, worktree, index, task_file, process in processes:
         stdout, stderr = process.communicate()
         if stdout.strip():
             print(stdout.strip())
@@ -279,6 +339,9 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
         summary[worker] = process.returncode == 0
         if process.returncode != 0:
             print(f"{worker} failed with exit code {process.returncode}")
+            mark_task_failed(task_file, stderr.strip() or f"{worker} exited with {process.returncode}")
+        else:
+            mark_task_completed(task_file, task_pr_url(stdout))
         if git_clean(worktree):
             checkout_worker_branch(worktree, index)
 

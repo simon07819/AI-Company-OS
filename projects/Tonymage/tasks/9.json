@@ -6,6 +6,10 @@
   "acceptance_criteria": "API endpoints are fully functional and secure.",
   "estimated_cost_usd": 2000,
   "branch_name": "feature/api-endpoints",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T00:51:24.994189",
+  "completed_at": "2026-05-10T00:51:30.634365",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/109"
 }

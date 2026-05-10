@@ -6,6 +6,10 @@
   "acceptance_criteria": "Frontend UI components are fully functional and visually appealing.",
   "estimated_cost_usd": 2500,
   "branch_name": "feature/frontend-ui",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T00:50:34.103920",
+  "completed_at": "2026-05-10T00:50:40.484671",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/108"
 }

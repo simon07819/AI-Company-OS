@@ -124,7 +124,14 @@ def task_by_id(project_path, task_id):
     return None, None
 
 
-def select_task(project_path, task_id=None):
+def worker_id_from_base_branch(base_branch):
+    prefix = "worktree/"
+    if base_branch.startswith(prefix):
+        return base_branch.removeprefix(prefix)
+    return None
+
+
+def select_task(project_path, task_id=None, worker_id=None):
     if task_id is None:
         return next_queued_task(project_path)
 
@@ -132,9 +139,12 @@ def select_task(project_path, task_id=None):
     if not task:
         print(f"Task {task_id} not found.", file=sys.stderr)
         return None, None
-    if task.get("status") != "queued":
+    status = task.get("status")
+    locked_by = task.get("locked_by")
+    locked_for_worker = status == "locked" and (not locked_by or not worker_id or locked_by == worker_id)
+    if status != "queued" and not locked_for_worker:
         print(
-            f"Task {task_id} is not queued (status: {task.get('status', 'unknown')}).",
+            f"Task {task_id} is not queued or locked for this worker (status: {status or 'unknown'}).",
             file=sys.stderr,
         )
         return None, None
@@ -142,7 +152,7 @@ def select_task(project_path, task_id=None):
 
 
 def run_one(project_path, repo_path, task_id=None, base_branch="main"):
-    task_file, task = select_task(project_path, task_id)
+    task_file, task = select_task(project_path, task_id, worker_id_from_base_branch(base_branch))
     if not task:
         if task_id is None:
             print("No queued task found.")
@@ -219,16 +229,21 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
 
 def doctor(project_path, repo_path):
     queued = 0
+    locked = 0
     for task_file in list_task_files(project_path):
         try:
-            if load_task_file(task_file).get("status") == "queued":
+            status = load_task_file(task_file).get("status")
+            if status == "queued":
                 queued += 1
+            elif status == "locked":
+                locked += 1
         except Exception:
             pass
     print(f"current branch: {current_branch(repo_path)}")
     print(f"git clean: {str(git_clean(repo_path)).lower()}")
     print(f"gh auth ok: {str(gh_auth_ok(repo_path)).lower()}")
     print(f"queued tasks count: {queued}")
+    print(f"locked tasks count: {locked}")
     return 0
 
 
