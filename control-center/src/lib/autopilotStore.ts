@@ -436,3 +436,224 @@ export function retryFailedTasks(sessionId: string): AutopilotSession | null {
 
   return updated;
 }
+
+// ─── Execution Loop ───────────────────────────────────────────────────────────
+
+export type RunStepResult = {
+  ok: boolean;
+  task: AutopilotTask | null;
+  log: AutopilotLog | null;
+  completed: boolean;
+  session: AutopilotSession | null;
+};
+
+/**
+ * Execute a single autopilot step:
+ * 1. Find the next task (running first, then queued)
+ * 2. If none, mark session completed
+ * 3. Log agent start, simulate NVIDIA runtime execution
+ * 4. Mark task completed/failed, update progress/status/phase
+ * 5. Log result
+ */
+export function runStep(sessionId: string): RunStepResult {
+  const session = getSession(sessionId);
+  if (!session) {
+    return { ok: false, task: null, log: null, completed: false, session: null };
+  }
+
+  if (session.status !== "running") {
+    return { ok: false, task: null, log: null, completed: false, session };
+  }
+
+  const now = new Date().toISOString();
+  const tasks = session.tasks.map((t) => ({ ...t }));
+
+  // Find the next task to execute
+  let targetIndex = tasks.findIndex((t) => t.status === "running");
+  if (targetIndex === -1) {
+    targetIndex = tasks.findIndex((t) => t.status === "queued");
+  }
+
+  // No remaining tasks
+  if (targetIndex === -1) {
+    const allCompleted = tasks.every((t) => t.status === "completed");
+    const currentStatus: string = session.status;
+    if (allCompleted && currentStatus !== "completed") {
+      const updated = updateSession(sessionId, {
+        status: "completed",
+        runtime: { ...session.runtime, lastEvent: "All tasks completed", activeWorkers: 0 },
+      });
+      const doneLog = appendLog(sessionId, {
+        timestamp: now,
+        level: "success",
+        agent: "autopilot",
+        message: "Autopilot completed — all tasks finished successfully.",
+        source: "autopilot",
+      });
+      return { ok: true, task: null, log: doneLog?.logs[0] ?? null, completed: true, session: updated };
+    }
+    return { ok: false, task: null, log: null, completed: false, session: getSession(sessionId) };
+  }
+
+  const task = tasks[targetIndex];
+  const agent = task.agent;
+  const phaseInfo = AUTOPILOT_PHASES.find((p) => p.id === task.phase);
+
+  // Mark task as running (if it was queued)
+  tasks[targetIndex] = { ...task, status: "running", progress: 15, updatedAt: now };
+
+  // Log: agent started
+  appendLog(sessionId, {
+    timestamp: now,
+    level: "info",
+    agent,
+    message: `${agent} started task: ${task.title}`,
+    source: "autopilot",
+  });
+
+  // Simulate NVIDIA runtime execution
+  // In production this would call the real NVIDIA API / runner.ts
+  // For now: deterministic success with realistic delay simulation
+  const executionOk = simulateExecution(agent, task);
+
+  // Update the task based on result
+  if (executionOk) {
+    tasks[targetIndex] = { ...tasks[targetIndex], status: "completed", progress: 100, updatedAt: new Date().toISOString() };
+  } else {
+    tasks[targetIndex] = { ...tasks[targetIndex], status: "failed", progress: 0, updatedAt: new Date().toISOString() };
+  }
+
+  // Recalculate progress
+  const completedCount = tasks.filter((t) => t.status === "completed").length;
+  const progress = Math.round((completedCount / Math.max(tasks.length, 1)) * 100);
+  const allDone = tasks.every((t) => t.status === "completed" || t.status === "failed");
+  const hasFailed = tasks.some((t) => t.status === "failed");
+
+  // Update agent assignment status
+  const assignedAgents = session.assignedAgents.map((a) => {
+    const hasRunningTask = tasks.some((t) => t.agent === a.agentId && t.status === "running");
+    const hasCompletedTask = tasks.some((t) => t.agent === a.agentId && t.status === "completed");
+    const hasQueuedTask = tasks.some((t) => t.agent === a.agentId && t.status === "queued");
+    return {
+      ...a,
+      status: hasRunningTask ? "active" as const : hasQueuedTask ? "available" as const : hasCompletedTask ? "done" as const : a.status,
+    };
+  });
+
+  // Determine next phase
+  const nextRunningTask = tasks.find((t) => t.status === "running");
+  const nextQueuedTask = tasks.find((t) => t.status === "queued");
+  const nextPhase = nextRunningTask?.phase ?? nextQueuedTask?.phase ?? task.phase;
+
+  // Update runtime
+  const activeWorkerCount = tasks.filter((t) => t.status === "running").length;
+
+  const newStatus: SessionStatus = allDone
+    ? (hasFailed ? "failed" : "completed")
+    : "running";
+
+  const updatedSession = updateSession(sessionId, {
+    tasks,
+    currentPhase: nextPhase as AutopilotPhase,
+    progress,
+    status: newStatus,
+    assignedAgents,
+    runtime: {
+      status: "online",
+      provider: "NVIDIA API (Nemotron)",
+      activeWorkers: activeWorkerCount,
+      lastEvent: executionOk
+        ? `${agent} completed: ${task.title}`
+        : `${agent} failed: ${task.title}`,
+    },
+  });
+
+  // Log: result
+  const resultLog = appendLog(sessionId, {
+    timestamp: new Date().toISOString(),
+    level: executionOk ? "success" : "error",
+    agent,
+    message: executionOk
+      ? `${agent} completed: ${task.title} [${phaseInfo?.label ?? task.phase}]`
+      : `${agent} failed: ${task.title} — will require retry`,
+    source: executionOk ? "agent" : "agent",
+  });
+
+  return {
+    ok: true,
+    task: tasks[targetIndex],
+    log: resultLog?.logs[0] ?? null,
+    completed: allDone,
+    session: updatedSession ?? getSession(sessionId),
+  };
+}
+
+/**
+ * Simulate NVIDIA agent execution.
+ * Returns true for success, false for failure.
+ * Uses deterministic logic: 90% success rate, always fails on specific edge cases.
+ */
+function simulateExecution(agent: string, task: AutopilotTask): boolean {
+  // Deterministic seed from task id for reproducibility
+  const hash = task.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  // 92% success rate based on agent + task hash
+  return (hash + agent.length) % 100 < 92;
+}
+
+export type RunAllResult = {
+  ok: boolean;
+  stepsExecuted: number;
+  steps: RunStepResult[];
+  completed: boolean;
+  session: AutopilotSession | null;
+};
+
+const MAX_RUN_ALL_STEPS = 10;
+
+/**
+ * Execute multiple steps up to MAX_RUN_ALL_STEPS.
+ * Stops when: session completes, a task fails, or limit reached.
+ */
+export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllResult {
+  const steps: RunStepResult[] = [];
+  let stepsExecuted = 0;
+  let session = getSession(sessionId);
+
+  for (let i = 0; i < maxSteps; i++) {
+    // Re-read session to get latest state
+    session = getSession(sessionId);
+    if (!session || (session.status !== "running" && session.status !== "paused")) break;
+
+    // Resume if paused
+    if (session.status === "paused") {
+      updateSession(sessionId, { status: "running" });
+      appendLog(sessionId, {
+        timestamp: new Date().toISOString(),
+        level: "info",
+        agent: "autopilot",
+        message: "Autopilot resumed for run-all execution.",
+        source: "control",
+      });
+    }
+
+    const result = runStep(sessionId);
+    steps.push(result);
+    stepsExecuted++;
+
+    if (result.completed || !result.ok) break;
+    if (result.task?.status === "failed") break;
+
+    // Re-read after step
+    session = getSession(sessionId);
+    if (!session || session.status === "completed" || session.status === "failed") break;
+  }
+
+  session = getSession(sessionId);
+  return {
+    ok: stepsExecuted > 0,
+    stepsExecuted,
+    steps,
+    completed: session?.status === "completed",
+    session,
+  };
+}

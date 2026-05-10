@@ -146,6 +146,74 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/run-step")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: "Task completed.",
+        task: { id: "AP-001", title: "Analyze idea", status: "completed", agent: "product_agent" },
+        completed: false,
+        session: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null,
+          template: null,
+          stack: null,
+          status: "running",
+          currentPhase: "planning",
+          progress: 6,
+          assignedAgents: [{ agentId: "product_agent", role: "Product analysis", status: "active", provider: "NVIDIA API" }],
+          roadmap: ["Step 1"],
+          tasks: [
+            { id: "AP-001", title: "Analyze idea", description: "Test task", phase: "idea", agent: "product_agent", status: "completed", priority: 1, progress: 100, dependencies: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+            { id: "AP-002", title: "Validate market", description: "Test task", phase: "idea", agent: "product_agent", status: "running", priority: 2, progress: 15, dependencies: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+          ],
+          logs: [
+            { id: "log-2", timestamp: new Date().toISOString(), level: "success", agent: "product_agent", message: "product_agent completed: Analyze idea", source: "agent" },
+            { id: "log-1", timestamp: new Date().toISOString(), level: "info", agent: "product_agent", message: "product_agent started task: Analyze idea", source: "autopilot" },
+          ],
+          runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 1, lastEvent: "product_agent completed: Analyze idea" },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    };
+  }
+
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/run-all")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: "Executed 3 steps. Session running.",
+        stepsExecuted: 3,
+        completed: false,
+        session: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null,
+          template: null,
+          stack: null,
+          status: "running",
+          currentPhase: "planning",
+          progress: 18,
+          assignedAgents: [{ agentId: "product_agent", role: "Product analysis", status: "active", provider: "NVIDIA API" }],
+          roadmap: ["Step 1"],
+          tasks: [],
+          logs: [],
+          runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 1, lastEvent: "run-all executed 3 steps" },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/")) {
     return {
       ok: true,

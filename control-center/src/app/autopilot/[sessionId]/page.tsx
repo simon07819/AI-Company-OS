@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   Clock3,
   Cpu,
+  FastForward,
   FileText,
   Layers3,
   Pause,
@@ -313,8 +314,34 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       {/* ── CONTROL BUTTONS ── */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
         {[
-          { id: "continue", label: "Continue", icon: <Play size={14} />, color: "#34d399", disabled: session.status !== "paused" && session.status !== "running" },
-          { id: "pause",    label: "Pause",    icon: <Pause size={14} />, color: "#f59e0b", disabled: session.status !== "running" },
+          { id: "run-step", label: "Run Next Step", icon: <Play size={14} />, color: "#34d399", disabled: session.status === "completed" || session.status === "failed" || actionLoading !== null },
+          { id: "run-all",  label: "Run All Local",  icon: <FastForward size={14} />, color: "#6366f1", disabled: session.status === "completed" || session.status === "failed" || actionLoading !== null },
+        ].map(({ id, label, icon, color, disabled }) => (
+          <button
+            key={id}
+            onClick={() => handleAction(id)}
+            disabled={disabled}
+            style={{
+              padding: "8px 16px", borderRadius: "var(--radius-sm)",
+              background: disabled ? "var(--surface-2)" : `${color}14`,
+              border: `1px solid ${disabled ? "var(--border-2)" : `${color}30`}`,
+              color: disabled ? "var(--text-3)" : color,
+              fontWeight: 600, fontSize: 12, cursor: disabled ? "not-allowed" : "pointer",
+              fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6,
+              opacity: disabled ? 0.5 : 1,
+              transition: "all 140ms ease",
+            }}
+          >
+            {actionLoading === id ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span> : icon}
+            {label}
+          </button>
+        ))}
+
+        <div style={{ width: 1, height: 28, background: "var(--border)", alignSelf: "center" }} />
+
+        {[
+          { id: "continue", label: "Resume", icon: <Play size={14} />, color: "#34d399", disabled: session.status !== "paused" },
+          { id: "pause",    label: "Pause", icon: <Pause size={14} />, color: "#f59e0b", disabled: session.status !== "running" },
           { id: "retry",    label: "Retry Failed", icon: <RotateCcw size={14} />, color: "#a78bfa", disabled: !session.tasks.some((t) => t.status === "failed" || t.status === "blocked") },
         ].map(({ id, label, icon, color, disabled }) => (
           <button
