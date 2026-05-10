@@ -226,7 +226,7 @@ def pr_merge_details(repo_path, pr_url):
         "view",
         pr_url,
         "--json",
-        "url,number,headRefName,isDraft",
+        "url,number,state,headRefName,isDraft",
     ], repo_path)
     if result.returncode != 0:
         return None, f"gh pr view failed: {short_error(result.stderr)}"
@@ -241,6 +241,8 @@ def mark_pr_ready_if_draft(repo_path, pr_url):
     pr, error = pr_merge_details(repo_path, pr_url)
     if error:
         return False, error
+    if pr.get("state") != "OPEN":
+        return True, f"PR is not open: {pr.get('state')}"
     if not pr.get("isDraft"):
         return True, "PR is already ready"
 
@@ -393,6 +395,15 @@ def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False, auto_resolve_c
     print("auto-merge:")
     ok = True
     for pr_url in pr_urls:
+        pr, error = pr_merge_details(repo_path, pr_url)
+        if error:
+            print(f"{pr_url} failed: {error}")
+            ok = False
+            continue
+        if pr.get("state") != "OPEN":
+            print(f"{pr_url} skipped: PR is already {pr.get('state')}")
+            continue
+
         rebase_reason = None
         if rebase_before_merge:
             rebased, rebase_reason = rebase_pr_before_merge(repo_path, pr_url, auto_resolve_conflicts)
@@ -401,26 +412,29 @@ def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False, auto_resolve_c
                 ok = False
                 continue
 
-        ready, reason = pr_ready_to_merge(repo_path, pr_url)
-        if not ready:
-            print(f"{pr_url} failed: {reason}")
-            ok = False
-            continue
-
         ready_done, ready_reason = mark_pr_ready_if_draft(repo_path, pr_url)
         if not ready_done:
             print(f"{pr_url} failed: {ready_reason}")
             ok = False
             continue
 
-        merge_result = run_cmd(["gh", "pr", "merge", pr_url, "--squash", "--auto"], repo_path)
+        ready, reason = pr_ready_to_merge(repo_path, pr_url)
+        if not ready:
+            if "PR is not open:" in reason:
+                print(f"{pr_url} skipped: {reason}")
+            else:
+                print(f"{pr_url} failed: {reason}")
+                ok = False
+            continue
+
+        merge_result = run_cmd(["gh", "pr", "merge", pr_url, "--squash", "--delete-branch"], repo_path)
         if merge_result.returncode != 0:
             print(f"{pr_url} failed: gh pr merge failed: {short_error(merge_result.stderr)}")
             ok = False
             continue
 
         details = rebase_reason or reason
-        print(f"{pr_url} queued for squash auto-merge ({details}; {ready_reason})")
+        print(f"{pr_url} squash-merged ({details}; {ready_reason})")
 
     return ok
 
