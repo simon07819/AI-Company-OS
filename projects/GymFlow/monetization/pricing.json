@@ -1,0 +1,19 @@
+{
+  "currency": "CAD",
+  "plans": [
+    {
+      "id": "starter",
+      "name": "Starter",
+      "monthly_price": 29,
+      "annual_discount_percent": 20,
+      "features": []
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "monthly_price": 79,
+      "annual_discount_percent": 20,
+      "features": []
+    }
+  ]
+}
