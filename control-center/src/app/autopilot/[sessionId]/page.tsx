@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   AlertTriangle,
+  Archive,
   ArrowRight,
   Bot,
   CheckCircle2,
@@ -115,6 +116,32 @@ interface ReviewReport {
   clientReady: boolean;
   generatedAt: string;
   updatedAt: string;
+}
+
+interface DeliveryFile {
+  path: string;
+  name: string;
+  size: number;
+}
+
+interface DeliveryPackage {
+  sessionId: string;
+  generatedAt: string;
+  clientReady: boolean;
+  qualityScore: number;
+  files: DeliveryFile[];
+  manifest: {
+    projectName: string;
+    missionType: string;
+    qualityScore: number;
+    clientReady: boolean;
+    deliverableCount: number;
+    approvedCount: number;
+    rejectedCount: number;
+    pendingCount: number;
+    blockers: string[];
+    recommendations: string[];
+  };
 }
 
 const REVIEW_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -276,6 +303,10 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   const [review, setReview] = useState<ReviewReport | null>(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewActionLoading, setReviewActionLoading] = useState<string | null>(null);
+  const [deliveryPkg, setDeliveryPkg] = useState<DeliveryPackage | null>(null);
+  const [generatingPkg, setGeneratingPkg] = useState(false);
+  const [selectedDeliveryFile, setSelectedDeliveryFile] = useState<string | null>(null);
+  const [selectedDeliveryContent, setSelectedDeliveryContent] = useState<string | null>(null);
 
   const loadWorkspace = async () => {
     if (!sessionId) return;
@@ -385,7 +416,8 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
     void loadDeliverables();
     void loadValidation();
     void loadReview();
-    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); void loadDeliverables(); void loadReview(); }, 4000);
+    void loadDeliveryPkg();
+    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); void loadDeliverables(); void loadReview(); void loadDeliveryPkg(); }, 4000);
     return () => clearInterval(iv);
   }, [sessionId]);
 
@@ -524,6 +556,48 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       // ignore
     } finally {
       setReviewActionLoading(null);
+    }
+  };
+
+  const loadDeliveryPkg = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/delivery-package`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; package?: DeliveryPackage };
+      if (payload.ok && payload.package) setDeliveryPkg(payload.package);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleGeneratePkg = async () => {
+    if (!sessionId) return;
+    setGeneratingPkg(true);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/generate-delivery-package`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await res.json()) as { ok: boolean; package?: DeliveryPackage };
+      if (payload.ok && payload.package) setDeliveryPkg(payload.package);
+    } catch {
+      // ignore
+    } finally {
+      setGeneratingPkg(false);
+    }
+  };
+
+  const loadDeliveryFileContent = async (filePath: string) => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/workspace/file?path=${encodeURIComponent(filePath)}`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; content?: string };
+      if (payload.ok && payload.content !== undefined) {
+        setSelectedDeliveryFile(filePath);
+        setSelectedDeliveryContent(payload.content);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -1613,6 +1687,151 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
               {" "}{review.deliverables.filter((d) => d.status === "approved").length} approved ·
               {" "}{review.deliverables.filter((d) => d.status === "rejected").length} rejected ·
               {" "}last updated {new Date(review.updatedAt).toLocaleTimeString("en-CA", { hour12: false, hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── CLIENT DELIVERY PACKAGE ── */}
+      <section data-testid="delivery-package-section" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+              <Archive size={12} style={{ display: "inline", marginRight: 4 }} /> Client Delivery Package
+            </div>
+            {deliveryPkg?.clientReady && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: "rgba(52,211,153,0.15)", color: "#34d399",
+                border: "1px solid rgba(52,211,153,0.3)",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <CheckCircle2 size={9} /> Ready
+              </span>
+            )}
+            {deliveryPkg && !deliveryPkg.clientReady && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: "rgba(245,158,11,0.12)", color: "#f59e0b",
+                border: "1px solid rgba(245,158,11,0.25)",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <AlertTriangle size={9} /> Not Ready
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => void handleGeneratePkg()}
+            disabled={generatingPkg}
+            style={{
+              padding: "4px 12px", borderRadius: 4,
+              background: generatingPkg ? "var(--surface-2)" : "rgba(99,102,241,0.14)",
+              border: `1px solid ${generatingPkg ? "var(--border-2)" : "rgba(99,102,241,0.3)"}`,
+              color: generatingPkg ? "var(--text-3)" : "#818cf8",
+              fontWeight: 600, fontSize: 10, cursor: generatingPkg ? "not-allowed" : "pointer",
+              fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4,
+              transition: "all 140ms ease",
+            }}
+          >
+            {generatingPkg
+              ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span>
+              : <Archive size={10} />
+            }
+            {deliveryPkg ? "Regenerate" : "Generate Package"}
+          </button>
+        </div>
+
+        {!deliveryPkg ? (
+          <div style={{ padding: 16, textAlign: "center", color: "var(--text-3)", fontSize: 12, background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+            No delivery package yet. Run a quality review and approve deliverables, then generate the package.
+          </div>
+        ) : (
+          <div>
+            {/* Stats row */}
+            <div style={{ display: "flex", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
+              {[
+                { label: "Quality Score", value: `${deliveryPkg.qualityScore}/100`, color: deliveryPkg.qualityScore >= 80 ? "#34d399" : deliveryPkg.qualityScore >= 60 ? "#f59e0b" : "#f43f5e" },
+                { label: "Approved", value: String(deliveryPkg.manifest.approvedCount), color: "#34d399" },
+                { label: "Pending", value: String(deliveryPkg.manifest.pendingCount), color: "#f59e0b" },
+                { label: "Rejected", value: String(deliveryPkg.manifest.rejectedCount), color: "#f43f5e" },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{ display: "flex", flex: 1, minWidth: 80, flexDirection: "column", gap: 2, padding: "8px 12px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 9, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.4px" }}>{label}</span>
+                  <span style={{ fontSize: 18, fontWeight: 800, color, fontFamily: "ui-monospace, monospace" }}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Blockers */}
+            {deliveryPkg.manifest.blockers.length > 0 && (
+              <div style={{ marginBottom: 10, padding: "8px 12px", background: "rgba(244,63,94,0.06)", border: "1px solid rgba(244,63,94,0.2)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#f43f5e", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <AlertTriangle size={10} /> Blockers
+                </div>
+                {deliveryPkg.manifest.blockers.map((b, i) => (
+                  <div key={i} style={{ fontSize: 11, color: "#f43f5e", opacity: 0.85, marginBottom: 2 }}>⚠ {b}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {deliveryPkg.manifest.recommendations.length > 0 && (
+              <div style={{ marginBottom: 10, padding: "8px 12px", background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-2)", marginBottom: 4 }}>Recommendations</div>
+                {deliveryPkg.manifest.recommendations.slice(0, 4).map((r, i) => (
+                  <div key={i} style={{ fontSize: 11, color: "var(--text-2)", marginBottom: 2 }}>· {r}</div>
+                ))}
+              </div>
+            )}
+
+            {/* File list + preview */}
+            <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 12 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                {deliveryPkg.files.map((file) => (
+                  <button
+                    key={file.path}
+                    onClick={() => void loadDeliveryFileContent(file.path)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "5px 10px", borderRadius: 4,
+                      background: selectedDeliveryFile === file.path ? "var(--accent-dim)" : "transparent",
+                      border: `1px solid ${selectedDeliveryFile === file.path ? "var(--accent)" : "transparent"}`,
+                      cursor: "pointer", textAlign: "left",
+                      fontFamily: "ui-monospace, monospace", fontSize: 11,
+                      color: selectedDeliveryFile === file.path ? "var(--accent-light)" : "var(--text-2)",
+                      transition: "all 120ms ease", width: "100%",
+                    }}
+                  >
+                    <FileText size={11} style={{ flexShrink: 0, color: "#6366f1" }} />
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {file.name}
+                    </span>
+                    <span style={{ fontSize: 9, color: "var(--text-3)", flexShrink: 0 }}>
+                      {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {selectedDeliveryFile && selectedDeliveryContent !== null ? (
+                <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", fontSize: 10, fontWeight: 600, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    <Eye size={11} /> {selectedDeliveryFile.split("/").pop()}
+                  </div>
+                  <pre style={{ margin: 0, padding: "12px", fontSize: 11, lineHeight: 1.55, fontFamily: "ui-monospace, monospace", color: "var(--text-2)", overflow: "auto", maxHeight: 280, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    {selectedDeliveryContent}
+                  </pre>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: 12, textAlign: "center", background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 24 }}>
+                  Select a file to preview its contents
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-3)" }}>
+              {deliveryPkg.files.length} files in <code style={{ fontSize: 9, color: "var(--accent-light)" }}>delivery/</code> ·
+              {" "}generated {new Date(deliveryPkg.generatedAt).toLocaleTimeString("en-CA", { hour12: false, hour: "2-digit", minute: "2-digit" })}
             </div>
           </div>
         )}
