@@ -6,6 +6,10 @@
   "acceptance_criteria": "Authentication and authorization are implemented and working as expected",
   "estimated_cost_usd": 280,
   "branch_name": "feature/authentication-authorization",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T02:53:52.303530",
+  "completed_at": "2026-05-10T02:53:58.263554",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/155"
 }
