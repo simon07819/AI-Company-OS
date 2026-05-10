@@ -15,6 +15,20 @@ import {
   Sparkles,
   Zap,
 } from "lucide-react";
+import {
+  PageHeader,
+  MetricCard,
+  Panel,
+  SectionHeader,
+  StatusBadge,
+  EmptyState,
+  GhostButton,
+  PrimaryButton,
+  LocalBadge,
+  SimBadge,
+  Row,
+  ErrorBanner,
+} from "@/components/ui";
 
 interface DemoReadiness {
   score: number;
@@ -49,16 +63,22 @@ export default function DemoPage() {
   const [readiness, setReadiness] = useState<DemoReadiness | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const loadReadiness = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch("/api/demo/readiness");
       if (res.ok) {
         const data = await res.json();
         setReadiness(data.readiness);
+      } else {
+        setFetchError("Failed to load demo readiness data. The server returned an error.");
       }
-    } catch { /* ignore */ }
+    } catch {
+      setFetchError("Network error — could not reach the demo readiness API.");
+    }
     setLoading(false);
   };
 
@@ -85,48 +105,60 @@ export default function DemoPage() {
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text)", margin: 0 }}>
-            <Sparkles size={22} style={{ display: "inline", marginRight: 8, verticalAlign: -4 }} />
-            Demo Readiness Center
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", margin: "4px 0 0" }}>Seed and walk through AI Company OS end to end</p>
-        </div>
-        <button onClick={loadReadiness} disabled={loading || busy} style={ghostButton}>
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        icon={<Sparkles size={22} />}
+        title="Demo Readiness Center"
+        description="Seed and walk through AI Company OS end to end. Simulation mode shows fallback behavior; connect an NVIDIA API key for real GPU inference."
+        badge={<><LocalBadge />{readiness?.simulationFallbackActive && <SimBadge />}</>}
+        actions={
+          <GhostButton onClick={loadReadiness} disabled={loading || busy}>
+            <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
+          </GhostButton>
+        }
+      />
+
+      {fetchError && (
+        <ErrorBanner message={fetchError} onRetry={loadReadiness} />
+      )}
 
       {readiness?.simulationFallbackActive && (
-        <section style={{ ...panelStyle, borderColor: "rgba(245,158,11,0.45)", background: "rgba(245,158,11,0.10)", marginBottom: 24 }}>
+        <Panel style={{ borderColor: "rgba(245,158,11,0.45)", background: "rgba(245,158,11,0.10)", marginBottom: 24 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <AlertTriangle size={17} style={{ color: "#f59e0b" }} />
             <div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>NVIDIA runtime key not detected</div>
-              <div style={{ fontSize: 11, color: "var(--text-3)" }}>Demo remains safe to run. AI Company OS will present simulation fallback behavior without exposing any secret.</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "var(--text)" }}>
+                NVIDIA runtime key not detected
+                <span style={{ marginLeft: 8 }}><StatusBadge label="Simulation" color="#f59e0b" /></span>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                Demo remains safe to run. AI Company OS will present simulation fallback behavior without exposing any secret. Connect an NVIDIA API key to enable real GPU inference.
+              </div>
             </div>
           </div>
-        </section>
+        </Panel>
       )}
 
       <AnimatePresence mode="wait">
         <motion.div key="demo" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
           <section style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, marginBottom: 32 }}>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Gauge size={12} /> Demo Readiness Score</div>
+            <Panel>
+              <SectionHeader icon={<Gauge size={12} />} title="Demo Readiness Score" />
               <div style={{ fontSize: 58, lineHeight: 1, fontWeight: 900, color: readiness && readiness.score >= 80 ? "#22c55e" : readiness && readiness.score >= 50 ? "#f59e0b" : "#f43f5e" }}>
                 {readiness?.score ?? 0}
               </div>
               <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 8 }}>Ready when score reaches 100</div>
               <div style={{ display: "flex", gap: 8, marginTop: 18 }}>
-                <button onClick={seed} disabled={busy} style={primaryButton}><Database size={12} /> Seed Demo Data</button>
-                <button onClick={reset} disabled={busy} style={dangerButton}><RotateCcw size={12} /> Reset Demo</button>
+                <PrimaryButton onClick={seed} disabled={busy} color="#22c55e">
+                  <Database size={12} /> Seed Demo Data
+                </PrimaryButton>
+                <PrimaryButton onClick={reset} disabled={busy} color="#f43f5e">
+                  <RotateCcw size={12} /> Reset Demo
+                </PrimaryButton>
               </div>
-            </div>
+            </Panel>
 
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Play size={12} /> End-to-End Scenario</div>
+            <Panel>
+              <SectionHeader icon={<Play size={12} />} title="End-to-End Scenario" />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 8 }}>
                 {SCENARIO.map((item, index) => {
                   const check = readiness?.checklist.find((entry) => entry.label === item);
@@ -137,49 +169,68 @@ export default function DemoPage() {
                           {check?.completed ? <CheckCircle2 size={16} /> : <span style={{ fontSize: 12, fontWeight: 800 }}>{index + 1}</span>}
                         </div>
                         <div style={{ fontSize: 12, fontWeight: 800, color: "var(--text)" }}>{item}</div>
+                        {check?.completed && <StatusBadge label="Done" color="#22c55e" size="sm" />}
                       </div>
                     </Link>
                   );
                 })}
               </div>
-            </div>
+            </Panel>
           </section>
 
           <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><CheckCircle2 size={12} /> Checklist</div>
-              {readiness?.checklist.map((item) => (
-                <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
-                  <div style={rowStyle}>
-                    <span style={{ color: item.completed ? "#22c55e" : "#94a3b8" }}>{item.completed ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}</span>
-                    <span style={{ flex: 1, color: "var(--text-2)", fontSize: 12 }}>{item.label}</span>
-                    <ArrowRight size={12} style={{ color: "var(--text-3)" }} />
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <Panel>
+              <SectionHeader icon={<CheckCircle2 size={12} />} title="Checklist" />
+              {readiness?.checklist.length === 0 ? (
+                <EmptyState
+                  title="No checklist items"
+                  description="Seed demo data to populate the readiness checklist."
+                  action={<PrimaryButton onClick={seed} disabled={busy} color="#22c55e"><Database size={12} /> Seed Demo Data</PrimaryButton>}
+                />
+              ) : (
+                readiness?.checklist.map((item) => (
+                  <Link key={item.id} href={item.href} style={{ textDecoration: "none" }}>
+                    <Row style={{ marginBottom: 6 }}>
+                      {item.completed
+                        ? <StatusBadge label="Done" color="#22c55e" icon={<CheckCircle2 size={10} />} />
+                        : <StatusBadge label="Pending" color="#94a3b8" bg="rgba(148,163,184,0.1)" icon={<AlertTriangle size={10} />} />}
+                      <span style={{ flex: 1, color: "var(--text-2)", fontSize: 12 }}>{item.label}</span>
+                      <ArrowRight size={12} style={{ color: "var(--text-3)" }} />
+                    </Row>
+                  </Link>
+                ))
+              )}
+            </Panel>
 
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Zap size={12} /> Demo Data Summary</div>
+            <Panel>
+              <SectionHeader icon={<Zap size={12} />} title="Demo Data Summary" />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginBottom: 18 }}>
                 {readiness && Object.entries(readiness.summary).map(([label, value]) => (
-                  <div key={label} style={metricCard}>
-                    <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4, textTransform: "capitalize" }}>{label.replace(/([A-Z])/g, " $1")}</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: "#6366f1" }}>{value}</div>
-                  </div>
+                  <MetricCard
+                    key={label}
+                    label={label.replace(/([A-Z])/g, " $1")}
+                    value={value}
+                    color="#6366f1"
+                  />
                 ))}
               </div>
-              <div style={sectionTitle}>Pages clés</div>
+              <SectionHeader title="Pages clés" />
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                 {readiness?.links.map((link) => (
                   <Link key={link.href} href={link.href} style={{ ...pillLink, textDecoration: "none" }}>{link.label}</Link>
                 ))}
               </div>
-            </div>
+            </Panel>
           </section>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><Sparkles size={12} /> Suggested Demo Flow</div>
+          <Panel>
+            <SectionHeader
+              icon={<Sparkles size={12} />}
+              title="Suggested Demo Flow"
+            />
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 12 }}>
+              Walk through the full company lifecycle. Simulation mode provides mock AI responses; real NVIDIA inference requires a configured API key.
+            </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 10 }}>
               {[
                 ["Start", "Open Onboarding and show company setup defaults.", "/onboarding"],
@@ -196,63 +247,12 @@ export default function DemoPage() {
                 </Link>
               ))}
             </div>
-          </section>
+          </Panel>
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
-
-const panelStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "18px 22px",
-};
-
-const sectionTitle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 11,
-  fontWeight: 800,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
-  marginBottom: 14,
-};
-
-const ghostButton: React.CSSProperties = {
-  fontSize: 11,
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "6px 12px",
-  cursor: "pointer",
-  color: "var(--text-2)",
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const primaryButton: React.CSSProperties = {
-  fontSize: 11,
-  background: "#22c55e",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "7px 10px",
-  cursor: "pointer",
-  fontWeight: 800,
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const dangerButton: React.CSSProperties = {
-  ...primaryButton,
-  background: "#f43f5e",
-};
 
 const scenarioCard: React.CSSProperties = {
   background: "var(--bg-2)",
@@ -260,24 +260,6 @@ const scenarioCard: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
   padding: "12px 14px",
   minHeight: 86,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 9,
-  background: "var(--bg-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "9px 11px",
-  marginBottom: 6,
-};
-
-const metricCard: React.CSSProperties = {
-  background: "var(--bg-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "10px 12px",
 };
 
 const pillLink: React.CSSProperties = {

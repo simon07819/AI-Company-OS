@@ -13,6 +13,19 @@ import {
   Send,
   TrendingUp,
 } from "lucide-react";
+import {
+  EmptyState,
+  ErrorBanner,
+  GhostButton,
+  LocalBadge,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PrimaryButton,
+  Row,
+  SectionHeader,
+  StatusBadge,
+} from "@/components/ui";
 
 type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected";
 type InvoiceStatus = "pending" | "paid" | "overdue" | "cancelled";
@@ -95,12 +108,14 @@ export default function RevenuePage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [records, setRecords] = useState<RevenueRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [missionType, setMissionType] = useState("website");
   const [amount, setAmount] = useState("");
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/revenue/overview");
       if (res.ok) {
@@ -109,8 +124,12 @@ export default function RevenuePage() {
         setProposals(data.proposals ?? []);
         setInvoices(data.invoices ?? []);
         setRecords(data.records ?? []);
+      } else {
+        setError("Failed to load revenue overview. Check that the local API is running.");
       }
-    } catch { /* ignore */ }
+    } catch {
+      setError("Network error — could not reach the local API. Ensure the dev server is running.");
+    }
     setLoading(false);
   };
 
@@ -158,46 +177,35 @@ export default function RevenuePage() {
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-            <DollarSign size={20} style={{ display: "inline", marginRight: 8, verticalAlign: -3 }} />
-            Revenue System
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", margin: "4px 0 0" }}>Proposals, estimates, invoices and revenue tracking</p>
-        </div>
-        <button onClick={loadData} disabled={loading} style={{ fontSize: 11, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "6px 12px", cursor: "pointer", color: "var(--text-2)", display: "flex", alignItems: "center", gap: 5 }}>
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        icon={<DollarSign size={20} />}
+        title="Revenue System"
+        description="Proposals, estimates, invoices and revenue tracking — manage your full billing cycle from pitch to payment."
+        badge={<LocalBadge />}
+        actions={
+          <GhostButton onClick={loadData} disabled={loading}>
+            <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
+          </GhostButton>
+        }
+      />
+
+      {error && <ErrorBanner message={error} onRetry={loadData} />}
 
       <AnimatePresence mode="wait">
         <motion.div key="content" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
           {overview && (
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px, 1fr))", gap: 12, marginBottom: 32 }}>
-              {[
-                { label: "Monthly Revenue", value: `$${overview.monthlyRevenue.toLocaleString()}`, icon: <DollarSign size={15} />, color: "#22c55e" },
-                { label: "Pipeline Value", value: `$${overview.pipelineValue.toLocaleString()}`, icon: <BarChart3 size={15} />, color: "#a78bfa" },
-                { label: "Accepted Value", value: `$${overview.acceptedProposalValue.toLocaleString()}`, icon: <CheckCircle2 size={15} />, color: "#34d399" },
-                { label: "Estimated Monthly", value: `$${overview.estimatedMonthlyRevenue.toLocaleString()}`, icon: <TrendingUp size={15} />, color: "#38bdf8" },
-                { label: "Conversion Rate", value: `${overview.proposalConversionRate}%`, icon: <Send size={15} />, color: "#f59e0b" },
-                { label: "Outstanding", value: `$${overview.outstandingInvoiceValue.toLocaleString()}`, icon: <Receipt size={15} />, color: "#fb923c" },
-              ].map(({ label, value, icon, color }) => (
-                <div key={label} style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                    <span style={{ color }}>{icon}</span>
-                    <span style={{ fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px" }}>{label}</span>
-                  </div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-                </div>
-              ))}
+              <MetricCard label="Monthly Revenue" value={`$${overview.monthlyRevenue.toLocaleString()}`} icon={<DollarSign size={15} />} color="#22c55e" />
+              <MetricCard label="Pipeline Value" value={`$${overview.pipelineValue.toLocaleString()}`} icon={<BarChart3 size={15} />} color="#a78bfa" />
+              <MetricCard label="Accepted Value" value={`$${overview.acceptedProposalValue.toLocaleString()}`} icon={<CheckCircle2 size={15} />} color="#34d399" />
+              <MetricCard label="Estimated Monthly" value={`$${overview.estimatedMonthlyRevenue.toLocaleString()}`} icon={<TrendingUp size={15} />} color="#38bdf8" />
+              <MetricCard label="Conversion Rate" value={`${overview.proposalConversionRate}%`} icon={<Send size={15} />} color="#f59e0b" />
+              <MetricCard label="Outstanding" value={`$${overview.outstandingInvoiceValue.toLocaleString()}`} icon={<Receipt size={15} />} color="#fb923c" />
             </section>
           )}
 
-          <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 14 }}>
-              <PlusCircle size={12} style={{ display: "inline", marginRight: 4 }} /> Create Proposal
-            </div>
+          <Panel>
+            <SectionHeader icon={<PlusCircle size={12} />} title="Create Proposal" />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 150px auto", gap: 8 }}>
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Proposal title" style={inputStyle} />
               <select value={missionType} onChange={(e) => setMissionType(e.target.value)} style={inputStyle}>
@@ -209,82 +217,82 @@ export default function RevenuePage() {
                 <option value="automation_workflow">Automation Workflow</option>
               </select>
               <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" type="number" style={inputStyle} />
-              <button onClick={createProposal} style={btnPrimary}><PlusCircle size={12} /> Create</button>
+              <PrimaryButton onClick={createProposal}><PlusCircle size={12} /> Create</PrimaryButton>
             </div>
-          </section>
+          </Panel>
 
-          <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
-            <div style={sectionTitle}><FileText size={12} /> Proposals</div>
+          <Panel>
+            <SectionHeader icon={<FileText size={12} />} title="Proposals" />
             {proposals.length === 0 ? (
-              <div style={emptyStyle}>No proposals yet.</div>
+              <EmptyState title="No proposals yet" description="Create your first proposal above to start tracking deals and converting leads into revenue." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {proposals.map((proposal) => {
                   const cfg = PROPOSAL_STATUS[proposal.status];
                   return (
-                    <div key={proposal.proposalId} style={rowStyle}>
+                    <Row key={proposal.proposalId}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{proposal.title}</div>
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>{proposal.missionType.replace(/_/g, " ")} · ${proposal.estimate.monthlyRecurring.toLocaleString()} monthly est.</div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>${proposal.amount.toLocaleString()}</span>
-                      <span style={{ ...pillStyle, color: cfg.color, background: cfg.bg }}>{cfg.label}</span>
+                      <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
                       {proposal.status !== "accepted" && proposal.status !== "rejected" && (
                         <>
-                          <button onClick={() => acceptProposal(proposal.proposalId)} style={smallSuccess}>Accept</button>
-                          <button onClick={() => rejectProposal(proposal.proposalId)} style={smallDanger}>Reject</button>
+                          <PrimaryButton onClick={() => acceptProposal(proposal.proposalId)} color="#22c55e">Accept</PrimaryButton>
+                          <PrimaryButton onClick={() => rejectProposal(proposal.proposalId)} color="#f43f5e">Reject</PrimaryButton>
                         </>
                       )}
                       {proposal.status === "accepted" && (
-                        <button onClick={() => createInvoice(proposal)} style={smallPrimary}>Invoice</button>
+                        <PrimaryButton onClick={() => createInvoice(proposal)}>Invoice</PrimaryButton>
                       )}
-                    </div>
+                    </Row>
                   );
                 })}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
-            <div style={sectionTitle}><Receipt size={12} /> Invoices</div>
+          <Panel>
+            <SectionHeader icon={<Receipt size={12} />} title="Invoices" />
             {invoices.length === 0 ? (
-              <div style={emptyStyle}>No invoices yet.</div>
+              <EmptyState title="No invoices yet" description="Accept a proposal to auto-generate an invoice, or create one manually from the API." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {invoices.map((invoice) => {
                   const cfg = INVOICE_STATUS[invoice.status];
                   return (
-                    <div key={invoice.invoiceId} style={rowStyle}>
+                    <Row key={invoice.invoiceId}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{invoice.invoiceId}</div>
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>Due {new Date(invoice.dueDate).toLocaleDateString()}</div>
                       </div>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#fb923c" }}>${invoice.amount.toLocaleString()}</span>
-                      <span style={{ ...pillStyle, color: cfg.color, background: cfg.bg }}>{cfg.label}</span>
-                      {invoice.status !== "paid" && <button onClick={() => markPaid(invoice.invoiceId)} style={smallSuccess}>Pay</button>}
-                    </div>
+                      <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                      {invoice.status !== "paid" && <PrimaryButton onClick={() => markPaid(invoice.invoiceId)} color="#22c55e">Pay</PrimaryButton>}
+                    </Row>
                   );
                 })}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
-            <div style={sectionTitle}><TrendingUp size={12} /> Revenue History</div>
+          <Panel>
+            <SectionHeader icon={<TrendingUp size={12} />} title="Revenue History" />
             {records.length === 0 ? (
-              <div style={emptyStyle}>No paid revenue recorded yet.</div>
+              <EmptyState title="No paid revenue recorded yet" description="Revenue entries appear here once invoices are marked as paid." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {records.map((record) => (
-                  <div key={record.recordId} style={rowStyle}>
+                  <Row key={record.recordId}>
                     <div style={{ flex: 1, fontSize: 12, color: "var(--text-2)" }}>{record.invoiceId}</div>
                     <span style={{ fontSize: 11, color: "var(--text-3)" }}>{new Date(record.recordedAt).toLocaleDateString()}</span>
                     <span style={{ fontSize: 12, fontWeight: 700, color: "#22c55e" }}>${record.amount.toLocaleString()}</span>
-                  </div>
+                  </Row>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -299,75 +307,4 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
   color: "var(--text)",
   outline: "none",
-};
-
-const btnPrimary: React.CSSProperties = {
-  fontSize: 12,
-  background: "#6366f1",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontWeight: 600,
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const sectionTitle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
-  marginBottom: 14,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "10px 14px",
-  background: "var(--bg-2)",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border)",
-};
-
-const pillStyle: React.CSSProperties = {
-  fontSize: 10,
-  fontWeight: 600,
-  padding: "3px 8px",
-  borderRadius: "var(--radius-sm)",
-  textTransform: "uppercase",
-  letterSpacing: "0.3px",
-};
-
-const emptyStyle: React.CSSProperties = {
-  color: "var(--text-3)",
-  fontSize: 13,
-  padding: "8px 0",
-};
-
-const smallPrimary: React.CSSProperties = {
-  fontSize: 10,
-  background: "#6366f1",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "4px 8px",
-  cursor: "pointer",
-};
-
-const smallSuccess: React.CSSProperties = {
-  ...smallPrimary,
-  background: "#22c55e",
-};
-
-const smallDanger: React.CSSProperties = {
-  ...smallPrimary,
-  background: "#f43f5e",
 };

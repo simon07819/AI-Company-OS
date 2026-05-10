@@ -19,6 +19,18 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import {
+  EmptyState,
+  ErrorBanner,
+  GhostButton,
+  LocalBadge,
+  MetricCard,
+  PageHeader,
+  Panel,
+  Row,
+  SectionHeader,
+  StatusBadge,
+} from "@/components/ui";
 
 interface CommandAlert {
   id: string;
@@ -72,9 +84,11 @@ export default function CommandPage() {
   const [overview, setOverview] = useState<CommandOverview | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [res, onboardingRes] = await Promise.all([
         fetch("/api/command/overview"),
@@ -88,7 +102,12 @@ export default function CommandPage() {
         const data = await onboardingRes.json();
         setOnboarding(data.onboarding.state);
       }
-    } catch { /* ignore */ }
+      if (!res.ok) {
+        setError("Failed to load command overview. Check that the local API is running.");
+      }
+    } catch {
+      setError("Network error — could not reach the local API. Ensure the dev server is running.");
+    }
     setLoading(false);
   };
 
@@ -96,22 +115,23 @@ export default function CommandPage() {
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1280, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "var(--text)", margin: 0 }}>
-            <ShieldCheck size={22} style={{ display: "inline", marginRight: 8, verticalAlign: -4 }} />
-            CEO Command Center
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", margin: "4px 0 0" }}>Executive overview across workspaces, missions, revenue, clients, runtime and distribution</p>
-        </div>
-        <button onClick={loadData} disabled={loading} style={ghostButton}>
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        icon={<ShieldCheck size={22} />}
+        title="CEO Command Center"
+        description="Executive overview across workspaces, missions, revenue, clients, runtime and distribution — your single pane of glass for local-first operations."
+        badge={<LocalBadge />}
+        actions={
+          <GhostButton onClick={loadData} disabled={loading}>
+            <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
+          </GhostButton>
+        }
+      />
+
+      {error && <ErrorBanner message={error} onRetry={loadData} />}
 
       {onboarding && !onboarding.completed && (
         <Link href="/onboarding" style={{ textDecoration: "none" }}>
-          <section style={{ ...panelStyle, marginBottom: 24, borderColor: "rgba(99,102,241,0.45)", background: "rgba(99,102,241,0.10)" }}>
+          <Panel style={{ marginBottom: 24, borderColor: "rgba(99,102,241,0.45)", background: "rgba(99,102,241,0.10)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <Sparkles size={18} style={{ color: "#a78bfa" }} />
               <div style={{ flex: 1 }}>
@@ -122,7 +142,7 @@ export default function CommandPage() {
                 Continue setup <ArrowRight size={12} />
               </span>
             </div>
-          </section>
+          </Panel>
         </Link>
       )}
 
@@ -131,23 +151,24 @@ export default function CommandPage() {
           {overview && (
             <>
               <section style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 16, marginBottom: 32 }}>
-                <div style={{ ...panelStyle, marginBottom: 0 }}>
-                  <div style={sectionTitle}><ShieldCheck size={12} /> Company Health Score</div>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<ShieldCheck size={12} />} title="Company Health Score" />
                   <div style={{ fontSize: 54, lineHeight: 1, fontWeight: 800, color: HEALTH_COLOR[overview.healthGrade] }}>{overview.healthScore}</div>
-                  <div style={{ fontSize: 12, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px", marginTop: 8 }}>{overview.healthGrade}</div>
-                </div>
+                  <StatusBadge label={overview.healthGrade} color={HEALTH_COLOR[overview.healthGrade]} size="md" />
+                </Panel>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
-                  <Metric label="Monthly Revenue" value={`$${overview.revenue.monthlyRevenue.toLocaleString()}`} icon={<DollarSign size={15} />} color="#22c55e" />
-                  <Metric label="Revenue Pipeline" value={`$${overview.revenue.pipelineValue.toLocaleString()}`} icon={<BarChart3 size={15} />} color="#a78bfa" />
-                  <Metric label="Active Workspaces" value={overview.workspaces.active} icon={<Building2 size={15} />} color="#6366f1" />
-                  <Metric label="Active Agents" value={`${overview.runtime.activeAgents}/${overview.runtime.totalAgents}`} icon={<Bot size={15} />} color="#38bdf8" />
-                  <Metric label="Approvals" value={overview.missions.pendingApprovals} icon={<CheckCircle2 size={15} />} color="#f59e0b" />
-                  <Metric label="Published Assets" value={overview.distribution.publishedAssets} icon={<Megaphone size={15} />} color="#34d399" />
+                  <MetricCard label="Monthly Revenue" value={`$${overview.revenue.monthlyRevenue.toLocaleString()}`} icon={<DollarSign size={15} />} color="#22c55e" />
+                  <MetricCard label="Revenue Pipeline" value={`$${overview.revenue.pipelineValue.toLocaleString()}`} icon={<BarChart3 size={15} />} color="#a78bfa" />
+                  <MetricCard label="Active Workspaces" value={overview.workspaces.active} icon={<Building2 size={15} />} color="#6366f1" />
+                  <MetricCard label="Active Agents" value={`${overview.runtime.activeAgents}/${overview.runtime.totalAgents}`} icon={<Bot size={15} />} color="#38bdf8" />
+                  <MetricCard label="Approvals" value={overview.missions.pendingApprovals} icon={<CheckCircle2 size={15} />} color="#f59e0b" />
+                  <MetricCard label="Published Assets" value={overview.distribution.publishedAssets} icon={<Megaphone size={15} />} color="#34d399" />
                 </div>
               </section>
 
               <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-                <Panel title="Revenue Snapshot" icon={<DollarSign size={12} />}>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<DollarSign size={12} />} title="Revenue Snapshot" />
                   <MiniGrid items={[
                     ["Monthly", `$${overview.revenue.monthlyRevenue.toLocaleString()}`, "#22c55e"],
                     ["Pipeline", `$${overview.revenue.pipelineValue.toLocaleString()}`, "#a78bfa"],
@@ -155,7 +176,8 @@ export default function CommandPage() {
                     ["Conversion", `${overview.revenue.proposalConversionRate}%`, "#f59e0b"],
                   ]} />
                 </Panel>
-                <Panel title="Client Pipeline" icon={<Users size={12} />}>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Users size={12} />} title="Client Pipeline" />
                   <MiniGrid items={[
                     ["Active Leads", overview.crm.activeLeads, "#f59e0b"],
                     ["Active Clients", overview.crm.activeClients, "#22c55e"],
@@ -166,27 +188,53 @@ export default function CommandPage() {
               </section>
 
               <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-                <Panel title="Active Workspaces" icon={<Building2 size={12} />}>
-                  {overview.workspaces.top.length === 0 ? <Empty /> : overview.workspaces.top.map((workspace) => (
-                    <Row key={workspace.id} title={workspace.name} sub={`${workspace.metrics.activeMissions} active missions · ${workspace.metrics.activeCampaigns} campaigns`} value={`$${workspace.metrics.revenue.toLocaleString()}`} color="#22c55e" />
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Building2 size={12} />} title="Active Workspaces" />
+                  {overview.workspaces.top.length === 0 ? (
+                    <EmptyState title="No workspaces yet" description="Create a workspace to start organizing missions and revenue. Go to the Workspaces page to add one." />
+                  ) : overview.workspaces.top.map((workspace) => (
+                    <Row key={workspace.id}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{workspace.name}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{workspace.metrics.activeMissions} active missions · {workspace.metrics.activeCampaigns} campaigns</div>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: "#22c55e", textTransform: "capitalize" }}>${workspace.metrics.revenue.toLocaleString()}</span>
+                    </Row>
                   ))}
                 </Panel>
-                <Panel title="Autonomous Agents Status" icon={<Bot size={12} />}>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Bot size={12} />} title="Autonomous Agents Status" />
                   {overview.runtime.agents.map((agent) => (
-                    <Row key={agent.agentId} title={agent.agentId.replace(/_/g, " ")} sub={agent.currentMissionId ?? "No active mission"} value={agent.status} color={agent.status === "failed" ? "#f43f5e" : agent.status === "idle" ? "#94a3b8" : "#22c55e"} />
+                    <Row key={agent.agentId}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{agent.agentId.replace(/_/g, " ")}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{agent.currentMissionId ?? "No active mission"}</div>
+                      </div>
+                      <StatusBadge label={agent.status} color={agent.status === "failed" ? "#f43f5e" : agent.status === "idle" ? "#94a3b8" : "#22c55e"} />
+                    </Row>
                   ))}
                 </Panel>
               </section>
 
               <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-                <Panel title="Mission Pipeline" icon={<Layers3 size={12} />}>
-                  {overview.missions.pipeline.length === 0 ? <Empty /> : overview.missions.pipeline.map((mission) => (
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Layers3 size={12} />} title="Mission Pipeline" />
+                  {overview.missions.pipeline.length === 0 ? (
+                    <EmptyState title="No missions in pipeline" description="Launch a mission from Autopilot to start generating deliverables and tracking progress." />
+                  ) : overview.missions.pipeline.map((mission) => (
                     <Link key={mission.sessionId} href={`/autopilot/${mission.sessionId}`} style={{ textDecoration: "none" }}>
-                      <Row title={mission.projectName.replace(/-/g, " ")} sub={`${mission.missionLabel} · ${mission.businessStatus.replace(/_/g, " ")}`} value={`${mission.progress}%`} color="#6366f1" />
+                      <Row>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mission.projectName.replace(/-/g, " ")}</div>
+                          <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mission.missionLabel} · {mission.businessStatus.replace(/_/g, " ")}</div>
+                        </div>
+                        <StatusBadge label={`${mission.progress}%`} color="#6366f1" />
+                      </Row>
                     </Link>
                   ))}
                 </Panel>
-                <Panel title="Distribution Activity" icon={<Megaphone size={12} />}>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Megaphone size={12} />} title="Distribution Activity" />
                   <MiniGrid items={[
                     ["Assets", overview.distribution.publishedAssets, "#22c55e"],
                     ["Campaigns", overview.distribution.activeCampaigns, "#a78bfa"],
@@ -204,28 +252,38 @@ export default function CommandPage() {
               </section>
 
               <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-                <Panel title="Critical Alerts" icon={<AlertTriangle size={12} />}>
-                  {overview.alerts.length === 0 ? <Empty text="No critical alerts." /> : overview.alerts.map((alert) => (
-                    <div key={alert.id} style={{ ...alertRow, borderColor: `${ALERT_COLOR[alert.severity]}55` }}>
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<AlertTriangle size={12} />} title="Critical Alerts" />
+                  {overview.alerts.length === 0 ? (
+                    <EmptyState title="No critical alerts" description="All systems are operating normally. Alerts will appear here when issues need CEO attention." />
+                  ) : overview.alerts.map((alert) => (
+                    <Row key={alert.id} style={{ borderColor: `${ALERT_COLOR[alert.severity]}55` }}>
                       <div style={{ color: ALERT_COLOR[alert.severity] }}><AlertTriangle size={13} /></div>
-                      <div>
+                      <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{alert.title}</div>
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>{alert.description}</div>
                       </div>
-                    </div>
+                      <StatusBadge label={alert.severity} color={ALERT_COLOR[alert.severity]} />
+                    </Row>
                   ))}
                 </Panel>
-                <Panel title="Recommended CEO Actions" icon={<Sparkles size={12} />}>
-                  {overview.actions.length === 0 ? <Empty text="No recommended actions." /> : overview.actions.map((action) => (
+                <Panel style={{ marginBottom: 0 }}>
+                  <SectionHeader icon={<Sparkles size={12} />} title="Recommended CEO Actions" />
+                  {overview.actions.length === 0 ? (
+                    <EmptyState title="No recommended actions" description="The system will surface priority actions here when decisions are needed from leadership." />
+                  ) : overview.actions.map((action) => (
                     <Link key={action.id} href={action.href} style={{ textDecoration: "none" }}>
-                      <div style={actionRow}>
+                      <Row>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{action.label}</div>
                           <div style={{ fontSize: 10, color: "var(--text-3)" }}>{action.description}</div>
                         </div>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: action.priority === "high" ? "#f43f5e" : action.priority === "medium" ? "#f59e0b" : "#94a3b8", textTransform: "uppercase" }}>{action.priority}</span>
+                        <StatusBadge
+                          label={action.priority}
+                          color={action.priority === "high" ? "#f43f5e" : action.priority === "medium" ? "#f59e0b" : "#94a3b8"}
+                        />
                         <ArrowRight size={12} style={{ color: "var(--text-3)" }} />
-                      </div>
+                      </Row>
                     </Link>
                   ))}
                 </Panel>
@@ -235,27 +293,6 @@ export default function CommandPage() {
         </motion.div>
       </AnimatePresence>
     </div>
-  );
-}
-
-function Metric({ label, value, icon, color }: { label: string; value: string | number; icon: React.ReactNode; color: string }) {
-  return (
-    <div style={metricCard}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <span style={{ color }}>{icon}</span>
-        <span style={metricLabel}>{label}</span>
-      </div>
-      <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
-    </div>
-  );
-}
-
-function Panel({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <section style={panelStyle}>
-      <div style={sectionTitle}>{icon} {title}</div>
-      {children}
-    </section>
   );
 }
 
@@ -271,98 +308,3 @@ function MiniGrid({ items }: { items: Array<[string, string | number, string]> }
     </div>
   );
 }
-
-function Row({ title, sub, value, color }: { title: string; sub: string; value: string | number; color: string }) {
-  return (
-    <div style={rowStyle}>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
-        <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</div>
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 800, color, textTransform: "capitalize" }}>{value}</span>
-    </div>
-  );
-}
-
-function Empty({ text = "No data yet." }: { text?: string }) {
-  return <div style={{ color: "var(--text-3)", fontSize: 13, padding: "8px 0" }}>{text}</div>;
-}
-
-const panelStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "18px 22px",
-  marginBottom: 0,
-};
-
-const metricCard: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "14px 16px",
-};
-
-const metricLabel: React.CSSProperties = {
-  fontSize: 10,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const sectionTitle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 11,
-  fontWeight: 700,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
-  marginBottom: 14,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "9px 12px",
-  background: "var(--bg-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  marginBottom: 5,
-};
-
-const alertRow: React.CSSProperties = {
-  display: "flex",
-  gap: 9,
-  padding: "10px 12px",
-  background: "var(--bg-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  marginBottom: 6,
-};
-
-const actionRow: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "10px 12px",
-  background: "var(--bg-2)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  marginBottom: 6,
-};
-
-const ghostButton: React.CSSProperties = {
-  fontSize: 11,
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "6px 12px",
-  cursor: "pointer",
-  color: "var(--text-2)",
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};

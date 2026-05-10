@@ -29,7 +29,7 @@ describe("critical Control Center pages", () => {
   it("renders Runtime without crashing", () => {
     render(React.createElement(RuntimePage));
 
-    expect(screen.getByRole("heading", { name: "NVIDIA Agent Execution Center" })).toBeInTheDocument();
+    expect(screen.getByText("NVIDIA Agent Execution Center")).toBeInTheDocument();
     expect(screen.getByText("Live Provider Execution")).toBeInTheDocument();
     expect(screen.getByText("Agent Execution Cards")).toBeInTheDocument();
   });

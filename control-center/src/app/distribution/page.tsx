@@ -14,6 +14,19 @@ import {
   Repeat,
   Send,
 } from "lucide-react";
+import {
+  EmptyState,
+  ErrorBanner,
+  GhostButton,
+  LocalBadge,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PrimaryButton,
+  Row,
+  SectionHeader,
+  StatusBadge,
+} from "@/components/ui";
 
 type DistributionChannel =
   | "website"
@@ -91,11 +104,13 @@ export default function DistributionPage() {
   const [jobs, setJobs] = useState<DistributionJob[]>([]);
   const [assets, setAssets] = useState<PublishedAsset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [channel, setChannel] = useState<DistributionChannel>("internal_feed");
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/distribution/overview");
       if (res.ok) {
@@ -104,8 +119,12 @@ export default function DistributionPage() {
         setCampaigns(data.campaigns ?? []);
         setJobs(data.jobs ?? []);
         setAssets(data.assets ?? []);
+      } else {
+        setError("Failed to load distribution overview. Check that the local API is running.");
       }
-    } catch { /* ignore */ }
+    } catch {
+      setError("Network error — could not reach the local API. Ensure the dev server is running.");
+    }
     setLoading(false);
   };
 
@@ -158,126 +177,125 @@ export default function DistributionPage() {
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-            <Megaphone size={20} style={{ display: "inline", marginRight: 8, verticalAlign: -3 }} />
-            Distribution Engine
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", margin: "4px 0 0" }}>Publishing, campaigns and local channel distribution</p>
-        </div>
-        <button onClick={loadData} disabled={loading} style={ghostButton}>
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        icon={<Megaphone size={20} />}
+        title="Distribution Engine"
+        description="Publishing, campaigns and local channel distribution — push content to every channel from a single pane."
+        badge={<LocalBadge />}
+        actions={
+          <GhostButton onClick={loadData} disabled={loading}>
+            <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
+          </GhostButton>
+        }
+      />
+
+      {error && <ErrorBanner message={error} onRetry={loadData} />}
 
       <AnimatePresence mode="wait">
         <motion.div key="content" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
           {overview && (
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px, 1fr))", gap: 12, marginBottom: 32 }}>
-              {[
-                { label: "Published Assets", value: overview.publishedAssets, icon: <PackageCheck size={15} />, color: "#22c55e" },
-                { label: "Active Campaigns", value: overview.activeCampaigns, icon: <Megaphone size={15} />, color: "#a78bfa" },
-                { label: "Queued Jobs", value: overview.queuedJobs, icon: <Layers3 size={15} />, color: "#f59e0b" },
-                { label: "Scheduled", value: overview.scheduledJobs, icon: <Send size={15} />, color: "#3b82f6" },
-                { label: "Failed Jobs", value: overview.failedJobs, icon: <AlertTriangle size={15} />, color: "#f43f5e" },
-                { label: "Success Rate", value: `${overview.distributionSuccessRate}%`, icon: <CheckCircle2 size={15} />, color: "#34d399" },
-              ].map(({ label, value, icon, color }) => (
-                <div key={label} style={metricCard}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                    <span style={{ color }}>{icon}</span>
-                    <span style={metricLabel}>{label}</span>
-                  </div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-                </div>
-              ))}
+              <MetricCard label="Published Assets" value={overview.publishedAssets} icon={<PackageCheck size={15} />} color="#22c55e" />
+              <MetricCard label="Active Campaigns" value={overview.activeCampaigns} icon={<Megaphone size={15} />} color="#a78bfa" />
+              <MetricCard label="Queued Jobs" value={overview.queuedJobs} icon={<Layers3 size={15} />} color="#f59e0b" />
+              <MetricCard label="Scheduled" value={overview.scheduledJobs} icon={<Send size={15} />} color="#3b82f6" />
+              <MetricCard label="Failed Jobs" value={overview.failedJobs} icon={<AlertTriangle size={15} />} color="#f43f5e" />
+              <MetricCard label="Success Rate" value={`${overview.distributionSuccessRate}%`} icon={<CheckCircle2 size={15} />} color="#34d399" />
             </section>
           )}
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><PlusCircle size={12} /> Publish or Schedule</div>
+          <Panel>
+            <SectionHeader icon={<PlusCircle size={12} />} title="Publish or Schedule" />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 170px auto auto", gap: 8 }}>
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Asset or campaign title" style={inputStyle} />
               <select value={channel} onChange={(e) => setChannel(e.target.value as DistributionChannel)} style={inputStyle}>
                 {CHANNELS.map((item) => <option key={item} value={item}>{item.replace(/_/g, " ")}</option>)}
               </select>
-              <button onClick={publish} style={primaryButton}><Send size={12} /> Publish</button>
-              <button onClick={scheduleCampaign} style={purpleButton}><Megaphone size={12} /> Campaign</button>
+              <PrimaryButton onClick={publish} color="#22c55e"><Send size={12} /> Publish</PrimaryButton>
+              <PrimaryButton onClick={scheduleCampaign}><Megaphone size={12} /> Campaign</PrimaryButton>
             </div>
-          </section>
+          </Panel>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><Megaphone size={12} /> Active Campaigns</div>
-            {campaigns.length === 0 ? <div style={emptyStyle}>No campaigns scheduled.</div> : (
-              <div style={listStyle}>
+          <Panel>
+            <SectionHeader icon={<Megaphone size={12} />} title="Active Campaigns" />
+            {campaigns.length === 0 ? (
+              <EmptyState title="No campaigns scheduled" description="Schedule a campaign above to start distributing content across multiple channels simultaneously." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {campaigns.map((campaign) => (
-                  <div key={campaign.campaignId} style={rowStyle}>
+                  <Row key={campaign.campaignId}>
                     <div style={{ flex: 1 }}>
-                      <div style={rowTitle}>{campaign.name}</div>
-                      <div style={rowSub}>{campaign.channels.map((item) => item.replace(/_/g, " ")).join(" · ")} · {campaign.jobIds.length} jobs</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{campaign.name}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)" }}>{campaign.channels.map((item) => item.replace(/_/g, " ")).join(" · ")} · {campaign.jobIds.length} jobs</div>
                     </div>
-                    <StatusPill status={campaign.status} />
-                  </div>
+                    <StatusBadge label={campaign.status.replace(/_/g, " ")} color={STATUS_COLOR[campaign.status]} />
+                  </Row>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><PackageCheck size={12} /> Published Assets</div>
-            {assets.length === 0 ? <div style={emptyStyle}>No assets published.</div> : (
-              <div style={listStyle}>
+          <Panel>
+            <SectionHeader icon={<PackageCheck size={12} />} title="Published Assets" />
+            {assets.length === 0 ? (
+              <EmptyState title="No assets published" description="Publish your first asset above to see it appear here with channel and URL details." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {assets.map((asset) => (
-                  <div key={asset.assetId} style={rowStyle}>
+                  <Row key={asset.assetId}>
                     <div style={{ flex: 1 }}>
-                      <div style={rowTitle}>{asset.title}</div>
-                      <div style={rowSub}>{asset.channel.replace(/_/g, " ")} · {asset.url}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{asset.title}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)" }}>{asset.channel.replace(/_/g, " ")} · {asset.url}</div>
                     </div>
                     <span style={{ fontSize: 10, color: "var(--text-3)" }}>{new Date(asset.publishedAt).toLocaleDateString()}</span>
-                  </div>
+                  </Row>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><Layers3 size={12} /> Distribution Queue</div>
-            {queuedJobs.length === 0 ? <div style={emptyStyle}>No queued distribution jobs.</div> : (
-              <div style={listStyle}>
+          <Panel>
+            <SectionHeader icon={<Layers3 size={12} />} title="Distribution Queue" />
+            {queuedJobs.length === 0 ? (
+              <EmptyState title="No queued distribution jobs" description="All jobs have been processed. New publishes will enter the queue before going live." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {queuedJobs.map((job) => (
-                  <div key={job.jobId} style={rowStyle}>
+                  <Row key={job.jobId}>
                     <div style={{ flex: 1 }}>
-                      <div style={rowTitle}>{job.title}</div>
-                      <div style={rowSub}>{job.channel.replace(/_/g, " ")} · attempts {job.attempts}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{job.title}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)" }}>{job.channel.replace(/_/g, " ")} · attempts {job.attempts}</div>
                     </div>
-                    <StatusPill status={job.status} />
-                    <button onClick={() => publishJob(job.jobId)} style={smallPrimary}>Publish</button>
-                  </div>
+                    <StatusBadge label={job.status.replace(/_/g, " ")} color={STATUS_COLOR[job.status]} />
+                    <PrimaryButton onClick={() => publishJob(job.jobId)}>Publish</PrimaryButton>
+                  </Row>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><AlertTriangle size={12} /> Failed Jobs and Retry Actions</div>
-            {failedJobs.length === 0 ? <div style={emptyStyle}>No failed jobs.</div> : (
-              <div style={listStyle}>
+          <Panel>
+            <SectionHeader icon={<AlertTriangle size={12} />} title="Failed Jobs and Retry Actions" />
+            {failedJobs.length === 0 ? (
+              <EmptyState title="No failed jobs" description="All distribution jobs completed successfully. Failed jobs will appear here with retry options." />
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                 {failedJobs.map((job) => (
-                  <div key={job.jobId} style={rowStyle}>
+                  <Row key={job.jobId}>
                     <div style={{ flex: 1 }}>
-                      <div style={rowTitle}>{job.title}</div>
-                      <div style={rowSub}>{job.lastError ?? "Distribution failed"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{job.title}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)" }}>{job.lastError ?? "Distribution failed"}</div>
                     </div>
-                    <button onClick={() => retry(job.jobId)} style={smallDanger}><Repeat size={10} /> Retry</button>
-                  </div>
+                    <PrimaryButton onClick={() => retry(job.jobId)} color="#f43f5e"><Repeat size={10} /> Retry</PrimaryButton>
+                  </Row>
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
           {overview && (
-            <section style={panelStyle}>
-              <div style={sectionTitle}><BarChart3 size={12} /> Channel Performance</div>
+            <Panel>
+              <SectionHeader icon={<BarChart3 size={12} />} title="Channel Performance" />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 8 }}>
                 {CHANNELS.map((item) => {
                   const perf = overview.channelPerformance[item];
@@ -293,56 +311,13 @@ export default function DistributionPage() {
                   );
                 })}
               </div>
-            </section>
+            </Panel>
           )}
         </motion.div>
       </AnimatePresence>
     </div>
   );
 }
-
-function StatusPill({ status }: { status: DistributionJobStatus | CampaignStatus }) {
-  const color = STATUS_COLOR[status] ?? "#94a3b8";
-  return (
-    <span style={{ fontSize: 10, fontWeight: 600, color, background: `${color}20`, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
-      {status.replace(/_/g, " ")}
-    </span>
-  );
-}
-
-const panelStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "18px 22px",
-  marginBottom: 32,
-};
-
-const sectionTitle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
-  marginBottom: 14,
-};
-
-const metricCard: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "14px 16px",
-};
-
-const metricLabel: React.CSSProperties = {
-  fontSize: 10,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
 
 const inputStyle: React.CSSProperties = {
   padding: "8px 12px",
@@ -352,88 +327,4 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
   color: "var(--text)",
   outline: "none",
-};
-
-const primaryButton: React.CSSProperties = {
-  fontSize: 12,
-  background: "#22c55e",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontWeight: 600,
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const purpleButton: React.CSSProperties = {
-  ...primaryButton,
-  background: "#6366f1",
-};
-
-const ghostButton: React.CSSProperties = {
-  fontSize: 11,
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "6px 12px",
-  cursor: "pointer",
-  color: "var(--text-2)",
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const listStyle: React.CSSProperties = {
-  display: "flex",
-  flexDirection: "column",
-  gap: 4,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "10px 14px",
-  background: "var(--bg-2)",
-  borderRadius: "var(--radius-sm)",
-  border: "1px solid var(--border)",
-};
-
-const rowTitle: React.CSSProperties = {
-  fontSize: 13,
-  fontWeight: 600,
-  color: "var(--text)",
-  marginBottom: 2,
-};
-
-const rowSub: React.CSSProperties = {
-  fontSize: 10,
-  color: "var(--text-3)",
-};
-
-const emptyStyle: React.CSSProperties = {
-  color: "var(--text-3)",
-  fontSize: 13,
-  padding: "8px 0",
-};
-
-const smallPrimary: React.CSSProperties = {
-  fontSize: 10,
-  background: "#6366f1",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "4px 8px",
-  cursor: "pointer",
-};
-
-const smallDanger: React.CSSProperties = {
-  ...smallPrimary,
-  background: "#f43f5e",
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
 };

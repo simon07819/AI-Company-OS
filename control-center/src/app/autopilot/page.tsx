@@ -14,6 +14,20 @@ import {
   Rocket,
   Search,
 } from "lucide-react";
+import {
+  PageHeader,
+  MetricCard,
+  Panel,
+  SectionHeader,
+  StatusBadge,
+  EmptyState,
+  GhostButton,
+  PrimaryButton,
+  LocalBadge,
+  SimBadge,
+  Row,
+  ErrorBanner,
+} from "@/components/ui";
 
 type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
 
@@ -74,16 +88,20 @@ export default function AutopilotPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("Loading sessions...");
   const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const loadSessions = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/autopilot/sessions", { cache: "no-store" });
       const payload = (await res.json()) as { ok: boolean; message?: string; sessions?: AutopilotSession[] };
       setSessions(payload.sessions ?? []);
       setMessage(payload.message ?? "Sessions loaded.");
-    } catch (error) {
-      setMessage(`Failed to load sessions: ${error instanceof Error ? error.message : String(error)}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setMessage(`Failed to load sessions: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -113,8 +131,8 @@ export default function AutopilotPage() {
   return (
     <main className="page" style={{ maxWidth: 960 }}>
       {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <PageHeader
+        icon={
           <div style={{
             width: 40, height: 40, borderRadius: 12,
             background: "linear-gradient(135deg, #6366f1, #a78bfa)",
@@ -123,41 +141,40 @@ export default function AutopilotPage() {
           }}>
             <Cpu size={20} color="#fff" />
           </div>
-          <div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.4px", color: "var(--text)", margin: 0 }}>
-              Autopilot Sessions
-            </h1>
-            <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 3 }}>
-              Manage your AI agency sessions, track progress and control execution.
-            </p>
-          </div>
-        </div>
-      </div>
+        }
+        title="Autopilot Sessions"
+        description="AI agents execute missions autonomously. Simulation mode active when NVIDIA_API_KEY not set."
+        badge={
+          <>
+            <LocalBadge />
+            <SimBadge />
+          </>
+        }
+        actions={
+          <PrimaryButton onClick={() => router.push("/projects/new")}>
+            <PlusCircle size={14} /> New Project
+          </PrimaryButton>
+        }
+      />
+
+      {/* Error banner */}
+      {error && <ErrorBanner message={error} onRetry={loadSessions} />}
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginBottom: 24 }}>
-        {[
-          { label: "Total Sessions", value: sessions.length, color: "#6366f1" },
-          { label: "Running", value: running, color: "#34d399" },
-          { label: "Completed", value: completed, color: "#38bdf8" },
-          { label: "Avg Progress", value: `${totalProgress}%`, color: "#a78bfa" },
-        ].map(({ label, value, color }) => (
-          <div key={label} style={{
-            background: "var(--surface)", border: "1px solid var(--border)",
-            borderRadius: "var(--radius)", padding: "14px 18px",
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>{label}</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
-          </div>
-        ))}
-      </div>
+      <Panel style={{ marginBottom: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+          <MetricCard label="Total Sessions" value={sessions.length} icon={<Cpu size={12} />} color="#6366f1" />
+          <MetricCard label="Running" value={running} icon={<Rocket size={12} />} color="#34d399" />
+          <MetricCard label="Completed" value={completed} icon={<CheckCircle2 size={12} />} color="#38bdf8" />
+          <MetricCard label="Avg Progress" value={`${totalProgress}%`} icon={<Clock3 size={12} />} color="#a78bfa" />
+        </div>
+      </Panel>
 
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, flexWrap: "wrap" }}>
+      <Row style={{ marginBottom: 20, background: "var(--surface)" }}>
         <div style={{
           display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 200,
-          background: "var(--surface)", border: "1px solid var(--border)",
-          borderRadius: "var(--radius-sm)", padding: "8px 14px",
+          background: "transparent",
         }}>
           <Search size={14} color="var(--text-3)" />
           <input
@@ -171,148 +188,147 @@ export default function AutopilotPage() {
             }}
           />
         </div>
-        <button className="btn btn-ghost" type="button" onClick={loadSessions} disabled={loading}>
+        <GhostButton onClick={loadSessions} disabled={loading}>
           <RefreshCw size={14} /> {loading ? "Loading..." : "Refresh"}
-        </button>
-        <Link href="/projects/new" className="btn" style={{ textDecoration: "none" }}>
-          <PlusCircle size={14} /> New Project
-        </Link>
-      </div>
+        </GhostButton>
+      </Row>
 
       {/* Info bar */}
       <div style={{ marginBottom: 16, color: "var(--text-3)", fontSize: 11 }}>{message}</div>
 
       {/* Session list */}
       {filtered.length === 0 ? (
-        <div style={{
-          background: "var(--surface)", border: "1px solid var(--border)",
-          borderRadius: "var(--radius-lg)", padding: "48px 24px",
-          textAlign: "center",
-        }}>
-          <div style={{ fontSize: 48, marginBottom: 16, opacity: 0.3 }}>🤖</div>
-          <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 8 }}>No Autopilot Sessions</h3>
-          <p style={{ fontSize: 13, color: "var(--text-2)", marginBottom: 20 }}>
-            Launch your first AI Agency session to start building autonomously.
-          </p>
-          <Link href="/projects/new" className="btn" style={{ textDecoration: "none" }}>
-            <Rocket size={14} /> Launch AI Agency
-          </Link>
-        </div>
+        <EmptyState
+          icon={<span>🤖</span>}
+          title="No autopilot sessions"
+          description="Launch a new mission to start autonomous execution."
+          action={
+            <Link href="/projects/new" style={{ textDecoration: "none" }}>
+              <PrimaryButton color="#6366f1">
+                <Rocket size={14} /> Launch AI Agency
+              </PrimaryButton>
+            </Link>
+          }
+        />
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <AnimatePresence initial={false}>
-            {filtered.map((session, index) => {
-              const cfg = STATUS_CONFIG[session.status];
-              return (
-                <motion.div
-                  key={session.sessionId}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: index * 0.04 }}
-                  style={{
-                    background: "var(--surface)",
-                    border: `1px solid ${session.status === "running" ? "rgba(16,185,129,0.25)" : "var(--border)"}`,
-                    borderRadius: "var(--radius)",
-                    padding: "18px 22px",
-                    cursor: "pointer",
-                    transition: "border-color 140ms ease, box-shadow 140ms ease",
-                    boxShadow: session.status === "running" ? "0 0 24px rgba(16,185,129,0.08)" : "none",
-                  }}
-                  onClick={() => router.push(`/autopilot/${session.sessionId}`)}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
-                    {/* Avatar */}
-                    <div style={{
-                      width: 42, height: 42, borderRadius: 10, flexShrink: 0,
-                      background: cfg.bg,
-                      border: `1px solid ${cfg.color}30`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: cfg.color,
-                    }}>
-                      {cfg.icon}
-                    </div>
+        <Panel style={{ padding: 0 }}>
+          <SectionHeader
+            icon={<Rocket size={12} />}
+            title="Sessions"
+            action={
+              <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                {filtered.length} session{filtered.length !== 1 ? "s" : ""}
+              </span>
+            }
+          />
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <AnimatePresence initial={false}>
+              {filtered.map((session, index) => {
+                const cfg = STATUS_CONFIG[session.status];
+                return (
+                  <motion.div
+                    key={session.sessionId}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ delay: index * 0.04 }}
+                    style={{
+                      background: "var(--surface)",
+                      border: `1px solid ${session.status === "running" ? "rgba(16,185,129,0.25)" : "var(--border)"}`,
+                      borderRadius: "var(--radius)",
+                      padding: "18px 22px",
+                      cursor: "pointer",
+                      transition: "border-color 140ms ease, box-shadow 140ms ease",
+                      boxShadow: session.status === "running" ? "0 0 24px rgba(16,185,129,0.08)" : "none",
+                    }}
+                    onClick={() => router.push(`/autopilot/${session.sessionId}`)}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
+                      {/* Avatar */}
+                      <div style={{
+                        width: 42, height: 42, borderRadius: 10, flexShrink: 0,
+                        background: cfg.bg,
+                        border: `1px solid ${cfg.color}30`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: cfg.color,
+                      }}>
+                        {cfg.icon}
+                      </div>
 
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{session.projectName}</span>
-                        <span style={{
-                          fontSize: 9, fontWeight: 700, letterSpacing: "0.5px",
-                          padding: "2px 8px", borderRadius: 99,
-                          color: cfg.color, background: cfg.bg,
-                          display: "flex", alignItems: "center", gap: 4,
-                        }}>
-                          {cfg.label}
-                        </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--text)" }}>{session.projectName}</span>
+                          <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} icon={cfg.icon} />
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {session.projectIdea}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {session.projectIdea}
-                      </div>
-                    </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
-                      <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 10, color: "var(--text-3)" }}>
-                        {shortId(session.sessionId)}
-                      </div>
-                      <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-                        {formatDate(session.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Progress + phase + agents */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-                    {/* Progress bar */}
-                    <div style={{ flex: 1, minWidth: 120 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)", marginBottom: 4 }}>
-                        <span>{PHASE_LABELS[session.currentPhase] ?? session.currentPhase}</span>
-                        <span>{session.progress}%</span>
-                      </div>
-                      <div style={{ height: 4, borderRadius: 99, background: "var(--border)", overflow: "hidden" }}>
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${session.progress}%` }}
-                          transition={{ duration: 0.8, ease: "easeOut" }}
-                          style={{
-                            height: "100%", borderRadius: 99,
-                            background: `linear-gradient(90deg, ${cfg.color}88, ${cfg.color})`,
-                          }}
-                        />
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                        <div style={{ fontFamily: "ui-monospace, monospace", fontSize: 10, color: "var(--text-3)" }}>
+                          {shortId(session.sessionId)}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                          {formatDate(session.createdAt)}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Agent chips */}
-                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                      {session.assignedAgents.slice(0, 4).map((a) => (
-                        <span key={a.agentId} style={{
-                          fontSize: 10, padding: "2px 8px", borderRadius: 99,
-                          background: "var(--surface-2)", color: "var(--text-3)",
-                          border: "1px solid var(--border-2)",
-                          fontFamily: "ui-monospace, monospace",
-                        }}>
-                          {a.agentId.replace("_agent", "")}
-                        </span>
-                      ))}
-                      {session.assignedAgents.length > 4 && (
-                        <span style={{ fontSize: 10, color: "var(--text-3)", padding: "2px 4px" }}>
-                          +{session.assignedAgents.length - 4}
-                        </span>
-                      )}
-                    </div>
+                    {/* Progress + phase + agents */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                      {/* Progress bar */}
+                      <div style={{ flex: 1, minWidth: 120 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)", marginBottom: 4 }}>
+                          <span>{PHASE_LABELS[session.currentPhase] ?? session.currentPhase}</span>
+                          <span>{session.progress}%</span>
+                        </div>
+                        <div style={{ height: 4, borderRadius: 99, background: "var(--border)", overflow: "hidden" }}>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${session.progress}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                            style={{
+                              height: "100%", borderRadius: 99,
+                              background: `linear-gradient(90deg, ${cfg.color}88, ${cfg.color})`,
+                            }}
+                          />
+                        </div>
+                      </div>
 
-                    {/* Open button */}
-                    <span style={{
-                      fontSize: 12, fontWeight: 600, color: "var(--accent-light)",
-                      display: "flex", alignItems: "center", gap: 4,
-                    }}>
-                      Open &rarr;
-                    </span>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+                      {/* Agent chips */}
+                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                        {session.assignedAgents.slice(0, 4).map((a) => (
+                          <span key={a.agentId} style={{
+                            fontSize: 10, padding: "2px 8px", borderRadius: 99,
+                            background: "var(--surface-2)", color: "var(--text-3)",
+                            border: "1px solid var(--border-2)",
+                            fontFamily: "ui-monospace, monospace",
+                          }}>
+                            {a.agentId.replace("_agent", "")}
+                          </span>
+                        ))}
+                        {session.assignedAgents.length > 4 && (
+                          <span style={{ fontSize: 10, color: "var(--text-3)", padding: "2px 4px" }}>
+                            +{session.assignedAgents.length - 4}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Open button */}
+                      <span style={{
+                        fontSize: 12, fontWeight: 600, color: "var(--accent-light)",
+                        display: "flex", alignItems: "center", gap: 4,
+                      }}>
+                        Open &rarr;
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </Panel>
       )}
     </main>
   );

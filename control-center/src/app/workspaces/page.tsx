@@ -15,6 +15,19 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import {
+  EmptyState,
+  ErrorBanner,
+  GhostButton,
+  LocalBadge,
+  MetricCard,
+  PageHeader,
+  Panel,
+  PrimaryButton,
+  Row,
+  SectionHeader,
+  StatusBadge,
+} from "@/components/ui";
 
 interface WorkspaceMetrics {
   activeMissions: number;
@@ -76,11 +89,13 @@ export default function WorkspacesPage() {
   const [overview, setOverview] = useState<WorkspaceOverview | null>(null);
   const [missions, setMissions] = useState<MissionSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("");
 
   const loadData = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [workspaceRes, missionRes] = await Promise.all([
         fetch("/api/workspaces"),
@@ -105,7 +120,12 @@ export default function WorkspacesPage() {
         const data = await missionRes.json();
         setMissions(data.sessions ?? []);
       }
-    } catch { /* ignore */ }
+      if (!workspaceRes.ok) {
+        setError("Failed to load workspaces. Check that the local API is running.");
+      }
+    } catch {
+      setError("Network error — could not reach the local API. Ensure the dev server is running.");
+    }
     setLoading(false);
   };
 
@@ -137,54 +157,47 @@ export default function WorkspacesPage() {
 
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: 0 }}>
-            <Building2 size={20} style={{ display: "inline", marginRight: 8, verticalAlign: -3 }} />
-            Company Workspaces
-          </h1>
-          <p style={{ fontSize: 13, color: "var(--text-3)", margin: "4px 0 0" }}>Brands, companies and autonomous workspace segmentation</p>
-        </div>
-        <button onClick={loadData} disabled={loading} style={ghostButton}>
-          <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
-        </button>
-      </div>
+      <PageHeader
+        icon={<Building2 size={20} />}
+        title="Company Workspaces"
+        description="Brands, companies and autonomous workspace segmentation — organize your portfolio by brand, industry, or business unit."
+        badge={<LocalBadge />}
+        actions={
+          <GhostButton onClick={loadData} disabled={loading}>
+            <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
+          </GhostButton>
+        }
+      />
+
+      {error && <ErrorBanner message={error} onRetry={loadData} />}
 
       <AnimatePresence mode="wait">
         <motion.div key="content" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
           {overview && (
             <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(165px, 1fr))", gap: 12, marginBottom: 32 }}>
-              {[
-                { label: "Workspaces", value: overview.totalWorkspaces, icon: <Building2 size={15} />, color: "#6366f1" },
-                { label: "Active", value: overview.activeWorkspaces, icon: <Zap size={15} />, color: "#22c55e" },
-                { label: "Revenue", value: `$${overview.totalRevenue.toLocaleString()}`, icon: <DollarSign size={15} />, color: "#34d399" },
-                { label: "Active Missions", value: overview.activeMissions, icon: <Layers3 size={15} />, color: "#f59e0b" },
-                { label: "Campaigns", value: overview.activeCampaigns, icon: <Megaphone size={15} />, color: "#a78bfa" },
-                { label: "CRM Clients", value: overview.crmClients, icon: <Users size={15} />, color: "#38bdf8" },
-              ].map(({ label, value, icon, color }) => (
-                <div key={label} style={metricCard}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                    <span style={{ color }}>{icon}</span>
-                    <span style={metricLabel}>{label}</span>
-                  </div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color }}>{value}</div>
-                </div>
-              ))}
+              <MetricCard label="Workspaces" value={overview.totalWorkspaces} icon={<Building2 size={15} />} color="#6366f1" />
+              <MetricCard label="Active" value={overview.activeWorkspaces} icon={<Zap size={15} />} color="#22c55e" />
+              <MetricCard label="Revenue" value={`$${overview.totalRevenue.toLocaleString()}`} icon={<DollarSign size={15} />} color="#34d399" />
+              <MetricCard label="Active Missions" value={overview.activeMissions} icon={<Layers3 size={15} />} color="#f59e0b" />
+              <MetricCard label="Campaigns" value={overview.activeCampaigns} icon={<Megaphone size={15} />} color="#a78bfa" />
+              <MetricCard label="CRM Clients" value={overview.crmClients} icon={<Users size={15} />} color="#38bdf8" />
             </section>
           )}
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><PlusCircle size={12} /> Create Workspace</div>
+          <Panel>
+            <SectionHeader icon={<PlusCircle size={12} />} title="Create Workspace" />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 180px auto", gap: 8 }}>
               <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Workspace or brand name" style={inputStyle} />
               <input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="Industry" style={inputStyle} />
-              <button onClick={createWorkspace} style={primaryButton}><PlusCircle size={12} /> Create</button>
+              <PrimaryButton onClick={createWorkspace}><PlusCircle size={12} /> Create</PrimaryButton>
             </div>
-          </section>
+          </Panel>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><Briefcase size={12} /> Brands and Workspace Activity</div>
-            {!overview || overview.workspaces.length === 0 ? <div style={emptyStyle}>No workspaces yet.</div> : (
+          <Panel>
+            <SectionHeader icon={<Briefcase size={12} />} title="Brands and Workspace Activity" />
+            {!overview || overview.workspaces.length === 0 ? (
+              <EmptyState title="No workspaces yet" description="Create your first workspace above to start organizing brands, missions, and revenue by business unit." />
+            ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {overview.workspaces.map((workspace) => (
                   <div key={workspace.id} style={workspaceCard}>
@@ -193,9 +206,7 @@ export default function WorkspacesPage() {
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
                           <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{workspace.name}</div>
-                          <span style={{ fontSize: 10, color: AUTOMATION_COLORS[workspace.automationLevel], background: `${AUTOMATION_COLORS[workspace.automationLevel]}18`, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase" }}>
-                            {workspace.automationLevel}
-                          </span>
+                          <StatusBadge label={workspace.automationLevel} color={AUTOMATION_COLORS[workspace.automationLevel]} />
                         </div>
                         <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>{workspace.industry} · {workspace.primaryMissionTypes.join(", ")}</div>
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
@@ -219,40 +230,40 @@ export default function WorkspacesPage() {
                 ))}
               </div>
             )}
-          </section>
+          </Panel>
 
           <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><DollarSign size={12} /> Revenue by Workspace</div>
+            <Panel style={{ marginBottom: 0 }}>
+              <SectionHeader icon={<DollarSign size={12} />} title="Revenue by Workspace" />
               {overview?.workspaces.map((workspace) => (
                 <BarRow key={workspace.id} label={workspace.name} value={workspace.metrics.revenue} max={Math.max(overview.totalRevenue, 1)} color="#22c55e" />
               ))}
-            </div>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Settings2 size={12} /> Automation Level</div>
+            </Panel>
+            <Panel style={{ marginBottom: 0 }}>
+              <SectionHeader icon={<Settings2 size={12} />} title="Automation Level" />
               {overview?.workspaces.map((workspace) => (
                 <BarRow key={workspace.id} label={workspace.name} value={workspace.automationLevel === "autonomous" ? 100 : workspace.automationLevel === "assisted" ? 60 : 25} max={100} color={AUTOMATION_COLORS[workspace.automationLevel]} suffix="%" />
               ))}
-            </div>
+            </Panel>
           </section>
 
           <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 32 }}>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Megaphone size={12} /> Distribution Activity</div>
+            <Panel style={{ marginBottom: 0 }}>
+              <SectionHeader icon={<Megaphone size={12} />} title="Distribution Activity" />
               {overview?.workspaces.map((workspace) => (
                 <BarRow key={workspace.id} label={workspace.name} value={workspace.metrics.publishedAssets + workspace.metrics.activeCampaigns} max={Math.max(overview.publishedAssets + overview.activeCampaigns, 1)} color="#a78bfa" />
               ))}
-            </div>
-            <div style={panelStyle}>
-              <div style={sectionTitle}><Users size={12} /> CRM Stats</div>
+            </Panel>
+            <Panel style={{ marginBottom: 0 }}>
+              <SectionHeader icon={<Users size={12} />} title="CRM Stats" />
               {overview?.workspaces.map((workspace) => (
                 <BarRow key={workspace.id} label={workspace.name} value={workspace.metrics.crmClients + workspace.metrics.crmLeads} max={Math.max(overview.crmClients + overview.crmLeads, 1)} color="#38bdf8" />
               ))}
-            </div>
+            </Panel>
           </section>
 
-          <section style={panelStyle}>
-            <div style={sectionTitle}><Palette size={12} /> Brand Profiles</div>
+          <Panel>
+            <SectionHeader icon={<Palette size={12} />} title="Brand Profiles" />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
               {overview?.workspaces.map((workspace) => (
                 <div key={workspace.id} style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 12 }}>
@@ -265,7 +276,7 @@ export default function WorkspacesPage() {
                 </div>
               ))}
             </div>
-          </section>
+          </Panel>
         </motion.div>
       </AnimatePresence>
     </div>
@@ -293,45 +304,11 @@ function BarRow({ label, value, max, color, suffix = "" }: { label: string; valu
   );
 }
 
-const panelStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "18px 22px",
-  marginBottom: 32,
-};
-
 const workspaceCard: React.CSSProperties = {
   background: "var(--bg-2)",
   border: "1px solid var(--border)",
   borderRadius: "var(--radius)",
   padding: 14,
-};
-
-const metricCard: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius)",
-  padding: "14px 16px",
-};
-
-const metricLabel: React.CSSProperties = {
-  fontSize: 10,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.5px",
-};
-
-const sectionTitle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-  fontSize: 11,
-  fontWeight: 600,
-  color: "var(--text-3)",
-  textTransform: "uppercase",
-  letterSpacing: "0.6px",
-  marginBottom: 14,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -342,37 +319,4 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
   color: "var(--text)",
   outline: "none",
-};
-
-const primaryButton: React.CSSProperties = {
-  fontSize: 12,
-  background: "#6366f1",
-  color: "#fff",
-  border: "none",
-  borderRadius: "var(--radius-sm)",
-  padding: "8px 14px",
-  cursor: "pointer",
-  fontWeight: 600,
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const ghostButton: React.CSSProperties = {
-  fontSize: 11,
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-sm)",
-  padding: "6px 12px",
-  cursor: "pointer",
-  color: "var(--text-2)",
-  display: "flex",
-  alignItems: "center",
-  gap: 5,
-};
-
-const emptyStyle: React.CSSProperties = {
-  color: "var(--text-3)",
-  fontSize: 13,
-  padding: "8px 0",
 };

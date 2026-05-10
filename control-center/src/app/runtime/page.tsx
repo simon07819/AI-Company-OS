@@ -22,6 +22,14 @@ import {
   Timer,
   Zap,
 } from "lucide-react";
+import {
+  PageHeader,
+  SectionHeader,
+  StatusBadge,
+  LocalBadge,
+  SimBadge,
+  GhostButton,
+} from "@/components/ui";
 import { AGENTS, type AgentDef } from "@/lib/agents";
 import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
@@ -687,41 +695,44 @@ export default function RuntimePage() {
 
   return (
     <main className="page runtime-page">
-      <div className="page-header runtime-header">
-        <div>
-          <div className="runtime-eyebrow"><Cpu size={14} /> AI Runtime Center</div>
-          <h1 className="page-title runtime-title">NVIDIA Agent Execution Center</h1>
-          <p className="page-subtitle">Real-time visibility into agent inference, provider health, queues, retries and streaming output.</p>
-        </div>
-        <div className="page-actions runtime-actions">
-          {/* Live event stream badge */}
-          <div
-            className="runtime-live-badge"
-            title={eventsConnected ? "Event stream connected" : "Event stream disconnected — polling fallback active"}
-            style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}
-          >
-            <motion.span
-              style={{ width: 8, height: 8, borderRadius: 99, background: eventsConnected ? "#76b900" : "#64748b" }}
-              animate={eventsConnected ? { scale: [1, 1.5, 1], opacity: [1, 0.4, 1] } : {}}
-              transition={{ duration: 1.6, repeat: Infinity }}
-            />
-            <span style={{ fontSize: 11, color: eventsConnected ? "#76b900" : "var(--text-3)", fontWeight: 600 }}>
-              {eventsConnected ? "Live" : "Offline"}
-            </span>
-            {lastActivity && (
-              <span style={{ fontSize: 10, color: "var(--text-3)" }}>
-                · {new Date(lastActivity).toLocaleTimeString()}
+      <PageHeader
+        icon={<Cpu size={22} />}
+        title="NVIDIA Agent Execution Center"
+        description="Real-time visibility into agent inference, provider health, queues, retries and streaming output. NVIDIA inference center — simulation mode active when API key not configured."
+        badge={<>{<LocalBadge />}{!providerOnline && <SimBadge />}</>}
+        actions={
+          <>
+            {/* Live event stream badge */}
+            <div
+              className="runtime-live-badge"
+              title={eventsConnected ? "Event stream connected" : "Event stream disconnected — polling fallback active"}
+              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}
+            >
+              <motion.span
+                style={{ width: 8, height: 8, borderRadius: 99, background: eventsConnected ? "#76b900" : "#64748b" }}
+                animate={eventsConnected ? { scale: [1, 1.5, 1], opacity: [1, 0.4, 1] } : {}}
+                transition={{ duration: 1.6, repeat: Infinity }}
+              />
+              <span style={{ fontSize: 11, color: eventsConnected ? "#76b900" : "var(--text-3)", fontWeight: 600 }}>
+                {eventsConnected ? "Live" : "Offline"}
               </span>
-            )}
-          </div>
-          <div className="runtime-live-badge" style={{ marginLeft: 4 }}>
-            <StatusPulse status={providerOnline ? "streaming" : "error"} />
-          </div>
-          <button className="btn btn-ghost" type="button" onClick={checkRuntimeStatus} disabled={checkingRuntime}>
-            <RefreshCw size={14} /> {checkingRuntime ? "Checking..." : "Check Runtime Status"}
-          </button>
-        </div>
-      </div>
+              {lastActivity && (
+                <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+                  · {new Date(lastActivity).toLocaleTimeString()}
+                </span>
+              )}
+            </div>
+            <StatusBadge
+              label={providerOnline ? "Provider Online" : "Provider Offline"}
+              color={providerOnline ? "#76b900" : "#fb7185"}
+              size="md"
+            />
+            <GhostButton onClick={checkRuntimeStatus} disabled={checkingRuntime}>
+              <RefreshCw size={14} /> {checkingRuntime ? "Checking..." : "Check Runtime Status"}
+            </GhostButton>
+          </>
+        }
+      />
 
       <div className="card" style={{ marginBottom: 16, padding: "10px 14px", color: "var(--text-2)", fontSize: 12 }}>
         {runtimeCheck}
@@ -750,41 +761,33 @@ export default function RuntimePage() {
       {/* Mission Control: live agent runtime states */}
       <section className="runtime-workspace" style={{ marginTop: 32 }} data-testid="mission-control-section">
         <div className="runtime-agent-section">
-          <div className="section-header">
-            <div>
-              <h2>Mission Control</h2>
-              <p className="runtime-section-sub">Live agent runtime states, dependency blocking, concurrency indicators and retry tracking.</p>
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => void fetchRuntimeData()}
-                style={{ fontSize: 12 }}
-              >
-                <RefreshCw size={13} /> Refresh
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => void handleResetRuntime()}
-                disabled={resettingRuntime}
-                style={{ fontSize: 12, color: "#fb7185" }}
-              >
-                <RotateCcw size={13} /> {resettingRuntime ? "Resetting..." : "Reset Runtime"}
-              </button>
-            </div>
-          </div>
+          <SectionHeader
+            icon={<Cpu size={12} />}
+            title="Mission Control"
+            action={
+              <div style={{ display: "flex", gap: 8 }}>
+                <GhostButton onClick={() => void fetchRuntimeData()}>
+                  <RefreshCw size={13} /> Refresh
+                </GhostButton>
+                <GhostButton onClick={() => void handleResetRuntime()} disabled={resettingRuntime}>
+                  <RotateCcw size={13} /> {resettingRuntime ? "Resetting..." : "Reset Runtime"}
+                </GhostButton>
+              </div>
+            }
+          />
+          <p className="runtime-section-sub" style={{ marginTop: -6, marginBottom: 14 }}>Live agent runtime states, dependency blocking, concurrency indicators and retry tracking.</p>
 
           {/* Agent concurrency summary */}
           <div style={{ display: "flex", gap: 16, marginBottom: 16, flexWrap: "wrap" }}>
             {(["executing", "blocked", "retrying", "idle"] as const).map((s) => {
               const count = agentStates.filter((a) => a.status === s).length;
               return (
-                <div key={s} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: AGENT_STATUS_COLOR[s] }}>
-                  <span style={{ width: 8, height: 8, borderRadius: 99, background: AGENT_STATUS_COLOR[s], display: "inline-block" }} />
-                  {count} {s}
-                </div>
+                <StatusBadge
+                  key={s}
+                  label={`${count} ${s}`}
+                  color={AGENT_STATUS_COLOR[s]}
+                  size="md"
+                />
               );
             })}
           </div>
@@ -845,12 +848,11 @@ export default function RuntimePage() {
 
       <section className="runtime-workspace" style={{ marginTop: 32 }}>
         <div className="runtime-agent-section">
-          <div className="section-header">
-            <div>
-              <h2>Agent Execution Cards</h2>
-              <p className="runtime-section-sub">Active model, task, latency, progress and latest runtime event per agent.</p>
-            </div>
-          </div>
+          <SectionHeader
+            icon={<Zap size={12} />}
+            title="Agent Execution Cards"
+          />
+          <p className="runtime-section-sub" style={{ marginTop: -6, marginBottom: 14 }}>Active model, task, latency, progress and latest runtime event per agent.</p>
           <div className="runtime-agent-grid-cards">
             {AGENTS.map((agent, index) => (
               <AgentExecutionCard key={agent.id} agent={agent} runtime={runtimes[index]} index={index} />
