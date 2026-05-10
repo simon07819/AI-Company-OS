@@ -7,6 +7,7 @@ import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./miss
 import { generateMissionDeliverables } from "./missionDeliverables";
 import { updateAgentState } from "./agentRuntime";
 import { emitEvent } from "./runtimeEvents";
+import type { LoopMode, LoopStatus, LoopHistoryEntry } from "./missionLoops";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +70,11 @@ export interface AutopilotSession {
   template: string | null;
   stack: string | null;
   missionType: string;
+  loopMode: LoopMode | null;
+  loopStatus: LoopStatus | null;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  loopHistory: LoopHistoryEntry[];
   status: SessionStatus;
   currentPhase: AutopilotPhase;
   progress: number;
@@ -430,6 +436,11 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
     template: input.template ?? null,
     stack: input.stack ?? null,
     missionType: missionTypeId,
+    loopMode: null,
+    loopStatus: null,
+    nextRunAt: null,
+    lastRunAt: null,
+    loopHistory: [],
     status: "running",
     currentPhase: firstPhase.id,
     progress: 0,

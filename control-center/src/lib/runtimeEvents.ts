@@ -6,7 +6,11 @@ export type RuntimeEventType =
   | "task.blocked"
   | "dependency.resolved"
   | "queue.updated"
-  | "runtime.reset";
+  | "runtime.reset"
+  | "loop_executed"
+  | "loop.activated"
+  | "loop.paused"
+  | "loop.resumed";
 
 export interface RuntimeEvent {
   id: string;

@@ -26,6 +26,7 @@ import {
   Play,
   Radio,
   RefreshCw,
+  Repeat,
   Rocket,
   RotateCcw,
   ShieldCheck,
@@ -85,6 +86,11 @@ interface AutopilotSession {
   template: string | null;
   stack: string | null;
   missionType: string;
+  loopMode: string | null;
+  loopStatus: string | null;
+  nextRunAt: string | null;
+  lastRunAt: string | null;
+  loopHistory: { ranAt: string; tasksCreated: number; result: string; message: string }[];
   status: SessionStatus;
   currentPhase: string;
   progress: number;
@@ -1832,6 +1838,109 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
             <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-3)" }}>
               {deliveryPkg.files.length} files in <code style={{ fontSize: 9, color: "var(--accent-light)" }}>delivery/</code> ·
               {" "}generated {new Date(deliveryPkg.generatedAt).toLocaleTimeString("en-CA", { hour12: false, hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── AUTONOMOUS LOOPS ── */}
+      <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+            <Repeat size={12} style={{ display: "inline", marginRight: 4 }} /> Autonomous Loops
+          </div>
+          {!session.loopMode && (
+            <button
+              onClick={async () => {
+                const applicable = { saas_project: "optimization_loop", website: "optimization_loop", ecommerce_store: "recurring_weekly", social_campaign: "recurring_weekly", automation_workflow: "monitoring" } as Record<string, string>;
+                const mode = applicable[session.missionType] ?? "recurring_weekly";
+                await fetch(`/api/autopilot/sessions/${session.sessionId}/loop/activate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }) });
+                loadSession();
+              }}
+              style={{ fontSize: 11, background: "#6366f1", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "4px 10px", cursor: "pointer" }}
+            >
+              Activate Loop
+            </button>
+          )}
+          {session.loopStatus === "active" && (
+            <button
+              onClick={async () => {
+                await fetch(`/api/autopilot/sessions/${session.sessionId}/loop/pause`, { method: "POST" });
+                loadSession();
+              }}
+              style={{ fontSize: 11, background: "var(--bg-2)", color: "var(--text)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "4px 10px", cursor: "pointer" }}
+            >
+              Pause
+            </button>
+          )}
+          {session.loopStatus === "paused" && (
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                onClick={async () => {
+                  await fetch(`/api/autopilot/sessions/${session.sessionId}/loop/resume`, { method: "POST" });
+                  loadSession();
+                }}
+                style={{ fontSize: 11, background: "#34d399", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "4px 10px", cursor: "pointer" }}
+              >
+                Resume
+              </button>
+            </div>
+          )}
+        </div>
+
+        {!session.loopMode ? (
+          <div style={{ color: "var(--text-3)", fontSize: 12, padding: "8px 0" }}>
+            No loop active. Activate a loop to enable recurring autonomous execution.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
+            <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>Loop Mode</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#6366f1" }}>
+                {session.loopMode.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>Status</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: session.loopStatus === "active" ? "#34d399" : session.loopStatus === "paused" ? "#f59e0b" : "#f43f5e" }}>
+                {session.loopStatus?.charAt(0).toUpperCase()}{session.loopStatus?.slice(1) ?? "Inactive"}
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>Next Run</div>
+              <div style={{ fontSize: 13, color: "var(--text-2)" }}>
+                {session.nextRunAt ? new Date(session.nextRunAt).toLocaleString() : "—"}
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>Last Run</div>
+              <div style={{ fontSize: 13, color: "var(--text-2)" }}>
+                {session.lastRunAt ? new Date(session.lastRunAt).toLocaleString() : "—"}
+              </div>
+            </div>
+            <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "12px 14px" }}>
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>Iterations</div>
+              <div style={{ fontSize: 13, color: "var(--text-2)" }}>
+                {session.loopHistory?.length ?? 0}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {session.loopHistory && session.loopHistory.length > 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Loop History</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {session.loopHistory.slice(0, 5).map((h, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, padding: "4px 8px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+                  <span style={{ color: h.result === "success" ? "#34d399" : h.result === "failed" ? "#f43f5e" : "#f59e0b" }}>
+                    {h.result === "success" ? "✓" : h.result === "failed" ? "✗" : "~"}
+                  </span>
+                  <span style={{ color: "var(--text-2)" }}>{new Date(h.ranAt).toLocaleString()}</span>
+                  <span style={{ color: "var(--text-3)" }}>— {h.tasksCreated} task(s)</span>
+                  <span style={{ color: "var(--text-3)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.message}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}
