@@ -50,6 +50,11 @@ interface CommandOverview {
   actions: CommandAction[];
 }
 
+interface OnboardingSummary {
+  completed: boolean;
+  currentStep: string;
+}
+
 const HEALTH_COLOR = {
   excellent: "#22c55e",
   stable: "#3b82f6",
@@ -65,15 +70,23 @@ const ALERT_COLOR = {
 
 export default function CommandPage() {
   const [overview, setOverview] = useState<CommandOverview | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/command/overview");
+      const [res, onboardingRes] = await Promise.all([
+        fetch("/api/command/overview"),
+        fetch("/api/onboarding"),
+      ]);
       if (res.ok) {
         const data = await res.json();
         setOverview(data.overview);
+      }
+      if (onboardingRes.ok) {
+        const data = await onboardingRes.json();
+        setOnboarding(data.onboarding.state);
       }
     } catch { /* ignore */ }
     setLoading(false);
@@ -95,6 +108,23 @@ export default function CommandPage() {
           <RefreshCw size={11} style={{ animation: loading ? "spin 1s linear infinite" : "none" }} /> Refresh
         </button>
       </div>
+
+      {onboarding && !onboarding.completed && (
+        <Link href="/onboarding" style={{ textDecoration: "none" }}>
+          <section style={{ ...panelStyle, marginBottom: 24, borderColor: "rgba(99,102,241,0.45)", background: "rgba(99,102,241,0.10)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <Sparkles size={18} style={{ color: "#a78bfa" }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: "var(--text)" }}>Finish AI Company OS setup</div>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Complete onboarding to configure company identity, workspace defaults, revenue, CRM, distribution and autonomy.</div>
+              </div>
+              <span style={{ fontSize: 11, color: "#a78bfa", fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
+                Continue setup <ArrowRight size={12} />
+              </span>
+            </div>
+          </section>
+        </Link>
+      )}
 
       <AnimatePresence mode="wait">
         <motion.div key="command" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>

@@ -35,8 +35,8 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "Command",
     items: [
-      { href: "/", label: "Dashboard", description: "Factory overview", icon: <Home size={16} />, exact: true },
       { href: "/command", label: "Command Center", description: "Executive company overview", icon: <Gauge size={16} /> },
+      { href: "/", label: "Dashboard", description: "Factory overview", icon: <Home size={16} />, exact: true },
       { href: "/projects", label: "Projects", description: "Products and task state", icon: <FolderKanban size={16} /> },
       { href: "/projects/new", label: "New Project", description: "Create a product", icon: <PlusCircle size={16} /> },
       { href: "/demo", label: "Demo", description: "Guided product mode", icon: <Play size={16} /> },
