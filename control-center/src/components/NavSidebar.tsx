@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bot,
   Boxes,
+  Building2,
   Cpu,
   FileText,
   FolderKanban,
@@ -48,6 +49,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/crm", label: "Client CRM", description: "Leads and client management", icon: <Users size={16} /> },
       { href: "/revenue", label: "Revenue", description: "Proposals and invoices", icon: <FileText size={16} /> },
       { href: "/distribution", label: "Distribution", description: "Publishing and campaigns", icon: <Megaphone size={16} /> },
+      { href: "/workspaces", label: "Workspaces", description: "Companies and brands", icon: <Building2 size={16} /> },
     ],
   },
   {

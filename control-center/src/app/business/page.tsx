@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
+  Building2,
   CheckCircle2,
   Clock3,
   DollarSign,
@@ -108,6 +109,7 @@ export default function BusinessPage() {
   const [crmSnapshot, setCrmSnapshot] = useState<{ activeLeads: number; activeClients: number; openOpportunities: number; pipelineValue: number } | null>(null);
   const [revenueSnapshot, setRevenueSnapshot] = useState<{ monthlyRevenue: number; proposalConversionRate: number; outstandingInvoices: number; outstandingInvoiceValue: number } | null>(null);
   const [distributionSnapshot, setDistributionSnapshot] = useState<{ publishedAssets: number; activeCampaigns: number; distributionSuccessRate: number } | null>(null);
+  const [workspaceSnapshot, setWorkspaceSnapshot] = useState<{ id: string; name: string; metrics: { revenue: number; activeMissions: number; activeCampaigns: number; crmClients: number } }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = async () => {
@@ -133,6 +135,10 @@ export default function BusinessPage() {
         const distributionRes = await fetch("/api/distribution/overview");
         if (distributionRes.ok) { const d = await distributionRes.json(); setDistributionSnapshot(d.overview); }
       } catch { /* Distribution optional */ }
+      try {
+        const workspaceRes = await fetch("/api/workspaces");
+        if (workspaceRes.ok) { const d = await workspaceRes.json(); setWorkspaceSnapshot(d.workspaces ?? []); }
+      } catch { /* Workspaces optional */ }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -347,6 +353,33 @@ export default function BusinessPage() {
                   <div key={label} style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
                     <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 4 }}>{label}</div>
                     <div style={{ fontSize: 18, fontWeight: 700, color }}>{value}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── WORKSPACE SEGMENTATION ── */}
+          {workspaceSnapshot.length > 0 && (
+            <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+                  <Building2 size={12} style={{ display: "inline", marginRight: 4 }} /> Workspace Segmentation
+                </div>
+                <Link href="/workspaces" style={{ fontSize: 11, color: "#6366f1", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}>
+                  Open Workspaces <ArrowRight size={11} />
+                </Link>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {workspaceSnapshot.slice(0, 5).map((workspace) => (
+                  <div key={workspace.id} style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 110px", gap: 10, alignItems: "center", background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 12px" }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{workspace.name}</div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)" }}>Workspace activity</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 700 }}>${workspace.metrics.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 700 }}>{workspace.metrics.activeMissions} missions</div>
+                    <div style={{ fontSize: 11, color: "#a78bfa", fontWeight: 700 }}>{workspace.metrics.activeCampaigns} campaigns</div>
                   </div>
                 ))}
               </div>
