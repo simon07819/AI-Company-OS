@@ -133,6 +133,53 @@ def waiting_dependencies(task, tasks_by_id):
     return waiting_for
 
 
+def task_metrics(project_path):
+    metrics = {
+        "total_tasks": 0,
+        "completed_real": 0,
+        "failed": 0,
+        "queued": 0,
+        "archived": 0,
+        "retrying": 0,
+        "success_rate": 0,
+    }
+    for task_file in list_task_files(project_path):
+        task = load_task_file_or_report(task_file)
+        if task is None:
+            continue
+        metrics["total_tasks"] += 1
+        status = task.get("status")
+        if status in {"completed_real", "failed", "queued", "archived"}:
+            metrics[status] += 1
+        if int(task.get("retry_count") or 0) > 0 and status == "queued":
+            metrics["retrying"] += 1
+
+    finished = metrics["completed_real"] + metrics["failed"]
+    if finished:
+        metrics["success_rate"] = round((metrics["completed_real"] / finished) * 100)
+    return metrics
+
+
+def write_metrics(project_path, metrics):
+    path = os.path.join(project_path, "metrics.json")
+    with open(path, "w", encoding="utf-8") as file:
+        json.dump(metrics, file, indent=2)
+        file.write("\n")
+
+
+def print_metrics(project_path):
+    metrics = task_metrics(project_path)
+    write_metrics(project_path, metrics)
+    print("AI Company OS metrics")
+    print(f"- total tasks: {metrics['total_tasks']}")
+    print(f"- completed: {metrics['completed_real']}")
+    print(f"- failed: {metrics['failed']}")
+    print(f"- queued: {metrics['queued']}")
+    print(f"- archived: {metrics['archived']}")
+    print(f"- retrying: {metrics['retrying']}")
+    print(f"- success rate: {metrics['success_rate']}%")
+
+
 def mark_task_locked(task_file, worker):
     task = load_task_file(task_file)
     task["status"] = "locked"
@@ -790,6 +837,7 @@ def main():
             args.auto_resolve_conflicts,
         ):
             return 1
+        print_metrics(project_path)
         return 0
 
     branch = current_branch(repo_path)
@@ -807,6 +855,7 @@ def main():
             return 1
         print(f"worker-{index} path: {worker_path(repo_path, index)}")
 
+    print_metrics(project_path)
     return 0
 
 

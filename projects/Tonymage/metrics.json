@@ -1,0 +1,9 @@
+{
+  "total_tasks": 30,
+  "completed_real": 8,
+  "failed": 2,
+  "queued": 0,
+  "archived": 10,
+  "retrying": 0,
+  "success_rate": 80
+}
