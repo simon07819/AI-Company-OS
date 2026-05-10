@@ -13,6 +13,7 @@ import {
   Gauge,
   GitBranch,
   Home,
+  Megaphone,
   Play,
   PlusCircle,
   Rocket,
@@ -46,6 +47,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/business", label: "Business Center", description: "Mission pipeline and revenue", icon: <BarChart3 size={16} /> },
       { href: "/crm", label: "Client CRM", description: "Leads and client management", icon: <Users size={16} /> },
       { href: "/revenue", label: "Revenue", description: "Proposals and invoices", icon: <FileText size={16} /> },
+      { href: "/distribution", label: "Distribution", description: "Publishing and campaigns", icon: <Megaphone size={16} /> },
     ],
   },
   {
