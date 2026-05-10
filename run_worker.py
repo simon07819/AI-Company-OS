@@ -386,12 +386,52 @@ def run_npm_steps(app_dir):
         print(f"npm steps warning: {exc}")
 
 
+def _write_agent_files(app_dir, repo_path, files_map):
+    """Write {rel_path: content} returned by an agent to the app directory."""
+    written = []
+    for rel_path, content in files_map.items():
+        full_path = os.path.join(app_dir, rel_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        repo_rel = os.path.relpath(full_path, repo_path)
+        print(f"Modifying app file: {repo_rel}")
+        written.append(repo_rel)
+    return written
+
+
 def write_task_code(repo_path, task, project_path=None):
     if project_path:
         project_name = os.path.basename(project_path)
         app_dir = os.path.join(repo_path, "projects", project_name, "app")
         if os.path.isdir(app_dir):
             print(f"Using SaaS template context for project: {project_name}")
+            try:
+                from agent_router import select_agent
+                from shared_context import build_context
+                context = build_context(repo_path, task, project_path)
+                agent = select_agent(task, context)
+                print(f"Selected agent: {agent.name}")
+                result = agent.run(task, context)
+                files_map = result.get("files", {})
+                # Handle backend_agent Python stub (no SaaS target)
+                if "__python_stub__" in files_map:
+                    slug = files_map.get("__python_slug__", "task")
+                    path = os.path.join("backend", f"{slug}.py")
+                    full_path = os.path.join(repo_path, path)
+                    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+                    with open(full_path, "w", encoding="utf-8") as f:
+                        f.write(files_map["__python_stub__"])
+                    return [path]
+                if files_map:
+                    if result.get("notes"):
+                        print(f"Agent notes: {result['notes']}")
+                    written = _write_agent_files(app_dir, repo_path, files_map)
+                    run_npm_steps(app_dir)
+                    return written
+            except Exception as exc:
+                print(f"Agent error: {exc} — falling back to legacy SaaS path")
+            # Legacy fallback
             targets = resolve_saas_targets(task.get("title", ""))
             if targets:
                 files = write_saas_app_files(app_dir, repo_path, targets, task)
