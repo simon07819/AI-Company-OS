@@ -88,7 +88,7 @@ def queued_tasks(project_path):
             continue
         if status == "queued":
             tasks.append((task_file, task))
-    return sorted(tasks, key=lambda item: task_sort_key(item[1]))
+    return sorted(tasks, key=lambda item: queued_task_sort_key(item[1]))
 
 
 def utc_now():
@@ -453,6 +453,15 @@ def task_sort_key(task):
     return (1, str(task_id))
 
 
+def task_priority_rank(task):
+    priority = str(task.get("priority") or "low").lower()
+    return {"high": 0, "medium": 1, "low": 2}.get(priority, 2)
+
+
+def queued_task_sort_key(task):
+    return (task_priority_rank(task), task_sort_key(task))
+
+
 def worktree_entries(repo_path):
     result = run_cmd(["git", "worktree", "list", "--porcelain"], repo_path)
     if result.returncode != 0:
@@ -617,6 +626,7 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
             continue
 
         task_file = assigned_pair[0]
+        print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
         result = run_worker_once(repo_path, worktree, index, assigned.get("id"))
         if result.stdout.strip():
@@ -652,6 +662,7 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
             continue
 
         task_file = assigned_pair[0]
+        print(f"selected task {assigned.get('id')} (priority: {assigned.get('priority') or 'low'})")
         mark_task_locked(task_file, worker)
         process = start_worker_once(repo_path, worktree, index, assigned.get("id"))
         processes.append((worker, worktree, index, task_file, process))
