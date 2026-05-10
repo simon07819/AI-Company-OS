@@ -20,7 +20,6 @@ import {
   TerminalSquare,
   Zap,
 } from "lucide-react";
-
 export type NavItem = {
   href: string;
   label: string;
@@ -43,6 +42,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "Autopilot",
     items: [
       { href: "/autopilot", label: "Autopilot", description: "AI agency sessions", icon: <Rocket size={16} /> },
+      { href: "/business", label: "Business Center", description: "Mission pipeline and revenue", icon: <BarChart3 size={16} /> },
     ],
   },
   {

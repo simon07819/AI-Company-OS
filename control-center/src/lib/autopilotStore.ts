@@ -24,6 +24,7 @@ export type AutopilotPhase =
 export type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
 export type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
 export type LogLevel = "info" | "success" | "warning" | "error";
+export type BusinessStatus = "idea" | "in_production" | "review" | "client_ready" | "delivered" | "recurring";
 
 export interface AutopilotAgentAssignment {
   agentId: string;
@@ -70,6 +71,7 @@ export interface AutopilotSession {
   template: string | null;
   stack: string | null;
   missionType: string;
+  businessStatus: BusinessStatus;
   loopMode: LoopMode | null;
   loopStatus: LoopStatus | null;
   nextRunAt: string | null;
@@ -436,6 +438,7 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
     template: input.template ?? null,
     stack: input.stack ?? null,
     missionType: missionTypeId,
+    businessStatus: "idea",
     loopMode: null,
     loopStatus: null,
     nextRunAt: null,
@@ -686,6 +689,7 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
     if (allCompleted && currentStatus !== "completed") {
       const updated = updateSession(sessionId, {
         status: "completed",
+        businessStatus: session.businessStatus === "in_production" ? "review" : session.businessStatus,
         runtime: { ...session.runtime, lastEvent: "All tasks completed", activeWorkers: 0 },
       });
       const doneLog = appendLog(sessionId, {
@@ -826,11 +830,20 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
     ? (hasFailed ? "failed" : "completed")
     : "running";
 
+  // Business status transitions
+  let newBizStatus = session.businessStatus;
+  if (allDone && !hasFailed && newBizStatus === "in_production") {
+    newBizStatus = "review";
+  } else if (progress > 10 && newBizStatus === "idea") {
+    newBizStatus = "in_production";
+  }
+
   const updatedSession = updateSession(sessionId, {
     tasks,
     currentPhase: nextPhase as AutopilotPhase,
     progress,
     status: newStatus,
+    businessStatus: newBizStatus,
     assignedAgents,
     runtime: {
       status: "online",
