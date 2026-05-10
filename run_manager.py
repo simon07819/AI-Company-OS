@@ -115,36 +115,41 @@ def parse_project_names(projects_arg, fallback_project):
     ]
 
 
-def load_project_priority(project_path):
+def load_project_metadata(project_path):
     path = os.path.join(project_path, "project.json")
     if not os.path.exists(path):
-        return "low"
+        return {"priority": "low", "status": "active"}
     try:
         with open(path, "r", encoding="utf-8") as file:
             data = json.load(file)
     except (json.JSONDecodeError, OSError):
-        return "low"
+        return {"priority": "low", "status": "active"}
 
     priority = str(data.get("project_priority", "low")).lower()
-    return priority if priority in PROJECT_PRIORITIES else "low"
+    if priority not in PROJECT_PRIORITIES:
+        priority = "low"
+    status = str(data.get("status", "active")).lower()
+    return {"priority": priority, "status": status}
 
 
 def project_configs(repo_path, project_names, project_path=None):
     if project_path:
         path = os.path.abspath(os.path.expanduser(project_path))
+        metadata = load_project_metadata(path)
         return [{
             "name": os.path.basename(path),
             "path": path,
-            "priority": load_project_priority(path),
+            **metadata,
         }]
 
     projects = []
     for name in project_names:
         path = os.path.abspath(os.path.join(repo_path, "projects", name))
+        metadata = load_project_metadata(path)
         projects.append({
             "name": name,
             "path": path,
-            "priority": load_project_priority(path),
+            **metadata,
         })
     return projects
 
@@ -152,6 +157,9 @@ def project_configs(repo_path, project_names, project_path=None):
 def scheduled_tasks(projects):
     scheduled = []
     for project in sorted(projects, key=lambda item: PROJECT_PRIORITIES[item["priority"]]):
+        if project["status"] in {"paused", "archived"}:
+            print(f"skipping project {project['name']} (status: {project['status']})")
+            continue
         print(f"Scheduling project: {project['name']} (priority: {project['priority']})")
         for task_file, task in queued_tasks(project["path"]):
             scheduled.append((project["name"], task_file, task))
