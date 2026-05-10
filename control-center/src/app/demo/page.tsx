@@ -12,6 +12,7 @@ import {
   Play,
   RefreshCw,
   RotateCcw,
+  ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
@@ -47,6 +48,25 @@ interface DemoReadiness {
   };
 }
 
+interface QaCheck {
+  id: string;
+  label: string;
+  status: "pass" | "fail" | "warn";
+  detail: string;
+  href: string;
+}
+
+interface QaResult {
+  score: number;
+  totalChecks: number;
+  passed: number;
+  failed: number;
+  warnings: number;
+  checks: QaCheck[];
+  runAt: string;
+  recommendations: string[];
+}
+
 const SCENARIO = [
   "Setup company",
   "Create workspace",
@@ -61,8 +81,10 @@ const SCENARIO = [
 
 export default function DemoPage() {
   const [readiness, setReadiness] = useState<DemoReadiness | null>(null);
+  const [qa, setQa] = useState<QaResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [qaRunning, setQaRunning] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const loadReadiness = async () => {
@@ -79,6 +101,11 @@ export default function DemoPage() {
     } catch {
       setFetchError("Network error — could not reach the demo readiness API.");
     }
+    // Also load QA
+    try {
+      const qaRes = await fetch("/api/demo/qa");
+      if (qaRes.ok) { const d = await qaRes.json(); setQa(d.qa); }
+    } catch { /* QA optional */ }
     setLoading(false);
   };
 
@@ -101,6 +128,15 @@ export default function DemoPage() {
       await loadReadiness();
     }
     setBusy(false);
+  };
+
+  const runQa = async () => {
+    setQaRunning(true);
+    try {
+      const res = await fetch("/api/demo/qa/run", { method: "POST" });
+      if (res.ok) { const d = await res.json(); setQa(d.qa); }
+    } catch { /* */ }
+    setQaRunning(false);
   };
 
   return (
@@ -222,6 +258,65 @@ export default function DemoPage() {
               </div>
             </Panel>
           </section>
+
+          {/* ── END-TO-END QA ── */}
+          <Panel>
+            <SectionHeader
+              icon={<ShieldCheck size={12} />}
+              title="End-to-End QA"
+              action={<PrimaryButton onClick={runQa} disabled={qaRunning} color="#6366f1"><RefreshCw size={11} style={{ animation: qaRunning ? "spin 1s linear infinite" : "none" }} /> Run QA</PrimaryButton>}
+            />
+            {!qa ? (
+              <EmptyState title="QA not run yet" description="Run the QA suite to verify the full demo flow works end-to-end." action={<PrimaryButton onClick={runQa} color="#6366f1">Run QA</PrimaryButton>} />
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 18 }}>
+                  <div style={{ fontSize: 48, fontWeight: 900, lineHeight: 1, color: qa.score >= 80 ? "#22c55e" : qa.score >= 50 ? "#f59e0b" : "#f43f5e" }}>
+                    {qa.score}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+                      {qa.score >= 80 ? "Demo ready" : qa.score >= 50 ? "Partial — some checks failing" : "Not ready — multiple failures"}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                      {qa.passed} passed, {qa.warnings} warnings, {qa.failed} failed — run at {new Date(qa.runAt).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 16 }}>
+                  {qa.checks.map((check) => {
+                    const cfg = check.status === "pass"
+                      ? { color: "#22c55e", bg: "rgba(34,197,94,0.12)", icon: <CheckCircle2 size={12} />, label: "PASS" }
+                      : check.status === "fail"
+                      ? { color: "#f43f5e", bg: "rgba(244,63,94,0.12)", icon: <AlertTriangle size={12} />, label: "FAIL" }
+                      : { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: <AlertTriangle size={12} />, label: "WARN" };
+                    return (
+                      <Link key={check.id} href={check.href} style={{ textDecoration: "none" }}>
+                        <Row style={{ marginBottom: 0 }}>
+                          <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} icon={cfg.icon} />
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{check.label}</div>
+                            <div style={{ fontSize: 10, color: "var(--text-3)" }}>{check.detail}</div>
+                          </div>
+                          <ArrowRight size={12} style={{ color: "var(--text-3)" }} />
+                        </Row>
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                {qa.recommendations.length > 0 && (
+                  <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: "10px 14px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Recommendations</div>
+                    {qa.recommendations.map((rec, i) => (
+                      <div key={i} style={{ fontSize: 11, color: "var(--text-2)", marginBottom: 3 }}>• {rec}</div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Panel>
 
           <Panel>
             <SectionHeader
