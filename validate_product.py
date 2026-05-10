@@ -45,7 +45,7 @@ def task_counts(project_path):
 
 
 def recommendation(missing, has_pricing, tasks):
-    if "project.json" in missing or "product_vision.md" in missing:
+    if "project.json" in missing or "docs/product_vision.md" in missing:
         return "pause"
     if not has_pricing or tasks["total"] == 0:
         return "revise"
