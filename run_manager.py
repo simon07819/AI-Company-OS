@@ -77,16 +77,27 @@ def ensure_main_ready(repo_path):
 
 def queued_tasks(project_path):
     tasks = []
+    all_tasks = []
     for task_file in list_task_files(project_path):
         task = load_task_file_or_report(task_file)
         if task is None:
             continue
+        all_tasks.append((task_file, task))
+
+    tasks_by_id = {str(task.get("id")): task for _, task in all_tasks}
+
+    for task_file, task in all_tasks:
         status = task.get("status")
         if status in {"completed_real", "failed"}:
             task_id = task.get("id") or os.path.basename(task_file)
             print(f"skipping task {task_id} (status: {status})")
             continue
         if status == "queued":
+            waiting_for = waiting_dependencies(task, tasks_by_id)
+            if waiting_for:
+                task_id = task.get("id") or os.path.basename(task_file)
+                print(f"skipping task {task_id} (waiting for dependencies: {waiting_for})")
+                continue
             tasks.append((task_file, task))
     return sorted(tasks, key=lambda item: queued_task_sort_key(item[1]))
 
@@ -110,6 +121,16 @@ def load_task_file_or_report(task_file):
     except json.JSONDecodeError as error:
         print(f"invalid task json: {task_file} {short_json_error(error)}")
         return None
+
+
+def waiting_dependencies(task, tasks_by_id):
+    depends_on = task.get("depends_on") or []
+    waiting_for = []
+    for dependency_id in depends_on:
+        dependency = tasks_by_id.get(str(dependency_id))
+        if not dependency or dependency.get("status") != "completed_real":
+            waiting_for.append(dependency_id)
+    return waiting_for
 
 
 def mark_task_locked(task_file, worker):
