@@ -58,8 +58,15 @@ const IconGraph = () => (
   </svg>
 );
 
+const IconDemo = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3"/>
+  </svg>
+);
+
 const NAV = [
   { href: "/",                  label: "Dashboard",    icon: <IconDashboard />, exact: true },
+  { href: "/demo",              label: "Demo",         icon: <IconDemo /> },
   { href: "/projects",          label: "Projects",     icon: <IconProjects /> },
   { href: "/projects/new",      label: "New Project",  icon: <IconProjects /> },
   { href: "/agents",            label: "Agents",       icon: <IconAgents /> },
