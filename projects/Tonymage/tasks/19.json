@@ -1,0 +1,11 @@
+{
+  "id": "19",
+  "title": "Implement Project Tests",
+  "department": "Backend",
+  "description": "Create tests for project-related operations",
+  "acceptance_criteria": "Tests are created with required functionality",
+  "estimated_cost_usd": 150,
+  "branch_name": "feature/project-tests",
+  "status": "queued",
+  "mode": "DRY_RUN"
+}

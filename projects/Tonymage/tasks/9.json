@@ -1,15 +1,11 @@
 {
-  "id": 9,
-  "title": "Implement API Endpoints",
+  "id": "9",
+  "title": "Implement User Views",
   "department": "Backend",
-  "description": "Develop API endpoints for project initiation, task management, and collaboration tools.",
-  "acceptance_criteria": "API endpoints are fully functional and secure.",
-  "estimated_cost_usd": 2000,
-  "branch_name": "feature/api-endpoints",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T00:51:24.994189",
-  "completed_at": "2026-05-10T00:51:30.634365",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/109"
+  "description": "Create views for user-related operations",
+  "acceptance_criteria": "Views are created with required functionality",
+  "estimated_cost_usd": 100,
+  "branch_name": "feature/user-views",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

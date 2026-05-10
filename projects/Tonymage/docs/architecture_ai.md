@@ -1,144 +1,117 @@
-**TonyMage Technical Architecture**
+**Tonymage Technical Architecture**
 =====================================
 
-### Recommended Stack
+### 1. Recommended Stack
 
-Based on the project requirements, we recommend the following stack:
+* **Language**: Python 3.9+
+* **Framework**: Django 4.0+
+* **Database**: PostgreSQL 13+
+* **ORM**: Django's built-in ORM
+* **Web Server**: Gunicorn 20.1+
+* **WSGI Server**: uWSGI 2.0+
+* **Cache**: Redis 6.2+
+* **Message Queue**: RabbitMQ 3.8+
+* **CI/CD**: GitHub Actions, Docker, Kubernetes
 
-* **Backend**: Node.js with Express.js framework
-* **Frontend**: React.js with Redux for state management
-* **Database**: MongoDB for data storage
-* **AI/ML**: TensorFlow.js for AI-powered project management
-* **Cloud Infrastructure**: AWS for scalability and reliability
+### 2. App Structure
 
-### App Structure
+* **tonymage**: Main app directory
+	+ **tonymage**: Main app package
+		- **__init__.py**: Empty file to make the package a Python package
+		- **settings.py**: Django settings file
+		- **urls.py**: Main app URL configuration
+		- **wsgi.py**: WSGI entry point
+	+ **projects**: App package for project management
+		- **__init__.py**: Empty file to make the package a Python package
+		- **models.py**: Project models
+		- **views.py**: Project views
+		- **forms.py**: Project forms
+	+ **users**: App package for user management
+		- **__init__.py**: Empty file to make the package a Python package
+		- **models.py**: User models
+		- **views.py**: User views
+		- **forms.py**: User forms
+	+ **utils**: App package for utility functions
+		- **__init__.py**: Empty file to make the package a Python package
+		- **utils.py**: Utility functions
 
-The TonyMage application will be structured as follows:
+### 3. Database Model
 
-```markdown
-tonymage/
-app/
-backend/
-controllers/
-models/
-routes/
-services/
-utils/
-frontend/
-components/
-containers/
-reducers/
-actions/
-store/
-tests/
-database/
-models/
-schemas/
-migrations/
-utils/
-config/
-aws.js
-database.js
-express.js
-package.json
-README.md
-```
+* **Project**: Represents a project
+	+ **id**: Unique project ID (primary key)
+	+ **name**: Project name
+	+ **description**: Project description
+	+ **start_date**: Project start date
+	+ **end_date**: Project end date
+* **Task**: Represents a task
+	+ **id**: Unique task ID (primary key)
+	+ **project_id**: Foreign key referencing the Project model
+	+ **name**: Task name
+	+ **description**: Task description
+	+ **start_date**: Task start date
+	+ **end_date**: Task end date
+* **User**: Represents a user
+	+ **id**: Unique user ID (primary key)
+	+ **username**: User username
+	+ **email**: User email
+	+ **password**: User password (hashed)
 
-### Database Model
+### 4. API Design
 
-The TonyMage database will consist of the following collections:
+* **Project API**: Handles project-related operations
+	+ **GET /projects**: Returns a list of projects
+	+ **POST /projects**: Creates a new project
+	+ **GET /projects/{id}**: Returns a project by ID
+	+ **PUT /projects/{id}**: Updates a project by ID
+	+ **DELETE /projects/{id}**: Deletes a project by ID
+* **Task API**: Handles task-related operations
+	+ **GET /tasks**: Returns a list of tasks
+	+ **POST /tasks**: Creates a new task
+	+ **GET /tasks/{id}**: Returns a task by ID
+	+ **PUT /tasks/{id}**: Updates a task by ID
+	+ **DELETE /tasks/{id}**: Deletes a task by ID
+* **User API**: Handles user-related operations
+	+ **GET /users**: Returns a list of users
+	+ **POST /users**: Creates a new user
+	+ **GET /users/{id}**: Returns a user by ID
+	+ **PUT /users/{id}**: Updates a user by ID
+	+ **DELETE /users/{id}**: Deletes a user by ID
 
-```markdown
-// Project Collection
-{
-  "_id" : ObjectId,
-  "name" : String,
-  "description" : String,
-  "startDate" : Date,
-  "endDate" : Date,
-  "status" : String,
-  "tasks" : [Task]
-}
+### 5. Auth/Security
 
-// Task Collection
-{
-  "_id" : ObjectId,
-  "name" : String,
-  "description" : String,
-  "assignee" : String,
-  "status" : String,
-  "dueDate" : Date
-}
+* **Authentication**: Uses Django's built-in authentication system
+	+ **Login**: Handles user login
+	+ **Logout**: Handles user logout
+	+ **Password reset**: Handles password reset
+* **Authorization**: Uses Django's built-in permission system
+	+ **Permissions**: Handles user permissions
+	+ **Groups**: Handles user groups
+* **Security**: Uses Django's built-in security features
+	+ **CSRF protection**: Protects against cross-site request forgery
+	+ **SSL/TLS**: Uses SSL/TLS encryption for secure communication
 
-// User Collection
-{
-  "_id" : ObjectId,
-  "username" : String,
-  "email" : String,
-  "password" : String,
-  "role" : String
-}
-```
+### 6. Deployment Plan
 
-### API Design
+* **Development**: Uses a local development environment (e.g. Docker, Vagrant)
+* **Testing**: Uses a testing environment (e.g. Jenkins, Travis CI)
+* **Staging**: Uses a staging environment (e.g. AWS, Google Cloud)
+* **Production**: Uses a production environment (e.g. AWS, Google Cloud)
+* **CI/CD**: Uses a CI/CD pipeline (e.g. GitHub Actions, Docker, Kubernetes)
 
-The TonyMage API will consist of the following endpoints:
+### 7. Testing Strategy
 
-```markdown
-// Projects API
-GET /projects - Retrieve all projects
-POST /projects - Create a new project
-GET /projects/:id - Retrieve a project by ID
-PUT /projects/:id - Update a project
-DELETE /projects/:id - Delete a project
+* **Unit testing**: Uses Django's built-in unit testing framework
+* **Integration testing**: Uses a testing framework (e.g. Pytest, Unittest)
+* **End-to-end testing**: Uses a testing framework (e.g. Selenium, Cypress)
+* **Code coverage**: Uses a code coverage tool (e.g. Coverage.py, codecov)
 
-// Tasks API
-GET /tasks - Retrieve all tasks
-POST /tasks - Create a new task
-GET /tasks/:id - Retrieve a task by ID
-PUT /tasks/:id - Update a task
-DELETE /tasks/:id - Delete a task
+### 8. Risks and Tradeoffs
 
-// Users API
-GET /users - Retrieve all users
-POST /users - Create a new user
-GET /users/:id - Retrieve a user by ID
-PUT /users/:id - Update a user
-DELETE /users/:id - Delete a user
-```
-
-### Auth/Security
-
-The TonyMage application will use the following authentication and security measures:
-
-* **JSON Web Tokens (JWT)**: Used for authentication and authorization
-* **Password Hashing**: Passwords will be hashed using bcrypt
-* **Data Encryption**: Data will be encrypted using SSL/TLS
-* **Access Control**: Access control will be implemented using role-based access control (RBAC)
-
-### Deployment Plan
-
-The TonyMage application will be deployed to the following environments:
-
-* **Development**: Local development environment using Docker and Docker Compose
-* **Staging**: Staging environment using AWS Elastic Beanstalk
-* **Production**: Production environment using AWS Elastic Beanstalk
-
-### Testing Strategy
-
-The TonyMage application will be tested using the following strategies:
-
-* **Unit Testing**: Unit tests will be written using Jest and Enzyme
-* **Integration Testing**: Integration tests will be written using Jest and Enzyme
-* **End-to-End Testing**: End-to-end tests will be written using Cypress
-
-### Risks and Tradeoffs
-
-The following risks and tradeoffs have been identified:
-
-* **Technical Complexity**: Integrating AI/ML capabilities with project management features may be complex and require significant development time.
-* **Change Management**: Adapting to changing project requirements and stakeholder expectations may be challenging and require significant communication and collaboration.
-* **Scalability**: Ensuring the platform can handle large-scale projects and user bases may require significant investment in infrastructure and resources.
-* **Security**: Ensuring the platform is secure and compliant with relevant regulations may require significant investment in security measures and training.
-
-By understanding these risks and tradeoffs, we can develop a robust and scalable application that meets the needs of our users and stakeholders.
+* **Risk 1**: Data loss due to database corruption
+	+ **Tradeoff**: Use a database backup and restore process
+* **Risk 2**: Security breach due to weak passwords
+	+ **Tradeoff**: Use a strong password policy and two-factor authentication
+* **Risk 3**: Performance issues due to inefficient code
+	+ **Tradeoff**: Use a code optimization tool (e.g. Pyflakes, Pylint) and a performance monitoring tool (e.g. New Relic, Datadog)
+* **Risk 4**: Scalability issues due to inadequate infrastructure
+	+ **Tradeoff**: Use a scalable infrastructure (e.g. AWS, Google Cloud) and a load balancer (e.g. HAProxy, NGINX)

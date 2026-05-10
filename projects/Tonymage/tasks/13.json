@@ -1,15 +1,11 @@
 {
-  "id": 13,
-  "title": "Implement Monitoring and Logging",
-  "department": "Monitoring",
-  "description": "Develop monitoring and logging feature for project performance and errors.",
-  "acceptance_criteria": "Monitoring and logging feature is fully functional and provides insights on project performance.",
-  "estimated_cost_usd": 1000,
-  "branch_name": "feature/monitoring-logging",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T00:52:31.852311",
-  "completed_at": "2026-05-10T00:52:38.149382",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/114"
+  "id": "13",
+  "title": "Implement Project CSS Styles",
+  "department": "Frontend",
+  "description": "Create CSS styles for project-related operations",
+  "acceptance_criteria": "CSS styles are created with required functionality",
+  "estimated_cost_usd": 50,
+  "branch_name": "feature/project-css",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

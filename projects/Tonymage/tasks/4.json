@@ -1,16 +1,11 @@
 {
-  "id": 4,
-  "title": "Develop Reporting and Analytics Feature",
+  "id": "4",
+  "title": "Implement Task API Endpoints",
   "department": "Backend",
-  "description": "Implement basic project reporting and analytics feature.",
-  "acceptance_criteria": "Reporting and analytics feature is fully functional and integrated with project initiation feature.",
-  "estimated_cost_usd": 2000,
-  "branch_name": "feature/reporting-analytics",
-  "status": "completed_real",
-  "mode": "REAL",
-  "worker_id": "worker-2",
-  "locked_at": "2026-05-10T00:47:44.883725",
-  "started_at": "2026-05-10T00:47:44.883746",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/103",
-  "completed_at": "2026-05-10T00:47:52.458802"
+  "description": "Create API endpoints for task CRUD operations",
+  "acceptance_criteria": "API endpoints are created with required functionality",
+  "estimated_cost_usd": 100,
+  "branch_name": "feature/task-api",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

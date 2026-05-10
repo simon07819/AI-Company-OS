@@ -1,11 +1,11 @@
 {
-  "id": "16",
-  "title": "Implement Project JavaScript Code",
+  "id": "18",
+  "title": "Implement User JavaScript Code",
   "department": "Frontend",
-  "description": "Create JavaScript code for project-related operations",
+  "description": "Create JavaScript code for user-related operations",
   "acceptance_criteria": "JavaScript code is created with required functionality",
   "estimated_cost_usd": 100,
-  "branch_name": "feature/project-js",
+  "branch_name": "feature/user-js",
   "status": "queued",
   "mode": "DRY_RUN"
 }

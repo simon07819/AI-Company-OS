@@ -1,15 +1,11 @@
 {
-  "id": 15,
-  "title": "Implement Load Balancing",
-  "department": "Load Balancing",
-  "description": "Develop load balancing feature for project performance and scalability.",
-  "acceptance_criteria": "Load balancing feature is fully functional and ensures project performance and scalability.",
-  "estimated_cost_usd": 1000,
-  "branch_name": "feature/load-balancing",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T00:54:51.393462",
-  "completed_at": "2026-05-10T00:54:57.336899",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/116"
+  "id": "15",
+  "title": "Implement User CSS Styles",
+  "department": "Frontend",
+  "description": "Create CSS styles for user-related operations",
+  "acceptance_criteria": "CSS styles are created with required functionality",
+  "estimated_cost_usd": 50,
+  "branch_name": "feature/user-css",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

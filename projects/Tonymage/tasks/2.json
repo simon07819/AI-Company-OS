@@ -1,13 +1,11 @@
 {
-  "id": 2,
-  "title": "Develop Task Management Feature",
+  "id": "2",
+  "title": "Create Project Models",
   "department": "Backend",
-  "description": "Implement automated task assignment and tracking feature.",
-  "acceptance_criteria": "Task management feature is fully functional and integrated with project initiation feature.",
-  "estimated_cost_usd": 3000,
-  "branch_name": "feature/task-management",
-  "status": "failed",
-  "mode": "REAL",
-  "error": "Refusing to work: git status is not clean",
-  "failed_at": "2026-05-03T05:03:00.368722"
+  "description": "Create models for Project and Task",
+  "acceptance_criteria": "Models are created with required fields and relationships",
+  "estimated_cost_usd": 75,
+  "branch_name": "feature/project-models",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

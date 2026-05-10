@@ -1,15 +1,11 @@
 {
-  "id": 12,
-  "title": "Develop Deployment Script",
-  "department": "Deployment",
-  "description": "Implement deployment script for project deployment to production environment.",
-  "acceptance_criteria": "Deployment script is fully functional and automates project deployment.",
-  "estimated_cost_usd": 500,
-  "branch_name": "feature/deployment-script",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T00:52:31.714510",
-  "completed_at": "2026-05-10T00:52:37.752657",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/112"
+  "id": "12",
+  "title": "Implement User Templates",
+  "department": "Frontend",
+  "description": "Create templates for user-related operations",
+  "acceptance_criteria": "Templates are created with required functionality",
+  "estimated_cost_usd": 75,
+  "branch_name": "feature/user-templates",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

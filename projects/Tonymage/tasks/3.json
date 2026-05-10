@@ -1,16 +1,11 @@
 {
-  "id": 3,
-  "title": "Implement Collaboration Tools",
-  "department": "Frontend",
-  "description": "Develop integrated collaboration tools for team members to share knowledge and ideas.",
-  "acceptance_criteria": "Collaboration tools are fully functional and integrated with task management feature.",
-  "estimated_cost_usd": 4000,
-  "branch_name": "feature/collaboration-tools",
-  "status": "completed_real",
-  "mode": "REAL",
-  "worker_id": "worker-1",
-  "locked_at": "2026-05-10T00:47:44.764166",
-  "started_at": "2026-05-10T00:47:44.764707",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/105",
-  "completed_at": "2026-05-10T00:47:52.375701"
+  "id": "3",
+  "title": "Implement Project API Endpoints",
+  "department": "Backend",
+  "description": "Create API endpoints for project CRUD operations",
+  "acceptance_criteria": "API endpoints are created with required functionality",
+  "estimated_cost_usd": 100,
+  "branch_name": "feature/project-api",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

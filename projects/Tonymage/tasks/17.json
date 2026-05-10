@@ -1,15 +1,11 @@
 {
-  "id": 17,
-  "title": "Implement Content Delivery Network (CDN)",
-  "department": "CDN",
-  "description": "Develop CDN feature for project performance and scalability.",
-  "acceptance_criteria": "CDN feature is fully functional and ensures project performance and scalability.",
-  "estimated_cost_usd": 1000,
-  "branch_name": "feature/cdn",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T00:54:51.631089",
-  "completed_at": "2026-05-10T00:54:57.724997",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/117"
+  "id": "17",
+  "title": "Implement Task JavaScript Code",
+  "department": "Frontend",
+  "description": "Create JavaScript code for task-related operations",
+  "acceptance_criteria": "JavaScript code is created with required functionality",
+  "estimated_cost_usd": 100,
+  "branch_name": "feature/task-js",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

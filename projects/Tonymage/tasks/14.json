@@ -1,15 +1,11 @@
 {
-  "id": 14,
-  "title": "Develop Backup and Recovery",
-  "department": "Backup",
-  "description": "Implement backup and recovery feature for project data storage.",
-  "acceptance_criteria": "Backup and recovery feature is fully functional and ensures data integrity.",
-  "estimated_cost_usd": 500,
-  "branch_name": "feature/backup-recovery",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T00:52:31.969425",
-  "completed_at": "2026-05-10T00:52:38.223116",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/113"
+  "id": "14",
+  "title": "Implement Task CSS Styles",
+  "department": "Frontend",
+  "description": "Create CSS styles for task-related operations",
+  "acceptance_criteria": "CSS styles are created with required functionality",
+  "estimated_cost_usd": 50,
+  "branch_name": "feature/task-css",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

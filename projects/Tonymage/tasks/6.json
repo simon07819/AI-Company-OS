@@ -1,15 +1,11 @@
 {
-  "id": 6,
-  "title": "Develop Database Schema",
-  "department": "Database",
-  "description": "Design and implement database schema for project data storage.",
-  "acceptance_criteria": "Database schema is fully functional and optimized for project data storage.",
-  "estimated_cost_usd": 1500,
-  "branch_name": "feature/database-schema",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T00:50:33.847461",
-  "completed_at": "2026-05-10T00:50:40.324427",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/107"
+  "id": "6",
+  "title": "Implement Authorization and Permissions",
+  "department": "Backend",
+  "description": "Implement authorization and permissions using Django's built-in permission system",
+  "acceptance_criteria": "Authorization and permissions are implemented with required functionality",
+  "estimated_cost_usd": 150,
+  "branch_name": "feature/authorization",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

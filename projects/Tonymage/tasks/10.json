@@ -1,15 +1,11 @@
 {
-  "id": 10,
-  "title": "Develop Testing Framework",
-  "department": "Testing",
-  "description": "Implement testing framework for project initiation, task management, and collaboration tools.",
-  "acceptance_criteria": "Testing framework is fully functional and covers all project features.",
-  "estimated_cost_usd": 1000,
-  "branch_name": "feature/testing-framework",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T00:51:25.107888",
-  "completed_at": "2026-05-10T00:51:30.896946",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/110"
+  "id": "10",
+  "title": "Implement Project Templates",
+  "department": "Frontend",
+  "description": "Create templates for project-related operations",
+  "acceptance_criteria": "Templates are created with required functionality",
+  "estimated_cost_usd": 75,
+  "branch_name": "feature/project-templates",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

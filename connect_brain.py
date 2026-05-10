@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from datetime import datetime
 from brain import generate_specs, generate_architecture, generate_tasks
 
@@ -24,6 +25,137 @@ def write(path, content):
     with open(path, "w") as f:
         f.write(content)
 
+def clean_trailing_commas(text):
+    cleaned = []
+    in_string = False
+    escaped = False
+    i = 0
+
+    while i < len(text):
+        char = text[i]
+
+        if in_string:
+            cleaned.append(char)
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            i += 1
+            continue
+
+        if char == '"':
+            in_string = True
+            cleaned.append(char)
+            i += 1
+            continue
+
+        if char == ",":
+            j = i + 1
+            while j < len(text) and text[j].isspace():
+                j += 1
+            if j < len(text) and text[j] in "]}":
+                i += 1
+                continue
+
+        cleaned.append(char)
+        i += 1
+
+    return "".join(cleaned)
+
+def extract_balanced_json(text, start):
+    opener = text[start]
+    closer = "}" if opener == "{" else "]"
+    depth = 0
+    in_string = False
+    escaped = False
+
+    for i in range(start, len(text)):
+        char = text[i]
+
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == opener:
+            depth += 1
+        elif char == closer:
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+
+    return text[start:]
+
+def parse_tasks_json(tasks_raw):
+    decoder = json.JSONDecoder()
+    fenced_blocks = re.findall(r"```json\s*(.*?)\s*```", tasks_raw, re.DOTALL | re.IGNORECASE)
+
+    for block in fenced_blocks:
+        try:
+            return json.loads(clean_trailing_commas(block))
+        except json.JSONDecodeError:
+            pass
+
+    for i, char in enumerate(tasks_raw):
+        if char not in "[{":
+            continue
+        candidate = clean_trailing_commas(extract_balanced_json(tasks_raw, i))
+        try:
+            parsed, _ = decoder.raw_decode(candidate)
+            return parsed
+        except json.JSONDecodeError:
+            continue
+
+    raise ValueError("No valid JSON object or array found")
+
+def normalize_tasks(tasks):
+    if isinstance(tasks, dict) and isinstance(tasks.get("tasks"), list):
+        tasks = tasks["tasks"]
+    elif isinstance(tasks, dict):
+        tasks = [tasks]
+
+    if not isinstance(tasks, list):
+        raise ValueError("Tasks JSON must be an array or task object")
+
+    valid_tasks = []
+    for i, task in enumerate(tasks, start=1):
+        if not isinstance(task, dict):
+            print(f"⚠️ Tâche ignorée: entrée #{i} n’est pas un objet JSON.")
+            continue
+
+        raw_task_id = task.get("id") or f"AI-TASK-{i:03d}"
+        task_id = str(raw_task_id)
+        title = task.get("title")
+        status = task.get("status") or "queued"
+
+        if not isinstance(task_id, str) or not task_id.strip():
+            print(f"⚠️ Tâche ignorée: entrée #{i} sans id valide.")
+            continue
+        if os.path.basename(task_id) != task_id:
+            print(f"⚠️ Tâche ignorée: id invalide ({task_id}).")
+            continue
+        if not isinstance(title, str) or not title.strip():
+            print(f"⚠️ Tâche ignorée: {task_id} sans title valide.")
+            continue
+        if not isinstance(status, str) or not status.strip():
+            print(f"⚠️ Tâche ignorée: {task_id} sans status valide.")
+            continue
+
+        task["id"] = task_id
+        task["status"] = status
+        task["mode"] = "DRY_RUN"
+        valid_tasks.append(task)
+
+    return valid_tasks
+
 def main():
     print("🧠 Génération du cahier des charges...")
     specs = generate_specs(PROJECT_NAME, IDEA)
@@ -40,7 +172,7 @@ def main():
     write(os.path.join(PROJECT, "docs", "tasks_raw_ai.json"), tasks_raw)
 
     try:
-        tasks = json.loads(tasks_raw)
+        tasks = normalize_tasks(parse_tasks_json(tasks_raw))
     except Exception:
         print("❌ L’IA n’a pas retourné du JSON parfait.")
         print("Regarde: ~/AI-Company/projects/Tonymage/docs/tasks_raw_ai.json")
@@ -49,12 +181,8 @@ def main():
     tasks_dir = os.path.join(PROJECT, "tasks")
     os.makedirs(tasks_dir, exist_ok=True)
 
-    for i, task in enumerate(tasks, start=1):
-        task_id = task.get("id") or f"AI-TASK-{i:03d}"
-        task["id"] = task_id
-        task["status"] = "queued"
-        task["mode"] = "DRY_RUN"
-
+    for task in tasks:
+        task_id = task["id"]
         with open(os.path.join(tasks_dir, f"{task_id}.json"), "w") as f:
             json.dump(task, f, indent=2)
 

@@ -1,15 +1,11 @@
 {
-  "id": 1,
-  "title": "Implement Project Initiation Feature",
+  "id": "1",
+  "title": "Implement Django Project Structure",
   "department": "Backend",
-  "description": "Develop AI-powered project initiation feature, including project scope definition, resource allocation, and timeline creation.",
-  "acceptance_criteria": "Project initiation feature is fully functional and integrated with task management feature.",
-  "estimated_cost_usd": 5000,
-  "branch_name": "feature/project-initiation",
-  "status": "failed",
-  "mode": "REAL",
-  "branch": "ai-company/task-1-implement-project-initiation-feature",
-  "started_at": "2026-05-03T05:00:59.645504",
-  "error": "Command failed: git checkout -b ai-company/task-1-implement-project-initiation-feature\nfatal: a branch named 'ai-company/task-1-implement-project-initiation-feature' already exists",
-  "failed_at": "2026-05-03T05:00:59.667579"
+  "description": "Create a basic Django project structure",
+  "acceptance_criteria": "Project structure is created with required apps and models",
+  "estimated_cost_usd": 50,
+  "branch_name": "feature/project-structure",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

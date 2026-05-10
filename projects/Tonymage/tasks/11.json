@@ -1,15 +1,11 @@
 {
-  "id": 11,
-  "title": "Implement Security Measures",
-  "department": "Security",
-  "description": "Develop security measures for project data storage and API endpoints.",
-  "acceptance_criteria": "Security measures are fully functional and secure.",
-  "estimated_cost_usd": 1500,
-  "branch_name": "feature/security-measures",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T00:51:25.232922",
-  "completed_at": "2026-05-10T00:51:31.024928",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/111"
+  "id": "11",
+  "title": "Implement Task Templates",
+  "department": "Frontend",
+  "description": "Create templates for task-related operations",
+  "acceptance_criteria": "Templates are created with required functionality",
+  "estimated_cost_usd": 75,
+  "branch_name": "feature/task-templates",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
-  "id": 7,
-  "title": "Implement AI/ML Model",
-  "department": "AI/ML",
-  "description": "Develop AI-powered project management model using TensorFlow.js.",
-  "acceptance_criteria": "AI/ML model is fully functional and integrated with project initiation feature.",
-  "estimated_cost_usd": 6000,
-  "branch_name": "feature/ai-ml-model",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T00:50:33.973063",
-  "completed_at": "2026-05-10T00:50:40.401723",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/106"
+  "id": "7",
+  "title": "Implement Project Views",
+  "department": "Backend",
+  "description": "Create views for project-related operations",
+  "acceptance_criteria": "Views are created with required functionality",
+  "estimated_cost_usd": 100,
+  "branch_name": "feature/project-views",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }
