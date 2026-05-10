@@ -6,6 +6,10 @@
   "acceptance_criteria": "The frontend UI is designed and working as expected",
   "estimated_cost_usd": 180,
   "branch_name": "feature/frontend-ui",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T02:18:36.388685",
+  "completed_at": "2026-05-10T02:18:42.699827",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/150"
 }
