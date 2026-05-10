@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import AutopilotPanel from "@/components/AutopilotPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -699,6 +700,7 @@ export default function FactoryPage() {
               </motion.div>
             )}
           </AnimatePresence>
+          <AutopilotPanel compact />
         </div>
 
         {/* ─ CENTER: WORKERS + METRICS + LOG ─ */}

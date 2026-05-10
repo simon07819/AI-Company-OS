@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { bridgeStatus } from "@/lib/orchestrationBridge";
 import { getAutopilotStatus } from "@/lib/autopilot";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const session = getAutopilotStatus();
   return NextResponse.json({
-    ...bridgeStatus(),
-    autopilot: getAutopilotStatus(),
+    ok: true,
+    message: session ? "Autopilot session loaded." : "No active Autopilot session.",
+    session,
   });
 }

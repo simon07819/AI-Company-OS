@@ -22,6 +22,7 @@ import { AGENTS, type AgentDef } from "@/lib/agents";
 import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useTasks, type TaskWithProject } from "@/hooks/useTasks";
+import AutopilotPanel from "@/components/AutopilotPanel";
 
 type InferenceStatus = "streaming" | "inference" | "queued" | "retrying" | "idle" | "error";
 
@@ -454,6 +455,8 @@ export default function RuntimePage() {
         activeRequest={primaryRuntime.task}
         streamPreview={streamPreview}
       />
+
+      <AutopilotPanel />
 
       <section className="runtime-workspace">
         <div className="runtime-agent-section">

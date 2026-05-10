@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
+import AutopilotPanel from "@/components/AutopilotPanel";
 
 type LogLevel = "info" | "success" | "warn" | "error" | "debug" | "nvidia" | "stream";
 type LogCategory =
@@ -632,6 +633,8 @@ export default function LogsPage() {
         <div style={{ marginBottom: 12, color: "var(--text-3)", fontSize: 11 }}>
           {bridgeMessage}
         </div>
+
+        <AutopilotPanel compact />
 
         {/* Filter bar */}
         <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>

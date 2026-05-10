@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import AutopilotPanel from "@/components/AutopilotPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -474,6 +475,8 @@ function Step5({
             <span style={{ fontWeight: 700, color: "var(--green)" }}>{selAgents.length}</span>
           </div>
         </div>
+
+        <AutopilotPanel />
 
         <div style={{ display: "flex", gap: 10 }}>
           <button

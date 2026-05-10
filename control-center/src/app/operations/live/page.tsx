@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { BackendStatusBar } from "@/components/BackendStatusBar";
+import AutopilotPanel from "@/components/AutopilotPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -652,6 +653,8 @@ export default function LiveOpsPage() {
             <BackendStatusBar />
             <div style={{ marginTop: 8, color: "var(--text-3)", fontSize: 11 }}>{bridgeStatus}</div>
           </div>
+
+          <AutopilotPanel compact />
 
           {/* Metrics */}
           <MetricsBar activeCount={activeCount} />
