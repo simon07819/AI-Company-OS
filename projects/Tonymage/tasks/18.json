@@ -7,9 +7,17 @@
   "estimated_cost_usd": 500,
   "branch_name": "feature/waf",
   "status": "completed_real",
+<<<<<<< Updated upstream
   "mode": "REAL",
   "branch": "ai-company/task-18-implement-web-application-firewall-waf-v2",
   "started_at": "2026-05-10T00:56:51.242263",
   "pr_url": "https://github.com/simon07819/tonymage/pull/118",
   "completed_at": "2026-05-10T00:56:54.928090"
+=======
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T00:56:49.822242",
+  "completed_at": "2026-05-10T00:56:56.167022",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/118"
+>>>>>>> Stashed changes
 }

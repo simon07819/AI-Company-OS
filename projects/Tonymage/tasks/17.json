@@ -6,6 +6,10 @@
   "acceptance_criteria": "CDN feature is fully functional and ensures project performance and scalability.",
   "estimated_cost_usd": 1000,
   "branch_name": "feature/cdn",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-3",
+  "locked_at": "2026-05-10T00:54:51.631089",
+  "completed_at": "2026-05-10T00:54:57.724997",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/117"
 }

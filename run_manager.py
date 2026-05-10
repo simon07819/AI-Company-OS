@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -120,6 +121,114 @@ def task_pr_url(output):
         if line.startswith("Draft PR created:"):
             return line.removeprefix("Draft PR created:").strip()
     return None
+
+
+def unique_items(items):
+    seen = set()
+    unique = []
+    for item in items:
+        if item and item not in seen:
+            seen.add(item)
+            unique.append(item)
+    return unique
+
+
+def check_rollup_ok(status_check_rollup):
+    if not status_check_rollup:
+        return True, "no status checks"
+
+    checks = status_check_rollup
+    if isinstance(status_check_rollup, dict):
+        checks = status_check_rollup.get("nodes") or status_check_rollup.get("contexts") or []
+
+    failing = []
+    pending = []
+    for check in checks:
+        name = check.get("name") or check.get("context") or check.get("workflowName") or "status check"
+        conclusion = (check.get("conclusion") or "").upper()
+        status = (check.get("status") or check.get("state") or "").upper()
+
+        if conclusion in {"SUCCESS", "NEUTRAL", "SKIPPED"}:
+            continue
+        if status in {"SUCCESS"}:
+            continue
+        if conclusion in {"FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE"}:
+            failing.append(name)
+            continue
+        if status in {"FAILURE", "ERROR"}:
+            failing.append(name)
+            continue
+        pending.append(name)
+
+    if failing:
+        return False, f"failing checks: {', '.join(failing)}"
+    if pending:
+        return False, f"pending checks: {', '.join(pending)}"
+    return True, "status checks passed"
+
+
+def pr_ready_to_merge(repo_path, pr_url):
+    result = run_cmd([
+        "gh",
+        "pr",
+        "view",
+        pr_url,
+        "--json",
+        "url,number,title,state,isDraft,mergeable,mergeStateStatus,statusCheckRollup",
+    ], repo_path)
+    if result.returncode != 0:
+        return False, f"gh pr view failed: {short_error(result.stderr)}"
+
+    try:
+        pr = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        return False, f"could not parse gh pr view output: {exc}"
+
+    if pr.get("state") != "OPEN":
+        return False, f"PR is not open: {pr.get('state')}"
+
+    mergeable = (pr.get("mergeable") or "").upper()
+    merge_state = (pr.get("mergeStateStatus") or "").upper()
+    if mergeable == "CONFLICTING" or merge_state == "DIRTY":
+        return False, "PR has merge conflicts"
+
+    checks_ok, checks_reason = check_rollup_ok(pr.get("statusCheckRollup"))
+    if not checks_ok:
+        return False, checks_reason
+
+    return True, checks_reason
+
+
+def auto_merge_prs(repo_path, pr_urls):
+    pr_urls = unique_items(pr_urls)
+    if not pr_urls:
+        print("auto-merge: no PRs created in this run")
+        return True
+
+    print("auto-merge:")
+    ok = True
+    for pr_url in pr_urls:
+        ready, reason = pr_ready_to_merge(repo_path, pr_url)
+        if not ready:
+            print(f"{pr_url} failed: {reason}")
+            ok = False
+            continue
+
+        ready_result = run_cmd(["gh", "pr", "ready", pr_url], repo_path)
+        if ready_result.returncode != 0:
+            print(f"{pr_url} failed: gh pr ready failed: {short_error(ready_result.stderr)}")
+            ok = False
+            continue
+
+        merge_result = run_cmd(["gh", "pr", "merge", pr_url, "--squash", "--auto"], repo_path)
+        if merge_result.returncode != 0:
+            print(f"{pr_url} failed: gh pr merge failed: {short_error(merge_result.stderr)}")
+            ok = False
+            continue
+
+        print(f"{pr_url} queued for squash auto-merge ({reason})")
+
+    return ok
 
 
 def task_sort_key(task_file):
@@ -286,6 +395,7 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
     if parallel:
         return execute_workers_parallel(repo_path, tasks, entries, workers)
 
+    pr_urls = []
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
         assigned_pair = tasks[index - 1] if index - 1 < len(tasks) else None
@@ -305,16 +415,20 @@ def execute_workers(repo_path, project_path, workers, parallel=False):
             print(f"{worker} failed with exit code {result.returncode}")
             mark_task_failed(task_file, result.stderr.strip() or f"{worker} exited with {result.returncode}")
         else:
-            mark_task_completed(task_file, task_pr_url(result.stdout))
+            pr_url = task_pr_url(result.stdout)
+            if pr_url:
+                pr_urls.append(pr_url)
+            mark_task_completed(task_file, pr_url)
         if git_clean(worktree):
             checkout_worker_branch(worktree, index)
 
-    return 0
+    return 0, pr_urls
 
 
 def execute_workers_parallel(repo_path, tasks, entries, workers):
     processes = []
     summary = {}
+    pr_urls = []
 
     for index in range(1, workers + 1):
         worker = f"worker-{index}"
@@ -341,7 +455,10 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
             print(f"{worker} failed with exit code {process.returncode}")
             mark_task_failed(task_file, stderr.strip() or f"{worker} exited with {process.returncode}")
         else:
-            mark_task_completed(task_file, task_pr_url(stdout))
+            pr_url = task_pr_url(stdout)
+            if pr_url:
+                pr_urls.append(pr_url)
+            mark_task_completed(task_file, pr_url)
         if git_clean(worktree):
             checkout_worker_branch(worktree, index)
 
@@ -351,7 +468,7 @@ def execute_workers_parallel(repo_path, tasks, entries, workers):
         status = "success" if summary.get(worker) else "fail"
         print(f"{worker} {status}")
 
-    return 0
+    return 0, pr_urls
 
 
 def clean_worktrees(repo_path):
@@ -385,6 +502,7 @@ def main():
     parser.add_argument("--clean-worktrees", action="store_true")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--parallel", action="store_true")
+    parser.add_argument("--auto-merge", action="store_true")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT)
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
@@ -409,7 +527,12 @@ def main():
         print("AI Company OS run manager execution")
         print(f"repo path: {repo_path}")
         print(f"workers planned: {args.workers}")
-        return execute_workers(repo_path, project_path, args.workers, args.parallel)
+        exit_code, pr_urls = execute_workers(repo_path, project_path, args.workers, args.parallel)
+        if exit_code != 0:
+            return exit_code
+        if args.auto_merge and not auto_merge_prs(repo_path, pr_urls):
+            return 1
+        return 0
 
     branch = current_branch(repo_path)
     clean = git_clean(repo_path)

@@ -6,6 +6,10 @@
   "acceptance_criteria": "Caching feature is fully functional and ensures project performance and scalability.",
   "estimated_cost_usd": 500,
   "branch_name": "feature/caching",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T00:54:51.508038",
+  "completed_at": "2026-05-10T00:54:57.659252",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/115"
 }
