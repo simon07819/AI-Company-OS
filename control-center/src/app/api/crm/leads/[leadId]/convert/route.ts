@@ -5,9 +5,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   _req: NextRequest,
-  { params }: { params: Promise<{ leadId: string }> },
+  { params }: { params: { leadId: string } },
 ) {
-  const { leadId } = await params;
+  const { leadId } = params;
   const result = convertLeadToClient(leadId);
   if (!result) {
     return NextResponse.json({ ok: false, message: "Lead not found" }, { status: 404 });

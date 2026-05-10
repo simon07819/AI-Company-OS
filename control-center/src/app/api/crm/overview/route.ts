@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { getCrmOverview } from "@/lib/clientCrm";
+import { getCrmOverview, listOpportunities } from "@/lib/clientCrm";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const overview = getCrmOverview();
-  return NextResponse.json({ ok: true, overview });
+  const opportunities = listOpportunities();
+  return NextResponse.json({ ok: true, overview, opportunities });
 }

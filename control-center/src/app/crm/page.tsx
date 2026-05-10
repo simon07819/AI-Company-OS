@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   Briefcase,
+  CheckCircle2,
   DollarSign,
   FileText,
   Layers3,
@@ -13,6 +14,7 @@ import {
   Phone,
   PlusCircle,
   RefreshCw,
+  Send,
   Star,
   UserCheck,
   Users,
@@ -49,6 +51,17 @@ interface Client {
   updatedAt: string;
 }
 
+interface Opportunity {
+  opportunityId: string;
+  clientId: string;
+  title: string;
+  value: number;
+  status: "open" | "won" | "lost";
+  probability: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface ClientInteraction {
   interactionId: string;
   clientId: string | null;
@@ -56,6 +69,13 @@ interface ClientInteraction {
   type: "call" | "email" | "meeting" | "note" | "delivery";
   summary: string;
   createdAt: string;
+}
+
+interface AutopilotSessionSummary {
+  sessionId: string;
+  projectName: string;
+  missionType: string;
+  status: string;
 }
 
 interface CrmOverview {
@@ -103,9 +123,12 @@ export default function CrmPage() {
   const [overview, setOverview] = useState<CrmOverview | null>(null);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [sessions, setSessions] = useState<AutopilotSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [showClientForm, setShowClientForm] = useState(false);
+  const [missionSelections, setMissionSelections] = useState<Record<string, string>>({});
 
   // Lead form
   const [leadName, setLeadName] = useState("");
@@ -127,9 +150,20 @@ export default function CrmPage() {
         fetch("/api/crm/leads"),
         fetch("/api/crm/clients"),
       ]);
-      if (oRes.ok) { const d = await oRes.json(); setOverview(d.overview); }
+      if (oRes.ok) {
+        const d = await oRes.json();
+        setOverview(d.overview);
+        setOpportunities(d.opportunities ?? []);
+      }
       if (lRes.ok) { const d = await lRes.json(); setLeads(d.leads); }
       if (cRes.ok) { const d = await cRes.json(); setClients(d.clients); }
+      try {
+        const sRes = await fetch("/api/autopilot/sessions");
+        if (sRes.ok) {
+          const d = await sRes.json();
+          setSessions(d.sessions ?? []);
+        }
+      } catch { /* missions optional */ }
     } catch { /* ignore */ }
     setLoading(false);
   };
@@ -160,6 +194,18 @@ export default function CrmPage() {
 
   const handleConvertLead = async (leadId: string) => {
     await fetch(`/api/crm/leads/${leadId}/convert`, { method: "POST" });
+    loadData();
+  };
+
+  const handleLinkMission = async (clientId: string) => {
+    const sessionId = missionSelections[clientId];
+    if (!sessionId) return;
+    await fetch(`/api/crm/clients/${clientId}/link-mission`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId }),
+    });
+    setMissionSelections((current) => ({ ...current, [clientId]: "" }));
     loadData();
   };
 
@@ -289,11 +335,9 @@ export default function CrmPage() {
                       <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
                         {cfg.label}
                       </span>
-                      {lead.status === "proposal_sent" || lead.status === "qualified" ? (
-                        <button onClick={() => handleConvertLead(lead.leadId)} style={{ fontSize: 10, background: "#22c55e", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "3px 8px", cursor: "pointer" }}>
-                          Convert
-                        </button>
-                      ) : null}
+                      <button onClick={() => handleConvertLead(lead.leadId)} style={{ fontSize: 10, background: "#22c55e", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "3px 8px", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                        <CheckCircle2 size={10} /> Convert
+                      </button>
                     </div>
                   );
                 })}
@@ -326,6 +370,56 @@ export default function CrmPage() {
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)" }}>${client.totalValue.toLocaleString()}</span>
                       <span style={{ fontSize: 10, fontWeight: 600, color: cfg.color, background: cfg.bg, padding: "3px 8px", borderRadius: "var(--radius-sm)", textTransform: "uppercase", letterSpacing: "0.3px" }}>
                         {cfg.label}
+                      </span>
+                      <select
+                        value={missionSelections[client.clientId] ?? ""}
+                        onChange={(e) => setMissionSelections((current) => ({ ...current, [client.clientId]: e.target.value }))}
+                        style={{ ...inputStyle, width: 180, padding: "5px 8px", fontSize: 10 }}
+                      >
+                        <option value="">Link mission</option>
+                        {sessions
+                          .filter((session) => !client.linkedMissionIds.includes(session.sessionId))
+                          .map((session) => (
+                            <option key={session.sessionId} value={session.sessionId}>
+                              {session.projectName || session.sessionId}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        onClick={() => handleLinkMission(client.clientId)}
+                        disabled={!missionSelections[client.clientId]}
+                        style={{ fontSize: 10, background: "#6366f1", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", padding: "5px 8px", cursor: missionSelections[client.clientId] ? "pointer" : "default", opacity: missionSelections[client.clientId] ? 1 : 0.5, display: "flex", alignItems: "center", gap: 3 }}
+                      >
+                        <Send size={10} /> Link
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* ── OPPORTUNITIES ── */}
+          <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 32 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 14 }}>
+              Opportunities
+            </div>
+            {opportunities.length === 0 ? (
+              <div style={{ color: "var(--text-3)", fontSize: 13 }}>No opportunities yet. Open deals will appear here once they are created.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {opportunities.map((opportunity) => {
+                  const client = clients.find((item) => item.clientId === opportunity.clientId);
+                  return (
+                    <div key={opportunity.opportunityId} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{opportunity.title}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-3)" }}>{client?.name ?? opportunity.clientId}</div>
+                      </div>
+                      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 600 }}>{opportunity.probability}%</span>
+                      <span style={{ fontSize: 10, color: "#a78bfa", fontWeight: 700 }}>${opportunity.value.toLocaleString()}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: opportunity.status === "open" ? "#fb923c" : opportunity.status === "won" ? "#22c55e" : "#f43f5e", textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                        {opportunity.status.replace("_", " ")}
                       </span>
                     </div>
                   );

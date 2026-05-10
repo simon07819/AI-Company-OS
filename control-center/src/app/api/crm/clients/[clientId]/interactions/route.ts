@@ -5,9 +5,9 @@ export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ clientId: string }> },
+  { params }: { params: { clientId: string } },
 ) {
-  const { clientId } = await params;
+  const { clientId } = params;
   try {
     const body = await req.json();
     const interaction = addInteraction({

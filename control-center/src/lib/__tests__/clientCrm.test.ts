@@ -155,6 +155,7 @@ describe("clientCrm", () => {
     expect(overview.activeClients).toBe(1);
     expect(overview.leadsByStatus.new).toBe(2);
     expect(overview.clientsByStatus.active).toBe(1);
+    expect(overview.pipelineValue).toBe(3000);
     expect(overview.recentInteractions.length).toBeGreaterThan(0);
   });
 
@@ -184,5 +185,61 @@ describe("clientCrm", () => {
 
     const opps = listOpportunities();
     expect(opps.length).toBe(1);
+  });
+
+  it("CRM API handlers create, convert, link, interact and report overview", async () => {
+    const leadsRoute = await import("@/app/api/crm/leads/route");
+    const clientsRoute = await import("@/app/api/crm/clients/route");
+    const convertRoute = await import("@/app/api/crm/leads/[leadId]/convert/route");
+    const linkRoute = await import("@/app/api/crm/clients/[clientId]/link-mission/route");
+    const interactionsRoute = await import("@/app/api/crm/clients/[clientId]/interactions/route");
+    const overviewRoute = await import("@/app/api/crm/overview/route");
+
+    const leadResponse = await leadsRoute.POST(new Request("http://test.local/api/crm/leads", {
+      method: "POST",
+      body: JSON.stringify({ name: "API Lead", email: "api@test.com", estimatedValue: 4000 }),
+    }) as never);
+    const leadPayload = await leadResponse.json();
+    expect(leadPayload.ok).toBe(true);
+
+    const convertResponse = await convertRoute.POST(new Request("http://test.local") as never, {
+      params: { leadId: leadPayload.lead.leadId },
+    });
+    const convertPayload = await convertResponse.json();
+    expect(convertPayload.ok).toBe(true);
+    expect(convertPayload.client.name).toBe("API Lead");
+
+    const clientResponse = await clientsRoute.POST(new Request("http://test.local/api/crm/clients", {
+      method: "POST",
+      body: JSON.stringify({ name: "API Client", email: "client@test.com" }),
+    }) as never);
+    const clientPayload = await clientResponse.json();
+    expect(clientPayload.ok).toBe(true);
+
+    const linkResponse = await linkRoute.POST(new Request("http://test.local", {
+      method: "POST",
+      body: JSON.stringify({ sessionId: "ap-api-test" }),
+    }) as never, {
+      params: { clientId: clientPayload.client.clientId },
+    });
+    const linkPayload = await linkResponse.json();
+    expect(linkPayload.ok).toBe(true);
+    expect(linkPayload.client.linkedMissionIds).toContain("ap-api-test");
+
+    const interactionResponse = await interactionsRoute.POST(new Request("http://test.local", {
+      method: "POST",
+      body: JSON.stringify({ type: "meeting", summary: "API meeting" }),
+    }) as never, {
+      params: { clientId: clientPayload.client.clientId },
+    });
+    const interactionPayload = await interactionResponse.json();
+    expect(interactionPayload.ok).toBe(true);
+    expect(interactionPayload.interaction.summary).toBe("API meeting");
+
+    const overviewResponse = await overviewRoute.GET();
+    const overviewPayload = await overviewResponse.json();
+    expect(overviewPayload.ok).toBe(true);
+    expect(overviewPayload.overview.totalClients).toBe(2);
+    expect(overviewPayload.overview.recentInteractions.length).toBeGreaterThan(0);
   });
 });

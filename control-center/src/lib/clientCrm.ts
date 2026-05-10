@@ -3,7 +3,7 @@ import path from "path";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
-const REPO_ROOT = path.resolve(process.cwd(), "..");
+const REPO_ROOT = process.cwd();
 const DATA_DIR = path.join(REPO_ROOT, "data");
 const CRM_PATH = path.join(DATA_DIR, "client-crm.json");
 
@@ -365,9 +365,12 @@ export function getCrmOverview(): CrmOverview {
   }
 
   const activeLeads = data.leads.filter((l) => l.status !== "won" && l.status !== "lost").length;
-  const pipelineValue = data.opportunities
+  const openOpportunityValue = data.opportunities
     .filter((o) => o.status === "open")
     .reduce((sum, o) => sum + o.value * (o.probability / 100), 0);
+  const activeLeadValue = data.leads
+    .filter((l) => l.status !== "won" && l.status !== "lost")
+    .reduce((sum, l) => sum + l.estimatedValue, 0);
   const wonValue = data.opportunities
     .filter((o) => o.status === "won")
     .reduce((sum, o) => sum + o.value, 0);
@@ -382,7 +385,7 @@ export function getCrmOverview(): CrmOverview {
     totalClients: data.clients.length,
     activeClients: clientsByStatus.active,
     openOpportunities: data.opportunities.filter((o) => o.status === "open").length,
-    pipelineValue: Math.round(pipelineValue),
+    pipelineValue: Math.round(openOpportunityValue + activeLeadValue),
     wonValue: Math.round(wonValue),
     leadsByStatus,
     clientsByStatus,
