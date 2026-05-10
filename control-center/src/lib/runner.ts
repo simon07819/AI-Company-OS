@@ -43,10 +43,32 @@ const ACTIONS: Record<string, ActionDef> = {
     script: "set_project_status.py",
     buildArgs: (b) => ["--project", b.project, "--status", b.status],
   },
+  "validate-project": {
+    script: "validate_product.py",
+    buildArgs: (b) => ["--project", b.project, "--repo-path", b.repoPath ?? ".."],
+  },
+  "generate-roadmap": {
+    script: "generate_roadmap.py",
+    buildArgs: (b) => ["--project", b.project, "--repo-path", b.repoPath ?? ".."],
+  },
+  "roadmap-to-tasks": {
+    script: "roadmap_to_tasks.py",
+    buildArgs: (b) => ["--project", b.project, "--repo-path", b.repoPath ?? ".."],
+  },
+  "run-worker": {
+    script: "run_worker.py",
+    buildArgs: (b) => ["--project", b.project],
+  },
 };
 
+const PROJECT_REQUIRED_ACTIONS = [
+  "create-product", "init-monetization", "factory-cycle", "auto-build",
+  "set-project-status", "validate-project", "generate-roadmap",
+  "roadmap-to-tasks", "run-worker",
+];
+
 function validateBody(action: string, body: Record<string, string>): string | null {
-  if (["create-product", "init-monetization", "factory-cycle", "auto-build", "set-project-status"].includes(action)) {
+  if (PROJECT_REQUIRED_ACTIONS.includes(action)) {
     if (!body.project || !PROJECT_RE.test(body.project)) return "Invalid project name";
   }
   if (action === "set-project-status") {

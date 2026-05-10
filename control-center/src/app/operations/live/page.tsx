@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
+import { BackendStatusBar } from "@/components/BackendStatusBar";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -620,6 +621,11 @@ export default function LiveOpsPage() {
 
         {/* ── Center: activity feed ── */}
         <main style={{ flex: 1, overflowY: "auto", padding: "24px 24px 48px" }}>
+
+          {/* Backend status */}
+          <div style={{ marginBottom: 16 }}>
+            <BackendStatusBar />
+          </div>
 
           {/* Metrics */}
           <MetricsBar activeCount={activeCount} />

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
 
 type LogLevel = "info" | "success" | "warn" | "error" | "debug" | "nvidia" | "stream";
 type LogCategory =
@@ -419,12 +420,48 @@ function MetaRow({ label, value, mono, accent }: { label: string; value: string;
   );
 }
 
+const AGENT_META_MAP: Record<string, { color: string; emoji: string; category: LogEntry["category"] }> = {
+  product_agent:   { color: "#a78bfa", emoji: "🎯", category: "orchestration" },
+  architect_agent: { color: "#f59e0b", emoji: "🏗️", category: "orchestration" },
+  frontend_agent:  { color: "#3b82f6", emoji: "🎨", category: "frontend" },
+  backend_agent:   { color: "#10b981", emoji: "⚙️", category: "backend" },
+  qa_agent:        { color: "#ef4444", emoji: "🔬", category: "qa" },
+  devops_agent:    { color: "#8b5cf6", emoji: "🚀", category: "devops" },
+};
+
+function mapBackendEntry(real: BackendLogEntry): LogEntry {
+  const agent = real.agent ?? "system";
+  const meta = AGENT_META_MAP[agent] ?? { color: "#94a3b8", emoji: "📋", category: "backend" as const };
+  const level: LogLevel = real.status === "completed" ? "success"
+    : real.status === "failed" ? "error"
+    : real.status === "selected" ? "info"
+    : "debug";
+  const ts = (() => {
+    try { return new Date(real.timestamp).toLocaleTimeString("en-CA", { hour12: false }); }
+    catch { return "--:--:--"; }
+  })();
+  return {
+    id: genId(),
+    ts,
+    epoch: (() => { try { return new Date(real.timestamp).getTime(); } catch { return Date.now(); } })(),
+    level,
+    category: meta.category,
+    agent,
+    agentColor: meta.color,
+    agentEmoji: meta.emoji,
+    title: real.task_title ? `[${real.project ?? ""}] ${real.task_title}` : real.event ?? agent,
+    message: real.message ?? real.event ?? "",
+    taskId: real.task_id != null ? String(real.task_id) : undefined,
+  };
+}
+
 export default function LogsPage() {
   const [entries, setEntries] = useState<LogEntry[]>(getInitialEntries);
   const [category, setCategory] = useState<LogCategory>("all");
   const [search, setSearch] = useState("");
   const [paused, setPaused] = useState(false);
   const [selected, setSelected] = useState<LogEntry | null>(null);
+  const [streamMode, setStreamMode] = useState<"simulation" | "live">("simulation");
   const pausedRef = useRef(false);
   const entriesRef = useRef<LogEntry[]>([]);
   entriesRef.current = entries;
@@ -433,13 +470,14 @@ export default function LogsPage() {
     pausedRef.current = paused;
   }, [paused]);
 
+  // Simulation tick — disabled when in live mode
   useEffect(() => {
+    if (streamMode === "live") return;
     const iv = setInterval(() => {
       if (pausedRef.current) return;
       const newEntry = spawnEntry();
       setEntries((prev) => {
         const updated = [newEntry, ...prev];
-        // Resolve any streaming entry after 1 tick
         return updated.map((e) => {
           if (e.streaming && e.id !== newEntry.id && Math.random() > 0.5) {
             const tokens = Math.floor(Math.random() * 800) + 400;
@@ -450,7 +488,17 @@ export default function LogsPage() {
       });
     }, 1800);
     return () => clearInterval(iv);
-  }, []);
+  }, [streamMode]);
+
+  // Real SSE stream — active only in live mode
+  useLogStream(
+    useCallback((real: BackendLogEntry) => {
+      if (pausedRef.current) return;
+      const entry = mapBackendEntry(real);
+      setEntries((prev) => [entry, ...prev].slice(0, 300));
+    }, []),
+    streamMode === "live"
+  );
 
   const filtered = entries.filter((e) => {
     if (category === "errors") return e.level === "error";
@@ -509,6 +557,31 @@ export default function LogsPage() {
                 transition={{ duration: 2, repeat: Infinity }}
               />
               NVIDIA API live
+            </div>
+            {/* Stream mode toggle */}
+            <div style={{ display: "flex", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 7, overflow: "hidden" }}>
+              {(["simulation", "live"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => {
+                    setStreamMode(mode);
+                    if (mode === "live") setEntries([]);
+                  }}
+                  style={{
+                    padding: "5px 12px", fontSize: 10, fontWeight: 700, cursor: "pointer", border: "none",
+                    background: streamMode === mode
+                      ? mode === "live" ? "rgba(16,185,129,0.15)" : "rgba(99,102,241,0.15)"
+                      : "transparent",
+                    color: streamMode === mode
+                      ? mode === "live" ? "#34d399" : "#818cf8"
+                      : "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "0.05em",
+                    transition: "all 0.12s",
+                  }}
+                >
+                  {mode === "live" ? "⚡ Live" : "◎ Sim"}
+                </button>
+              ))}
             </div>
             <button
               onClick={() => setPaused((p) => !p)}
@@ -582,7 +655,14 @@ export default function LogsPage() {
           <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <motion.div style={{ width: 7, height: 7, borderRadius: "50%", background: paused ? "#fbbf24" : "#10b981" }} animate={{ opacity: paused ? 1 : [1, 0.3, 1] }} transition={{ duration: 2, repeat: Infinity }} />
             <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)" }}>
-              {paused ? "Stream paused (hover)" : "Live stream"}
+              {paused ? "Stream paused" : streamMode === "live" ? "Backend SSE stream" : "Simulation stream"}
+            </span>
+            <span style={{
+              fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4,
+              background: streamMode === "live" ? "rgba(16,185,129,0.12)" : "rgba(99,102,241,0.12)",
+              color: streamMode === "live" ? "#34d399" : "#818cf8",
+            }}>
+              {streamMode === "live" ? "LIVE BACKEND" : "SIMULATION"}
             </span>
             <span style={{ fontSize: 10, color: "var(--text-3)", marginLeft: "auto" }}>newest first · hover to pause</span>
           </div>
