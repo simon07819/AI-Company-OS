@@ -71,11 +71,13 @@ def ensure_main_ready(repo_path):
 
 def queued_tasks(project_path):
     tasks = []
-    for task_file in sorted(list_task_files(project_path), key=task_sort_key):
-        task = load_task_file(task_file)
+    for task_file in list_task_files(project_path):
+        task = load_task_file_or_report(task_file)
+        if task is None:
+            continue
         if task.get("status") == "queued":
             tasks.append((task_file, task))
-    return tasks
+    return sorted(tasks, key=lambda item: task_sort_key(item[1]))
 
 
 def utc_now():
@@ -85,6 +87,18 @@ def utc_now():
 def short_error(message):
     line = (message or "").strip().splitlines()
     return (line[0] if line else "worker failed")[:500]
+
+
+def short_json_error(error):
+    return f"{error.msg} at line {error.lineno} column {error.colno}"
+
+
+def load_task_file_or_report(task_file):
+    try:
+        return load_task_file(task_file)
+    except json.JSONDecodeError as error:
+        print(f"invalid task json: {task_file} {short_json_error(error)}")
+        return None
 
 
 def mark_task_locked(task_file, worker):
@@ -231,8 +245,7 @@ def auto_merge_prs(repo_path, pr_urls):
     return ok
 
 
-def task_sort_key(task_file):
-    task = load_task_file(task_file)
+def task_sort_key(task):
     task_id = task.get("id")
     if isinstance(task_id, int):
         return (0, task_id)

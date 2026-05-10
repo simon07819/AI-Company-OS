@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -10,7 +11,6 @@ from task_queue import (
     mark_task_completed_real,
     mark_task_failed,
     mark_task_running,
-    next_queued_task,
 )
 from workers.github_worker import GitHubWorkerError, safe_branch_name
 
@@ -115,10 +115,49 @@ def write_task_code(repo_path, task):
     return [path]
 
 
+def short_json_error(error):
+    return f"{error.msg} at line {error.lineno} column {error.colno}"
+
+
+def load_task_file_or_report(task_file):
+    try:
+        return load_task_file(task_file)
+    except json.JSONDecodeError as error:
+        print(f"invalid task json: {task_file} {short_json_error(error)}")
+        return None
+
+
+def task_sort_key(task):
+    task_id = task.get("id")
+    if isinstance(task_id, int):
+        return (0, task_id)
+    if isinstance(task_id, str) and task_id.isdigit():
+        return (0, int(task_id))
+    return (1, str(task_id))
+
+
+def valid_task_items(project_path):
+    tasks = []
+    invalid = 0
+    for task_file in list_task_files(project_path):
+        task = load_task_file_or_report(task_file)
+        if task is None:
+            invalid += 1
+            continue
+        tasks.append((task_file, task))
+    return sorted(tasks, key=lambda item: task_sort_key(item[1])), invalid
+
+
+def next_queued_task_safe(project_path):
+    for task_file, task in valid_task_items(project_path)[0]:
+        if task.get("status") == "queued":
+            return task_file, task
+    return None, None
+
+
 def task_by_id(project_path, task_id):
     requested = str(task_id)
-    for task_file in list_task_files(project_path):
-        task = load_task_file(task_file)
+    for task_file, task in valid_task_items(project_path)[0]:
         if str(task.get("id")) == requested:
             return task_file, task
     return None, None
@@ -133,7 +172,7 @@ def worker_id_from_base_branch(base_branch):
 
 def select_task(project_path, task_id=None, worker_id=None):
     if task_id is None:
-        return next_queued_task(project_path)
+        return next_queued_task_safe(project_path)
 
     task_file, task = task_by_id(project_path, task_id)
     if not task:
@@ -230,20 +269,19 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
 def doctor(project_path, repo_path):
     queued = 0
     locked = 0
-    for task_file in list_task_files(project_path):
-        try:
-            status = load_task_file(task_file).get("status")
-            if status == "queued":
-                queued += 1
-            elif status == "locked":
-                locked += 1
-        except Exception:
-            pass
+    tasks, invalid = valid_task_items(project_path)
+    for _, task in tasks:
+        status = task.get("status")
+        if status == "queued":
+            queued += 1
+        elif status == "locked":
+            locked += 1
     print(f"current branch: {current_branch(repo_path)}")
     print(f"git clean: {str(git_clean(repo_path)).lower()}")
     print(f"gh auth ok: {str(gh_auth_ok(repo_path)).lower()}")
     print(f"queued tasks count: {queued}")
     print(f"locked tasks count: {locked}")
+    print(f"invalid task json count: {invalid}")
     return 0
 
 
