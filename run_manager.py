@@ -81,7 +81,12 @@ def queued_tasks(project_path):
         task = load_task_file_or_report(task_file)
         if task is None:
             continue
-        if task.get("status") == "queued":
+        status = task.get("status")
+        if status in {"completed_real", "failed"}:
+            task_id = task.get("id") or os.path.basename(task_file)
+            print(f"skipping task {task_id} (status: {status})")
+            continue
+        if status == "queued":
             tasks.append((task_file, task))
     return sorted(tasks, key=lambda item: task_sort_key(item[1]))
 
