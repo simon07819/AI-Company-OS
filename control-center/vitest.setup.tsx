@@ -258,6 +258,34 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/generate-project")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: "Generated 9 project files.",
+        files: [
+          "project/package.json", "project/README.md", "project/app/page.tsx",
+          "project/app/layout.tsx", "project/app/globals.css", "project/lib/config.ts",
+          "project/components/Hero.tsx", "project/components/Pricing.tsx",
+          "project/components/DashboardPreview.tsx",
+        ],
+        session: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null, template: null, stack: null,
+          status: "running", currentPhase: "frontend", progress: 50,
+          assignedAgents: [], roadmap: [], tasks: [], logs: [],
+          runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 1, lastEvent: "Scaffold generated" },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/")) {
     return {
       ok: true,

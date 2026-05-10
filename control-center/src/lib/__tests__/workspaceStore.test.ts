@@ -321,4 +321,134 @@ describe("workspaceStore", () => {
     expect(apiPlan![1]).toContain("AP-301");
     expect(apiPlan![1]).toContain("backend_agent");
   });
+
+  // ─── Project Scaffold Tests ─────────────────────────────────────────────────
+
+  it("generateProjectScaffold creates project/package.json", async () => {
+    const { createWorkspaceForSession, generateProjectScaffold } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-scaffold-pkg",
+      projectName: "SaaSPro",
+      projectIdea: "A modern SaaS platform",
+      template: "b2b-saas", stack: "nextjs-prisma",
+      status: "running" as const, currentPhase: "frontend" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+    const paths = generateProjectScaffold(session);
+
+    expect(paths).toContain("project/package.json");
+    const pkgContent = [...writtenFiles.entries()].find(([p]) => p.endsWith("project/package.json") && p.includes("ap-scaffold-pkg"));
+    expect(pkgContent).toBeDefined();
+    const parsed = JSON.parse(pkgContent![1]);
+    expect(parsed.name).toBe("saaspro");
+    expect(parsed.dependencies.next).toBeDefined();
+  });
+
+  it("generateProjectScaffold creates project/app/page.tsx", async () => {
+    const { createWorkspaceForSession, generateProjectScaffold } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-scaffold-page",
+      projectName: "FlowApp",
+      projectIdea: "Workflow automation for teams",
+      template: null, stack: null,
+      status: "running" as const, currentPhase: "frontend" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+    const paths = generateProjectScaffold(session);
+
+    expect(paths).toContain("project/app/page.tsx");
+    const pageContent = [...writtenFiles.entries()].find(([p]) => p.endsWith("project/app/page.tsx") && p.includes("ap-scaffold-page"));
+    expect(pageContent).toBeDefined();
+    expect(pageContent![1]).toContain("Hero");
+    expect(pageContent![1]).toContain("Pricing");
+  });
+
+  it("generateProjectScaffold uses session name and idea", async () => {
+    const { createWorkspaceForSession, generateProjectScaffold } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-scaffold-ctx",
+      projectName: "AutoCRM",
+      projectIdea: "CRM for restaurants and cafes",
+      template: "b2b-saas", stack: "nextjs-prisma",
+      status: "running" as const, currentPhase: "idea" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+    generateProjectScaffold(session);
+
+    const readme = [...writtenFiles.entries()].find(([p]) => p.endsWith("project/README.md") && p.includes("ap-scaffold-ctx"));
+    expect(readme).toBeDefined();
+    expect(readme![1]).toContain("AutoCRM");
+    expect(readme![1]).toContain("CRM for restaurants");
+
+    const config = [...writtenFiles.entries()].find(([p]) => p.endsWith("project/lib/config.ts") && p.includes("ap-scaffold-ctx"));
+    expect(config).toBeDefined();
+    expect(config![1]).toContain("AutoCRM");
+    expect(config![1]).toContain("autocrm");
+  });
+
+  it("generateProjectScaffold creates all 9 project files", async () => {
+    const { createWorkspaceForSession, generateProjectScaffold } = await import("@/lib/workspaceStore");
+
+    const session = {
+      sessionId: "ap-scaffold-all",
+      projectName: "FullStack",
+      projectIdea: "Full stack platform",
+      template: null, stack: null,
+      status: "running" as const, currentPhase: "frontend" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+    const paths = generateProjectScaffold(session);
+
+    expect(paths).toContain("project/package.json");
+    expect(paths).toContain("project/README.md");
+    expect(paths).toContain("project/app/page.tsx");
+    expect(paths).toContain("project/app/layout.tsx");
+    expect(paths).toContain("project/app/globals.css");
+    expect(paths).toContain("project/lib/config.ts");
+    expect(paths).toContain("project/components/Hero.tsx");
+    expect(paths).toContain("project/components/Pricing.tsx");
+    expect(paths).toContain("project/components/DashboardPreview.tsx");
+    expect(paths.length).toBe(9);
+  });
+
+  it("projectScaffoldExists returns true after generation", async () => {
+    const { createWorkspaceForSession, generateProjectScaffold, projectScaffoldExists } = await import("@/lib/workspaceStore");
+
+    const sid = "ap-scaffold-exists";
+    const session = {
+      sessionId: sid,
+      projectName: "ExistCheck",
+      projectIdea: "Test",
+      template: null, stack: null,
+      status: "running" as const, currentPhase: "idea" as const, progress: 0,
+      assignedAgents: [], roadmap: [], tasks: [], logs: [],
+      runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 0, lastEvent: "" },
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), productType: null,
+    };
+
+    createWorkspaceForSession(session);
+    expect(projectScaffoldExists(sid)).toBe(false);
+
+    generateProjectScaffold(session);
+    expect(projectScaffoldExists(sid)).toBe(true);
+  });
 });

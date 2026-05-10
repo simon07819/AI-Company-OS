@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact } from "./workspaceStore";
+import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists } from "./workspaceStore";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -603,6 +603,25 @@ export function runStep(sessionId: string): RunStepResult {
     }
   }
 
+  // Generate project scaffold on first frontend_agent completion
+  let scaffoldGenerated = false;
+  if (executionOk && agent === "frontend_agent" && !projectScaffoldExists(sessionId)) {
+    const scaffoldSession = getSession(sessionId);
+    if (scaffoldSession) {
+      const scaffoldPaths = generateProjectScaffold(scaffoldSession);
+      if (scaffoldPaths.length > 0) {
+        scaffoldGenerated = true;
+        appendLog(sessionId, {
+          timestamp: new Date().toISOString(),
+          level: "success",
+          agent,
+          message: `SaaS project scaffold generated: ${scaffoldPaths.length} files in project/`,
+          source: "scaffold",
+        });
+      }
+    }
+  }
+
   // Update workspace files on disk
   const latestSession = getSession(sessionId);
   if (latestSession) {
@@ -685,6 +704,22 @@ export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllR
   }
 
   session = getSession(sessionId);
+
+  // Auto-generate project scaffold at 50% progress
+  if (session && session.progress >= 50 && !projectScaffoldExists(sessionId)) {
+    const scaffoldPaths = generateProjectScaffold(session);
+    if (scaffoldPaths.length > 0) {
+      appendLog(sessionId, {
+        timestamp: new Date().toISOString(),
+        level: "success",
+        agent: "autopilot",
+        message: `SaaS project scaffold generated at 50% progress: ${scaffoldPaths.length} files in project/`,
+        source: "scaffold",
+      });
+    }
+    session = getSession(sessionId);
+  }
+
   return {
     ok: stepsExecuted > 0,
     stepsExecuted,

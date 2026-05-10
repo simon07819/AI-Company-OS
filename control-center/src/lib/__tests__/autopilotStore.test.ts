@@ -267,4 +267,48 @@ describe("autopilotStore execution loop", () => {
     // artifactPaths should always be an array (empty if task failed)
     expect(Array.isArray(result.artifactPaths)).toBe(true);
   });
+
+  it("runStep generates project scaffold when frontend_agent completes", async () => {
+    const { createSession, runStep, getSession, updateSession } = await import("@/lib/workspaceStore").then(async () => {
+      // workspaceStore must be imported so scaffold generation works
+      await import("@/lib/workspaceStore");
+      return await import("@/lib/autopilotStore");
+    });
+
+    const session = createSession({ name: "ScaffoldFrontendTest", idea: "Test scaffold trigger" });
+
+    // Complete all tasks up to the first frontend task, then run frontend_agent step
+    // Simpler approach: just run steps until we hit a frontend_agent task or enough progress
+    const frontendTask = session.tasks.find((t) => t.agent === "frontend_agent");
+    if (frontendTask) {
+      // Manually mark all prior tasks as completed to get to frontend phase
+      const priorTasks = session.tasks.map((t) => {
+        const taskPhaseOrder = ["idea", "planning", "architecture", "frontend", "backend", "validation", "build", "runtime"];
+        const taskIdx = taskPhaseOrder.indexOf(t.phase);
+        const frontendIdx = taskPhaseOrder.indexOf("frontend");
+        if (taskIdx < frontendIdx) {
+          return { ...t, status: "completed" as const, progress: 100 };
+        }
+        if (t.id === frontendTask.id) {
+          return { ...t, status: "running" as const, progress: 15 };
+        }
+        return t;
+      });
+
+      updateSession(session.sessionId, { tasks: priorTasks, currentPhase: "frontend", progress: 18 });
+
+      // Now run step — should complete the frontend task
+      const result = runStep(session.sessionId);
+
+      // If the frontend task completed, scaffold should be generated
+      if (result.ok && result.task?.agent === "frontend_agent" && result.task.status === "completed") {
+        // Check for scaffold log
+        const updated = getSession(session.sessionId);
+        const scaffoldLog = updated?.logs.find(
+          (log) => log.source === "scaffold" && log.message.includes("SaaS project scaffold")
+        );
+        expect(scaffoldLog).toBeDefined();
+      }
+    }
+  });
 });

@@ -11,11 +11,13 @@ import {
   Bot,
   CheckCircle2,
   Clock3,
+  Code2,
   Cpu,
   Eye,
   FastForward,
   FileText,
   FolderOpen,
+  Hammer,
   Layers3,
   Package,
   Pause,
@@ -169,6 +171,9 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   const [workspaceExists, setWorkspaceExists] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [selectedFileContent, setSelectedFileContent] = useState<string | null>(null);
+  const [projectExists, setProjectExists] = useState(false);
+  const [projectFiles, setProjectFiles] = useState<{ path: string; name: string; size: number }[]>([]);
+  const [generatingProject, setGeneratingProject] = useState(false);
 
   const loadWorkspace = async () => {
     if (!sessionId) return;
@@ -186,6 +191,10 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       if (payload.ok && payload.summary) {
         setWorkspaceExists(payload.summary.exists);
         setWorkspaceFiles(payload.summary.files);
+        // Detect project scaffold
+        const pFiles = payload.summary.files.filter((f) => f.path.startsWith("project/"));
+        setProjectExists(pFiles.some((f) => f.path === "project/package.json"));
+        setProjectFiles(pFiles);
       }
     } catch {
       // ignore
@@ -244,6 +253,26 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       // ignore
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleGenerateProject = async () => {
+    if (!sessionId) return;
+    setGeneratingProject(true);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/generate-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await res.json()) as { ok: boolean; session?: AutopilotSession; existing?: boolean };
+      if (payload.ok && payload.session) {
+        setSession(payload.session);
+      }
+      await loadWorkspace();
+    } catch {
+      // ignore
+    } finally {
+      setGeneratingProject(false);
     }
   };
 
@@ -859,6 +888,95 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
         {workspaceExists && (
           <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>
             {workspaceFiles.length} file{workspaceFiles.length !== 1 ? "s" : ""} generated
+          </div>
+        )}
+      </section>
+
+      {/* ── GENERATED SAAS PROJECT ── */}
+      <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+            <Hammer size={12} style={{ display: "inline", marginRight: 4 }} /> Generated SaaS Project
+          </div>
+          {projectExists && (
+            <span style={{
+              fontSize: 9, fontWeight: 700,
+              padding: "2px 8px", borderRadius: 99,
+              background: "rgba(16,185,129,0.12)", color: "#34d399",
+              display: "flex", alignItems: "center", gap: 3,
+            }}>
+              <CheckCircle2 size={10} /> Ready for local preview
+            </span>
+          )}
+        </div>
+
+        {!workspaceExists ? (
+          <div style={{ padding: 16, textAlign: "center", color: "var(--text-3)", fontSize: 12, background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+            Run steps to create the workspace first.
+          </div>
+        ) : !projectExists ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: 16, background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>No project scaffold yet</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>Generated automatically when frontend_agent completes, or use the button below.</div>
+            </div>
+            <button
+              onClick={handleGenerateProject}
+              disabled={generatingProject}
+              style={{
+                padding: "8px 16px", borderRadius: "var(--radius-sm)",
+                background: generatingProject ? "var(--surface-2)" : "rgba(99,102,241,0.14)",
+                border: `1px solid ${generatingProject ? "var(--border-2)" : "rgba(99,102,241,0.3)"}`,
+                color: generatingProject ? "var(--text-3)" : "#818cf8",
+                fontWeight: 600, fontSize: 12, cursor: generatingProject ? "not-allowed" : "pointer",
+                fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6,
+                transition: "all 140ms ease",
+              }}
+            >
+              {generatingProject ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span> : <Code2 size={14} />}
+              Generate Project
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, marginBottom: 12 }}>
+              {projectFiles.slice(0, 9).map((file) => (
+                <button
+                  key={file.path}
+                  onClick={() => loadFileContent(file.path)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", borderRadius: "var(--radius-sm)",
+                    background: "var(--bg-2)", border: "1px solid var(--border)",
+                    cursor: "pointer", textAlign: "left",
+                    transition: "all 120ms ease",
+                  }}
+                >
+                  <Code2 size={13} style={{ flexShrink: 0, color: "#818cf8" }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {file.path.replace("project/", "")}
+                    </div>
+                    <div style={{ fontSize: 9, color: "var(--text-3)", marginTop: 1 }}>
+                      {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+            {projectFiles.length > 9 && (
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                +{projectFiles.length - 9} more files — view all in Project Workspace above
+              </div>
+            )}
+            <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
+              <span style={{ fontSize: 11, color: "var(--text-3)" }}>
+                {projectFiles.length} file{projectFiles.length !== 1 ? "s" : ""} in <code style={{ fontSize: 10, color: "var(--accent-light)" }}>project/</code>
+              </span>
+              <code style={{ fontSize: 10, color: "var(--text-3)", background: "var(--bg-2)", padding: "2px 6px", borderRadius: 4 }}>
+                cd project && npm install && npm run dev
+              </code>
+            </div>
           </div>
         )}
       </section>
