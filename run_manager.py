@@ -154,11 +154,30 @@ def project_configs(repo_path, project_names, project_path=None):
     return projects
 
 
-def scheduled_tasks(projects):
+def validation_recommendation(project_path):
+    report_path = os.path.join(project_path, "validation_report.md")
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.startswith("## Recommendation:"):
+                    return line.split(":", 1)[1].strip().lower()
+    except OSError:
+        pass
+    return None
+
+
+def scheduled_tasks(projects, real_execution=False):
     scheduled = []
     for project in sorted(projects, key=lambda item: PROJECT_PRIORITIES[item["priority"]]):
         if project["status"] in {"paused", "archived"}:
             print(f"skipping project {project['name']} (status: {project['status']})")
+            continue
+        rec = validation_recommendation(project["path"])
+        if rec == "pause":
+            print(f"skipping project {project['name']} (validation recommendation: pause)")
+            continue
+        if rec == "revise" and real_execution:
+            print(f"skipping project {project['name']} (validation recommendation: revise)")
             continue
         print(f"Scheduling project: {project['name']} (priority: {project['priority']})")
         for task_file, task in queued_tasks(project["path"]):
@@ -751,7 +770,7 @@ def prepare_worker(repo_path, entries, index, assigned):
 
 
 def execute_workers(repo_path, projects, workers, parallel=False):
-    tasks = scheduled_tasks(projects)
+    tasks = scheduled_tasks(projects, real_execution=True)
     entries = worktree_entries(repo_path)
 
     if parallel:
