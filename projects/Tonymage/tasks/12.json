@@ -6,6 +6,10 @@
   "acceptance_criteria": "Deployment script is fully functional and automates project deployment.",
   "estimated_cost_usd": 500,
   "branch_name": "feature/deployment-script",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T00:52:31.714510",
+  "completed_at": "2026-05-10T00:52:37.752657",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/112"
 }
