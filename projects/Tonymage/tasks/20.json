@@ -6,6 +6,10 @@
   "acceptance_criteria": "Tests are created with required functionality",
   "estimated_cost_usd": 150,
   "branch_name": "feature/task-tests",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T01:39:16.651630",
+  "completed_at": "2026-05-10T01:39:22.849111",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/140"
 }

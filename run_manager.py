@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+from pathlib import PurePosixPath
 import subprocess
 import sys
 import tempfile
@@ -14,8 +15,12 @@ from task_queue import (
 )
 
 
-def run_cmd(command, repo_path):
-    return subprocess.run(command, cwd=repo_path, check=False, capture_output=True, text=True)
+def run_cmd(command, repo_path, env=None):
+    command_env = None
+    if env:
+        command_env = os.environ.copy()
+        command_env.update(env)
+    return subprocess.run(command, cwd=repo_path, check=False, capture_output=True, text=True, env=command_env)
 
 
 def current_branch(repo_path):
@@ -245,7 +250,77 @@ def mark_pr_ready_if_draft(repo_path, pr_url):
     return True, "PR marked ready"
 
 
-def rebase_pr_before_merge(repo_path, pr_url):
+def conflict_resolution_for_path(path):
+    posix_path = PurePosixPath(path)
+    if posix_path.match("projects/*/tasks/*.json"):
+        return "--ours"
+    if posix_path.match("projects/*/logs/*.jsonl"):
+        return "--ours"
+    if posix_path.match("backend/task-*.py"):
+        return "--theirs"
+    return None
+
+
+def rebase_conflicts(worktree_path):
+    result = run_cmd(["git", "diff", "--name-only", "--diff-filter=U"], worktree_path)
+    if result.returncode != 0:
+        return None, f"git diff conflicts failed: {short_error(result.stderr)}"
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()], None
+
+
+def rebase_continue_wants_skip(error):
+    lowered = (error or "").lower()
+    return "no changes" in lowered or "previous cherry-pick is now empty" in lowered
+
+
+def auto_resolve_rebase_conflicts(worktree_path):
+    resolved = []
+    continue_error = None
+
+    while True:
+        conflicts, error = rebase_conflicts(worktree_path)
+        if error:
+            run_cmd(["git", "rebase", "--abort"], worktree_path)
+            return False, error
+        if not conflicts:
+            if rebase_continue_wants_skip(continue_error):
+                skipped = run_cmd(["git", "rebase", "--skip"], worktree_path, env={"GIT_EDITOR": "true"})
+                if skipped.returncode == 0:
+                    return True, f"auto-resolved rebase conflicts: {', '.join(unique_items(resolved))}"
+                continue_error = short_error(skipped.stderr)
+                continue
+
+            run_cmd(["git", "rebase", "--abort"], worktree_path)
+            if continue_error:
+                return False, f"git rebase --continue failed: {continue_error}"
+            return False, "git rebase origin/main failed with no conflict files"
+
+        resolutions = [(path, conflict_resolution_for_path(path)) for path in conflicts]
+        blocked = [path for path, resolution in resolutions if resolution is None]
+        if blocked:
+            run_cmd(["git", "rebase", "--abort"], worktree_path)
+            return False, f"git rebase origin/main failed with unsupported conflicts: {', '.join(blocked)}"
+
+        for path, resolution in resolutions:
+            checkout = run_cmd(["git", "checkout", resolution, path], worktree_path)
+            if checkout.returncode != 0:
+                run_cmd(["git", "rebase", "--abort"], worktree_path)
+                return False, f"git checkout {resolution} {path} failed: {short_error(checkout.stderr)}"
+
+            add = run_cmd(["git", "add", path], worktree_path)
+            if add.returncode != 0:
+                run_cmd(["git", "rebase", "--abort"], worktree_path)
+                return False, f"git add {path} failed: {short_error(add.stderr)}"
+
+            resolved.append(path)
+
+        continued = run_cmd(["git", "rebase", "--continue"], worktree_path, env={"GIT_EDITOR": "true"})
+        if continued.returncode == 0:
+            return True, f"auto-resolved rebase conflicts: {', '.join(unique_items(resolved))}"
+        continue_error = short_error(continued.stderr)
+
+
+def rebase_pr_before_merge(repo_path, pr_url, auto_resolve_conflicts=False):
     pr, error = pr_merge_details(repo_path, pr_url)
     if error:
         return False, error
@@ -282,16 +357,23 @@ def rebase_pr_before_merge(repo_path, pr_url):
         if checkout.returncode != 0:
             return False, f"git checkout PR branch failed: {short_error(checkout.stderr)}"
 
+        rebase_reason = f"rebased {branch} onto origin/main"
         rebase = run_cmd(["git", "rebase", "origin/main"], worktree_path)
         if rebase.returncode != 0:
-            run_cmd(["git", "rebase", "--abort"], worktree_path)
-            return False, f"git rebase origin/main failed: {short_error(rebase.stderr)}"
+            if not auto_resolve_conflicts:
+                run_cmd(["git", "rebase", "--abort"], worktree_path)
+                return False, f"git rebase origin/main failed: {short_error(rebase.stderr)}"
+
+            resolved, resolve_reason = auto_resolve_rebase_conflicts(worktree_path)
+            if not resolved:
+                return False, resolve_reason
+            rebase_reason = resolve_reason
 
         push = run_cmd(["git", "push", "--force-with-lease", "origin", f"HEAD:refs/heads/{branch}"], worktree_path)
         if push.returncode != 0:
             return False, f"git push --force-with-lease failed: {short_error(push.stderr)}"
 
-        return True, f"rebased {branch} onto origin/main"
+        return True, rebase_reason
     finally:
         if worktree_added:
             run_cmd(["git", "worktree", "remove", "--force", worktree_path], repo_path)
@@ -302,7 +384,7 @@ def rebase_pr_before_merge(repo_path, pr_url):
         checkout_main(repo_path)
 
 
-def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False):
+def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False, auto_resolve_conflicts=False):
     pr_urls = unique_items(pr_urls)
     if not pr_urls:
         print("auto-merge: no PRs created in this run")
@@ -313,7 +395,7 @@ def auto_merge_prs(repo_path, pr_urls, rebase_before_merge=False):
     for pr_url in pr_urls:
         rebase_reason = None
         if rebase_before_merge:
-            rebased, rebase_reason = rebase_pr_before_merge(repo_path, pr_url)
+            rebased, rebase_reason = rebase_pr_before_merge(repo_path, pr_url, auto_resolve_conflicts)
             if not rebased:
                 print(f"{pr_url} failed: {rebase_reason}")
                 ok = False
@@ -615,6 +697,7 @@ def main():
     parser.add_argument("--parallel", action="store_true")
     parser.add_argument("--auto-merge", action="store_true")
     parser.add_argument("--rebase-before-merge", action="store_true")
+    parser.add_argument("--auto-resolve-conflicts", action="store_true")
     parser.add_argument("--project-path", default=DEFAULT_PROJECT)
     parser.add_argument("--repo-path", default=os.getcwd())
     args = parser.parse_args()
@@ -642,7 +725,12 @@ def main():
         exit_code, pr_urls = execute_workers(repo_path, project_path, args.workers, args.parallel)
         if exit_code != 0:
             return exit_code
-        if args.auto_merge and not auto_merge_prs(repo_path, pr_urls, args.rebase_before_merge):
+        if args.auto_merge and not auto_merge_prs(
+            repo_path,
+            pr_urls,
+            args.rebase_before_merge,
+            args.auto_resolve_conflicts,
+        ):
             return 1
         return 0
 

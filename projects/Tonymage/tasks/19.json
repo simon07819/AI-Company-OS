@@ -6,6 +6,10 @@
   "acceptance_criteria": "Tests are created with required functionality",
   "estimated_cost_usd": 150,
   "branch_name": "feature/project-tests",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "completed_real",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T01:39:16.535508",
+  "completed_at": "2026-05-10T01:39:22.789131",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/139"
 }
