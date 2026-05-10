@@ -229,6 +229,11 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   const [projectExists, setProjectExists] = useState(false);
   const [projectFiles, setProjectFiles] = useState<{ path: string; name: string; size: number }[]>([]);
   const [generatingProject, setGeneratingProject] = useState(false);
+  const [deliverableFiles, setDeliverableFiles] = useState<{ path: string; name: string; size: number }[]>([]);
+  const [deliverableExists, setDeliverableExists] = useState(false);
+  const [selectedDelivFile, setSelectedDelivFile] = useState<string | null>(null);
+  const [selectedDelivContent, setSelectedDelivContent] = useState<string | null>(null);
+  const [generatingDeliverables, setGeneratingDeliverables] = useState(false);
   const [validation, setValidation] = useState<{
     ok: boolean;
     score: number;
@@ -264,6 +269,53 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
     }
   };
 
+  const loadDeliverables = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/deliverables`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; exists?: boolean; files?: { path: string; name: string; size: number }[] };
+      if (payload.ok) {
+        setDeliverableExists(payload.exists ?? false);
+        setDeliverableFiles(payload.files ?? []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const loadDelivFileContent = async (filePath: string) => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/workspace/file?path=${encodeURIComponent(filePath)}`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; content?: string };
+      if (payload.ok && payload.content !== undefined) {
+        setSelectedDelivFile(filePath);
+        setSelectedDelivContent(payload.content);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleGenerateDeliverables = async () => {
+    if (!sessionId) return;
+    setGeneratingDeliverables(true);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/generate-deliverables`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await res.json()) as { ok: boolean; files?: { path: string; name: string; size: number }[] };
+      if (payload.ok) {
+        await loadDeliverables();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setGeneratingDeliverables(false);
+    }
+  };
+
   const loadFileContent = async (filePath: string) => {
     if (!sessionId) return;
     try {
@@ -296,8 +348,9 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   useEffect(() => {
     void loadSession();
     void loadWorkspace();
+    void loadDeliverables();
     void loadValidation();
-    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); }, 4000);
+    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); void loadDeliverables(); }, 4000);
     return () => clearInterval(iv);
   }, [sessionId]);
 
@@ -1189,29 +1242,102 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
 
       {/* ── MISSION DELIVERABLES (non-SaaS missions) ── */}
       {session.missionType !== "saas_project" && (
-        <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+        <section data-testid="mission-deliverables-section" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
               <Package size={12} style={{ display: "inline", marginRight: 4 }} /> Mission Deliverables
             </div>
-            <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
-              {MISSION_LABELS[session.missionType] ?? session.missionType}
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(99,102,241,0.12)", color: "#818cf8" }}>
+                {MISSION_LABELS[session.missionType] ?? session.missionType}
+              </span>
+              {deliverableExists && (
+                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(52,211,153,0.12)", color: "#34d399" }}>
+                  {deliverableFiles.length} files
+                </span>
+              )}
+              <button
+                onClick={handleGenerateDeliverables}
+                disabled={generatingDeliverables}
+                style={{
+                  padding: "4px 12px", borderRadius: 4,
+                  background: generatingDeliverables ? "var(--surface-2)" : "rgba(99,102,241,0.14)",
+                  border: `1px solid ${generatingDeliverables ? "var(--border-2)" : "rgba(99,102,241,0.3)"}`,
+                  color: generatingDeliverables ? "var(--text-3)" : "#818cf8",
+                  fontWeight: 600, fontSize: 10, cursor: generatingDeliverables ? "not-allowed" : "pointer",
+                  fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4,
+                  transition: "all 140ms ease",
+                }}
+              >
+                {generatingDeliverables
+                  ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span>
+                  : <Package size={10} />
+                }
+                {deliverableExists ? "Regenerate" : "Generate Deliverables"}
+              </button>
+            </div>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 8 }}>
-            {(MISSION_DELIVERABLES[session.missionType] ?? []).map((d) => (
-              <div key={d.name} style={{
-                padding: "10px 14px", borderRadius: "var(--radius-sm)",
-                background: "var(--bg-2)", border: "1px solid var(--border)",
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 3 }}>{d.name}</div>
-                <div style={{ fontSize: 10, color: "var(--text-3)", fontFamily: "ui-monospace, monospace" }}>{d.path}</div>
+
+          {!workspaceExists ? (
+            <div style={{ padding: 16, textAlign: "center", color: "var(--text-3)", fontSize: 12, background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+              Run steps to create the workspace first.
+            </div>
+          ) : !deliverableExists ? (
+            <div style={{ padding: "12px 16px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>No deliverables generated yet</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>Click Generate Deliverables or run mission steps to produce files.</div>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 12 }}>
+              {/* File list */}
+              <div style={{ maxHeight: 320, overflowY: "auto", display: "flex", flexDirection: "column", gap: 2 }}>
+                {deliverableFiles.map((file) => (
+                  <button
+                    key={file.path}
+                    onClick={() => loadDelivFileContent(file.path)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "5px 10px", borderRadius: 4,
+                      background: selectedDelivFile === file.path ? "var(--accent-dim)" : "transparent",
+                      border: `1px solid ${selectedDelivFile === file.path ? "var(--accent)" : "transparent"}`,
+                      cursor: "pointer", textAlign: "left",
+                      fontFamily: "ui-monospace, monospace", fontSize: 11,
+                      color: selectedDelivFile === file.path ? "var(--accent-light)" : "var(--text-2)",
+                      transition: "all 120ms ease", width: "100%",
+                    }}
+                  >
+                    <FileText size={11} style={{ flexShrink: 0, color: "#818cf8" }} />
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {file.name}
+                    </span>
+                    <span style={{ fontSize: 9, color: "var(--text-3)", flexShrink: 0 }}>
+                      {file.size > 1024 ? `${(file.size / 1024).toFixed(1)}KB` : `${file.size}B`}
+                    </span>
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-          {workspaceExists && projectFiles.length > 0 && (
+
+              {/* File preview */}
+              {selectedDelivFile && selectedDelivContent !== null ? (
+                <div style={{ background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ padding: "6px 12px", borderBottom: "1px solid var(--border)", fontSize: 10, fontWeight: 600, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    <Eye size={11} /> {selectedDelivFile.split("/").pop()}
+                  </div>
+                  <pre style={{ margin: 0, padding: "12px", fontSize: 11, lineHeight: 1.55, fontFamily: "ui-monospace, monospace", color: "var(--text-2)", overflow: "auto", maxHeight: 260, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    {selectedDelivContent}
+                  </pre>
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-3)", fontSize: 12, textAlign: "center", background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", padding: 24 }}>
+                  Select a file to preview its contents
+                </div>
+              )}
+            </div>
+          )}
+
+          {deliverableExists && (
             <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-3)" }}>
-              {projectFiles.length} file{projectFiles.length !== 1 ? "s" : ""} in workspace
+              {deliverableFiles.length} file{deliverableFiles.length !== 1 ? "s" : ""} generated in <code style={{ fontSize: 10, color: "var(--accent-light)" }}>deliverables/</code>
             </div>
           )}
         </section>

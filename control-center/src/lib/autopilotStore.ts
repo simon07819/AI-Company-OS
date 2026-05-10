@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists } from "./workspaceStore";
 import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
+import { generateMissionDeliverables } from "./missionDeliverables";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -723,6 +724,23 @@ export function runStep(sessionId: string): RunStepResult {
           agent,
           message: `Artifact generated: ${artifactPaths.join(", ")}`,
           source: "workspace",
+        });
+      }
+    }
+  }
+
+  // Generate mission deliverables for non-SaaS missions on task completion
+  if (executionOk && session.missionType !== "saas_project") {
+    const delivSession = getSession(sessionId);
+    if (delivSession) {
+      const delivPaths = generateMissionDeliverables(delivSession);
+      if (delivPaths.length > 0) {
+        appendLog(sessionId, {
+          timestamp: new Date().toISOString(),
+          level: "info",
+          agent,
+          message: `Mission deliverables updated: ${delivPaths.length} files`,
+          source: "deliverables",
         });
       }
     }
