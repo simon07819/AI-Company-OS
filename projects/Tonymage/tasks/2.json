@@ -6,6 +6,10 @@
   "acceptance_criteria": "Models are created with required fields and relationships",
   "estimated_cost_usd": 75,
   "branch_name": "feature/project-models",
-  "status": "queued",
-  "mode": "DRY_RUN"
+  "status": "failed",
+  "mode": "DRY_RUN",
+  "locked_by": "worker-2",
+  "locked_at": "2026-05-10T01:20:31.608164",
+  "failed_at": "2026-05-10T01:20:31.787628",
+  "error": "Task 2 is not queued or locked for this worker (status: failed)."
 }
