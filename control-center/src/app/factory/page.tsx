@@ -45,6 +45,14 @@ interface ActionFeedback {
   message: string;
 }
 
+interface BridgeResponse {
+  ok: boolean;
+  mode?: "real" | "mock";
+  message?: string;
+  command?: string;
+  stderr?: string;
+}
+
 // ─── Data pools ───────────────────────────────────────────────────────────────
 
 const AGENT_POOL = [
@@ -174,7 +182,6 @@ interface ActionDef {
   bg: string;
   glow: string;
   desc: string;
-  // TODO: wire to backend — POST /api/factory/{action} using NVIDIA agent pipeline
   endpoint: string;
 }
 
@@ -184,8 +191,8 @@ const ACTIONS: ActionDef[] = [
   { id: "resume",   label: "Resume",           emoji: "⏯",  color: "#38bdf8", bg: "rgba(56,189,248,0.12)",  glow: "rgba(56,189,248,0.25)",  desc: "Resume paused execution",     endpoint: "/api/factory/resume"   },
   { id: "stop",     label: "Stop",             emoji: "⏹",  color: "#f43f5e", bg: "rgba(244,63,94,0.12)",   glow: "rgba(244,63,94,0.25)",   desc: "Graceful shutdown",           endpoint: "/api/factory/stop"     },
   { id: "retry",    label: "Retry Failed",     emoji: "↻",  color: "#a78bfa", bg: "rgba(167,139,250,0.12)", glow: "rgba(167,139,250,0.25)", desc: "Requeue all failed tasks",    endpoint: "/api/factory/retry"    },
-  { id: "build",    label: "Auto Build",       emoji: "🔨", color: "#6366f1", bg: "rgba(99,102,241,0.14)",  glow: "rgba(99,102,241,0.3)",   desc: "Trigger auto_build pipeline", endpoint: "/api/factory/build"    },
-  { id: "validate", label: "Validate Project", emoji: "✓",  color: "#34d399", bg: "rgba(16,185,129,0.12)",  glow: "rgba(16,185,129,0.25)",  desc: "Run full validation suite",   endpoint: "/api/factory/validate" },
+  { id: "build",    label: "Auto Build",       emoji: "🔨", color: "#6366f1", bg: "rgba(99,102,241,0.14)",  glow: "rgba(99,102,241,0.3)",   desc: "Trigger auto_build pipeline", endpoint: "/api/build/auto"      },
+  { id: "validate", label: "Validate Project", emoji: "✓",  color: "#34d399", bg: "rgba(16,185,129,0.12)",  glow: "rgba(16,185,129,0.25)",  desc: "Run full validation suite",   endpoint: "/api/validation/run" },
   { id: "roadmap",  label: "Gen Roadmap",      emoji: "🗺",  color: "#f472b6", bg: "rgba(244,114,182,0.12)", glow: "rgba(244,114,182,0.25)", desc: "Roadmap generation (NVIDIA)", endpoint: "/api/factory/roadmap"  },
 ];
 
@@ -540,13 +547,11 @@ export default function FactoryPage() {
     logEnd.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs.length]);
 
-  // Action handler — mock, prepared for NVIDIA agent pipeline
   const handleAction = async (id: string) => {
     const def = ACTIONS.find((a) => a.id === id)!;
-    const fb: ActionFeedback = { id: uid(), action: def.label, status: "running", message: `Sending ${def.label} to factory pipeline…` };
+    const fb: ActionFeedback = { id: uid(), action: def.label, status: "running", message: `Sending ${def.label} to ${def.endpoint}…` };
     setFeedback(fb);
 
-    // State transitions
     if (id === "start")   setFactoryState("running");
     if (id === "pause")   setFactoryState("paused");
     if (id === "resume")  setFactoryState("running");
@@ -557,11 +562,32 @@ export default function FactoryPage() {
 
     setLogs((prev) => [...prev, { id: uid(), time: new Date().toLocaleTimeString("en-CA", { hour12: false }), type: "action", msg: `→ ${def.label} dispatched (${def.endpoint})` }]);
 
-    await new Promise((r) => setTimeout(r, 1_600));
+    try {
+      const res = await fetch(def.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = (await res.json()) as BridgeResponse;
+      const nextStatus: ActionFeedback["status"] = res.ok && payload.ok ? "success" : "error";
+      const modeLabel = payload.mode === "mock" ? "mock mode · " : "";
+      const message = payload.message ?? (nextStatus === "success" ? `${def.label} acknowledged.` : `${def.label} failed.`);
 
-    setFeedback({ ...fb, status: "success", message: `${def.label} acknowledged by factory_cycle` });
-    setTimeout(() => setFeedback(null), 2_500);
-    if (id === "stopping") setTimeout(() => setFactoryState("idle"), 3_000);
+      setFeedback({ ...fb, status: nextStatus, message: `${modeLabel}${message}` });
+      setLogs((prev) => [...prev, {
+        id: uid(),
+        time: new Date().toLocaleTimeString("en-CA", { hour12: false }),
+        type: nextStatus === "success" ? "success" : "error",
+        msg: `${nextStatus === "success" ? "✓" : "!"} ${def.label}: ${message}${payload.command ? ` · ${payload.command}` : ""}`,
+      }]);
+    } catch (error) {
+      const message = `Bridge request failed: ${error instanceof Error ? error.message : String(error)}`;
+      setFeedback({ ...fb, status: "error", message });
+      setLogs((prev) => [...prev, { id: uid(), time: new Date().toLocaleTimeString("en-CA", { hour12: false }), type: "error", msg: message }]);
+    } finally {
+      setTimeout(() => setFeedback(null), 3_500);
+      if (id === "stop") setTimeout(() => setFactoryState("idle"), 1_000);
+    }
   };
 
   const fs = FACTORY_COLORS[factoryState];

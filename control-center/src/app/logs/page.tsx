@@ -462,6 +462,8 @@ export default function LogsPage() {
   const [paused, setPaused] = useState(false);
   const [selected, setSelected] = useState<LogEntry | null>(null);
   const [streamMode, setStreamMode] = useState<"simulation" | "live">("simulation");
+  const [refreshingLogs, setRefreshingLogs] = useState(false);
+  const [bridgeMessage, setBridgeMessage] = useState("Simulation stream");
   const pausedRef = useRef(false);
   const entriesRef = useRef<LogEntry[]>([]);
   entriesRef.current = entries;
@@ -523,6 +525,24 @@ export default function LogsPage() {
 
   const handleRowClick = useCallback((entry: LogEntry) => {
     setSelected((prev) => prev?.id === entry.id ? null : entry);
+  }, []);
+
+  const refreshLogs = useCallback(async () => {
+    setRefreshingLogs(true);
+    try {
+      const res = await fetch("/api/logs", { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; message?: string; data?: { entries?: BackendLogEntry[] } };
+      const realEntries = payload.data?.entries ?? [];
+      if (realEntries.length > 0) {
+        setEntries(realEntries.map(mapBackendEntry));
+        setStreamMode("live");
+      }
+      setBridgeMessage(payload.message ?? (payload.ok ? "Logs refreshed" : "Log refresh failed"));
+    } catch (error) {
+      setBridgeMessage(`Log refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRefreshingLogs(false);
+    }
   }, []);
 
   return (
@@ -594,7 +614,23 @@ export default function LogsPage() {
             >
               {paused ? "▶ Resume" : "⏸ Pause"}
             </button>
+            <button
+              onClick={refreshLogs}
+              disabled={refreshingLogs}
+              style={{
+                padding: "6px 14px", borderRadius: 7, fontSize: 11, fontWeight: 600, cursor: refreshingLogs ? "not-allowed" : "pointer", border: "1px solid var(--border)",
+                background: "var(--surface)",
+                color: "var(--text-2)",
+                transition: "all 0.15s",
+              }}
+            >
+              {refreshingLogs ? "Refreshing..." : "Refresh Logs"}
+            </button>
           </div>
+        </div>
+
+        <div style={{ marginBottom: 12, color: "var(--text-3)", fontSize: 11 }}>
+          {bridgeMessage}
         </div>
 
         {/* Filter bar */}

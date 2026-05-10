@@ -23,6 +23,14 @@ interface FormState {
   autonomy:    Autonomy | null;
 }
 
+interface LaunchResponse {
+  ok: boolean;
+  message?: string;
+  project?: string;
+  data?: { project?: string };
+  stderr?: string;
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const TEMPLATES = [
@@ -690,6 +698,7 @@ export default function NewProjectPage() {
   const [launching, setLaunching] = useState(false);
   const [launched,  setLaunched]  = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -700,12 +709,25 @@ export default function NewProjectPage() {
 
   const handleLaunch = async () => {
     setLaunching(true);
-    // Mock: simulate factory_cycle / auto_build handshake
-    await new Promise((r) => setTimeout(r, 2200));
-    setProjectId(generateProjectId());
-    setLaunching(false);
-    setLaunched(true);
-    // TODO: POST /api/projects/launch { form } → factory_cycle → auto_build → roadmap generation
+    setLaunchError(null);
+    try {
+      const res = await fetch("/api/projects/launch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const payload = (await res.json()) as LaunchResponse;
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.stderr || payload.message || "Launch bridge failed");
+      }
+
+      setProjectId(payload.data?.project ?? payload.project ?? form.name ?? generateProjectId());
+      setLaunched(true);
+    } catch (error) {
+      setLaunchError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLaunching(false);
+    }
   };
 
   const ready = canProceed(step, form);
@@ -774,6 +796,12 @@ export default function NewProjectPage() {
             )}
           </motion.div>
         </AnimatePresence>
+
+        {launchError && (
+          <div className="card" style={{ marginTop: 16, borderColor: "rgba(244,63,94,0.32)", background: "rgba(244,63,94,0.08)", color: "#fb7185", fontSize: 13 }}>
+            Launch bridge error: {launchError}
+          </div>
+        )}
 
         {/* Navigation */}
         {!launched && (

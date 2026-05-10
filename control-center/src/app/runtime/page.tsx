@@ -347,10 +347,12 @@ function LiveNvidiaPanel({
 }
 
 export default function RuntimePage() {
-  const { status } = useSystemStatus(3500);
-  const { tasks, summary } = useTasks(undefined, 4500);
+  const { status, refresh: refreshStatus } = useSystemStatus(3500);
+  const { tasks, summary, refresh: refreshTasks } = useTasks(undefined, 4500);
   const [tick, setTick] = useState(0);
   const [logs, setLogs] = useState<BackendLogEntry[]>([]);
+  const [runtimeCheck, setRuntimeCheck] = useState<string>("Auto updating");
+  const [checkingRuntime, setCheckingRuntime] = useState(false);
 
   useLogStream((entry) => {
     setLogs((prev) => [entry, ...prev].slice(0, 16));
@@ -399,6 +401,21 @@ export default function RuntimePage() {
         agent: AGENTS[i % AGENTS.length].id,
       }));
 
+  const checkRuntimeStatus = async () => {
+    setCheckingRuntime(true);
+    setRuntimeCheck("Checking runtime bridge...");
+    try {
+      const res = await fetch("/api/runtime/status", { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; message?: string };
+      await Promise.all([refreshStatus(), refreshTasks()]);
+      setRuntimeCheck(payload.message ?? (payload.ok ? "Runtime bridge online" : "Runtime bridge returned an error"));
+    } catch (error) {
+      setRuntimeCheck(`Runtime check failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setCheckingRuntime(false);
+    }
+  };
+
   return (
     <main className="page runtime-page">
       <div className="page-header runtime-header">
@@ -411,10 +428,14 @@ export default function RuntimePage() {
           <div className="runtime-live-badge">
             <StatusPulse status={providerOnline ? "streaming" : "error"} />
           </div>
-          <button className="btn btn-ghost" type="button">
-            <RefreshCw size={14} /> Auto updating
+          <button className="btn btn-ghost" type="button" onClick={checkRuntimeStatus} disabled={checkingRuntime}>
+            <RefreshCw size={14} /> {checkingRuntime ? "Checking..." : "Check Runtime Status"}
           </button>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16, padding: "10px 14px", color: "var(--text-2)", fontSize: 12 }}>
+        {runtimeCheck}
       </div>
 
       <section className="runtime-top-grid">

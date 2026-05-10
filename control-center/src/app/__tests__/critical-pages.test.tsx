@@ -45,6 +45,6 @@ describe("critical Control Center pages", () => {
 
     expect(screen.getByRole("heading", { name: "Execution Stream" })).toBeInTheDocument();
     expect(screen.getByText("NVIDIA API live")).toBeInTheDocument();
-    expect(screen.getByText("Simulation stream")).toBeInTheDocument();
+    expect(screen.getAllByText("Simulation stream").length).toBeGreaterThan(0);
   });
 });

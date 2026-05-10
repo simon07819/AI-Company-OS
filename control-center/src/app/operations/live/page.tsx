@@ -534,6 +534,8 @@ export default function LiveOpsPage() {
   );
   const [logs, setLogs]             = useState<LogLine[]>(() => Array.from({ length: 10 }, mkLog));
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bridgeStatus, setBridgeStatus] = useState("Local bridge ready");
+  const [checkingBridge, setCheckingBridge] = useState(false);
 
   // Live simulation
   useEffect(() => {
@@ -565,6 +567,26 @@ export default function LiveOpsPage() {
 
   const selected = activities.find((a) => a.id === selectedId) ?? activities[0] ?? null;
   const activeCount = activities.filter((a) => a.status === "running" || a.status === "validating").length;
+
+  const refreshBridgeStatus = async () => {
+    setCheckingBridge(true);
+    try {
+      const res = await fetch("/api/factory/status", { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; message?: string };
+      const message = payload.message ?? (payload.ok ? "Backend bridge online" : "Backend bridge returned an error");
+      setBridgeStatus(message);
+      setLogs((prev) => [...prev.slice(-50), {
+        id: uid(),
+        time: new Date().toLocaleTimeString("en-CA", { hour12: false }),
+        level: payload.ok ? "success" : "warn",
+        message,
+      }]);
+    } catch (error) {
+      setBridgeStatus(`Bridge check failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setCheckingBridge(false);
+    }
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden" }}>
@@ -613,6 +635,9 @@ export default function LiveOpsPage() {
           }}>
             {new Date().toLocaleTimeString("en-CA", { hour12: false })}
           </span>
+          <button className="btn btn-ghost btn-sm" type="button" onClick={refreshBridgeStatus} disabled={checkingBridge}>
+            {checkingBridge ? "Checking..." : "Refresh Status"}
+          </button>
         </div>
       </header>
 
@@ -625,6 +650,7 @@ export default function LiveOpsPage() {
           {/* Backend status */}
           <div style={{ marginBottom: 16 }}>
             <BackendStatusBar />
+            <div style={{ marginTop: 8, color: "var(--text-3)", fontSize: 11 }}>{bridgeStatus}</div>
           </div>
 
           {/* Metrics */}
