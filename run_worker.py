@@ -111,7 +111,8 @@ def write_task_code(repo_path, task):
     full_path = os.path.join(repo_path, path)
     os.makedirs(os.path.dirname(full_path), exist_ok=True)
     with open(full_path, "w", encoding="utf-8") as file:
-        file.write(f'"""{task["title"]}: {task["description"]}"""\n\n')
+        description = task.get("description") or task.get("title") or ""
+        file.write(f'"""{task["title"]}: {description}"""\n\n')
         file.write("def run():\n    return {'status': 'stubbed'}\n")
     return [path]
 
@@ -251,6 +252,7 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
             task = mark_task_running(task_file, branch)
             commit_all(repo_path, f"AI task branch: {task['title']}")
         run_cmd(["git", "push", "-u", "origin", branch], repo_path)
+        description = task.get("description") or task.get("title") or ""
         pr_url = run_cmd([
             "gh",
             "pr",
@@ -261,7 +263,7 @@ def run_one(project_path, repo_path, task_id=None, base_branch="main"):
             "--title",
             task["title"],
             "--body",
-            task["description"],
+            description,
         ], repo_path).stdout.strip()
 
         task = mark_task_completed_real(task_file, pr_url)
