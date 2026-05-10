@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import NavSidebar from "@/components/NavSidebar";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "AI Company OS — Control Center",
@@ -11,10 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <div className="app-shell">
-          <NavSidebar />
-          <div className="main-content">{children}</div>
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

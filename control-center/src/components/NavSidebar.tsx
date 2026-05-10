@@ -2,138 +2,118 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Activity,
+  BarChart3,
+  Bot,
+  Boxes,
+  Cpu,
+  FileText,
+  FolderKanban,
+  Gauge,
+  GitBranch,
+  Home,
+  Play,
+  PlusCircle,
+  Settings,
+  TerminalSquare,
+  Zap,
+} from "lucide-react";
 
-const IconDashboard = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm8 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zm8-1a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z"/>
-  </svg>
-);
+export type NavItem = {
+  href: string;
+  label: string;
+  description: string;
+  icon: React.ReactNode;
+  exact?: boolean;
+};
 
-const IconProjects = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
-  </svg>
-);
-
-const IconAgents = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zM9 13a5 5 0 00-5 5v1h10v-1a5 5 0 00-5-5zm5.19-1.5A6.97 6.97 0 0117 17v1h2v-1a5 5 0 00-4.81-4.99z"/>
-  </svg>
-);
-
-const IconActivity = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M3 10a7 7 0 1114 0A7 7 0 013 10zm7-9a9 9 0 100 18A9 9 0 0010 1zm.75 4.75a.75.75 0 00-1.5 0v4.5l-1.97 1.97a.75.75 0 101.06 1.06l2.19-2.19a.75.75 0 00.22-.53v-4.8z" clipRule="evenodd"/>
-  </svg>
-);
-
-const IconActions = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd"/>
-  </svg>
-);
-
-const IconLogs = () => (
-  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
-  </svg>
-);
-
-const IconLiveOps = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-  </svg>
-);
-
-const IconRuntime = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="4" y="4" width="16" height="16" rx="3"/>
-    <path d="M9 9h6v6H9z"/>
-    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3"/>
-  </svg>
-);
-
-const IconFactory = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 20a2 2 0 002 2h16a2 2 0 002-2V8l-7 5V8l-7 5V4a2 2 0 00-2-2H4a2 2 0 00-2 2v16z"/>
-  </svg>
-);
-
-const IconGraph = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-  </svg>
-);
-
-const IconDemo = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="5 3 19 12 5 21 5 3"/>
-  </svg>
-);
-
-const NAV = [
-  { href: "/",                  label: "Dashboard",    icon: <IconDashboard />, exact: true },
-  { href: "/demo",              label: "Demo",         icon: <IconDemo /> },
-  { href: "/projects",          label: "Projects",     icon: <IconProjects /> },
-  { href: "/projects/new",      label: "New Project",  icon: <IconProjects /> },
-  { href: "/agents",            label: "Agents",       icon: <IconAgents /> },
-  { href: "/agents/activity",   label: "Live Activity",icon: <IconActivity /> },
-  { href: "/runtime",           label: "Runtime",      icon: <IconRuntime /> },
-  { href: "/factory",           label: "Factory",      icon: <IconFactory /> },
-  { href: "/tasks/graph",       label: "Task Graph",   icon: <IconGraph /> },
-  { href: "/operations/live",   label: "Live Ops",     icon: <IconLiveOps /> },
-  { href: "/actions",           label: "Actions",      icon: <IconActions /> },
-  { href: "/logs",              label: "Logs",         icon: <IconLogs /> },
+const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Command",
+    items: [
+      { href: "/", label: "Dashboard", description: "Factory overview", icon: <Home size={16} />, exact: true },
+      { href: "/projects", label: "Projects", description: "Products and task state", icon: <FolderKanban size={16} /> },
+      { href: "/projects/new", label: "New Project", description: "Create a product", icon: <PlusCircle size={16} /> },
+      { href: "/demo", label: "Demo", description: "Guided product mode", icon: <Play size={16} /> },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { href: "/operations/live", label: "Live Ops", description: "Realtime operations", icon: <Activity size={16} /> },
+      { href: "/factory", label: "Factory", description: "Autonomous build floor", icon: <Boxes size={16} /> },
+      { href: "/tasks/graph", label: "Tasks Graph", description: "Dependency graph", icon: <GitBranch size={16} /> },
+      { href: "/actions", label: "Actions", description: "Run factory commands", icon: <Zap size={16} /> },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { href: "/agents", label: "Agents", description: "AI team control", icon: <Bot size={16} /> },
+      { href: "/runtime", label: "Runtime", description: "NVIDIA inference center", icon: <Cpu size={16} /> },
+      { href: "/agents/activity", label: "Activity", description: "Agent event stream", icon: <BarChart3 size={16} /> },
+      { href: "/logs", label: "Logs", description: "Execution console", icon: <TerminalSquare size={16} /> },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { href: "/settings", label: "Settings", description: "Environment and controls", icon: <Settings size={16} /> },
+    ],
+  },
 ];
 
-export default function NavSidebar() {
+export const NAV_ITEMS = NAV_SECTIONS.flatMap((section) => section.items);
+
+export function getActiveNavItem(pathname: string) {
+  const sorted = [...NAV_ITEMS].sort((a, b) => b.href.length - a.href.length);
+  return sorted.find((item) => item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`));
+}
+
+export default function NavSidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="sidebar">
-      {/* Brand */}
-      <div className="sidebar-brand">
+    <aside className="sidebar" aria-label="Primary navigation">
+      <Link href="/" className="sidebar-brand" onClick={onNavigate}>
         <div className="sidebar-logo">A</div>
         <div>
           <div className="sidebar-brand-name">AI Company OS</div>
-          <div className="sidebar-brand-sub">Control Center</div>
+          <div className="sidebar-brand-sub">NVIDIA factory control</div>
         </div>
-      </div>
+      </Link>
 
-      {/* Nav */}
       <nav className="sidebar-nav">
-        {NAV.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sidebar-link${active ? " active" : ""}`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label} className="sidebar-section">
+            <div className="sidebar-section-label">{section.label}</div>
+            {section.items.map((item) => {
+              const active = item.exact
+                ? pathname === item.href
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`sidebar-link${active ? " active" : ""}`}
+                  title={item.description}
+                  onClick={onNavigate}
+                >
+                  {item.icon}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
-      {/* Footer */}
       <div className="sidebar-footer">
-        <div
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: "var(--green)",
-            animation: "pulse-ring 2.4s ease infinite",
-            flexShrink: 0,
-          }}
-        />
+        <Gauge size={15} color="var(--green)" />
         <div className="sidebar-footer-text">
-          <div style={{ fontWeight: 600, color: "var(--text-2)", fontSize: 11 }}>System online</div>
+          <div style={{ fontWeight: 700, color: "var(--text-2)", fontSize: 11 }}>System online</div>
           <div style={{ color: "var(--text-3)", fontSize: 10 }}>6 agents ready</div>
         </div>
       </div>
