@@ -1,3 +1,6 @@
+import { loadRuntimeState, saveRuntimeState } from "./runtimePersist";
+import { emitEvent } from "./runtimeEvents";
+
 export type AgentRuntimeStatus =
   | "idle"
   | "planning"
@@ -43,11 +46,33 @@ function makeDefaultState(agentId: string): AgentRuntimeState {
   };
 }
 
-const runtimeMap = new Map<string, AgentRuntimeState>(
-  DEFAULT_AGENTS.map((id) => [id, makeDefaultState(id)])
-);
-
+const runtimeMap = new Map<string, AgentRuntimeState>();
 const pausedAgents = new Set<string>();
+
+function initFromPersistedState(): void {
+  const saved = loadRuntimeState();
+  const savedById = new Map(
+    saved.agents.map((a) => {
+      const state = a as unknown as AgentRuntimeState;
+      return [state.agentId, state] as [string, AgentRuntimeState];
+    })
+  );
+  for (const id of DEFAULT_AGENTS) {
+    runtimeMap.set(id, savedById.get(id) ?? makeDefaultState(id));
+  }
+  for (const id of saved.pausedAgents) {
+    if (DEFAULT_AGENTS.includes(id)) pausedAgents.add(id);
+  }
+}
+
+initFromPersistedState();
+
+function persist(): void {
+  saveRuntimeState({
+    agents: Array.from(runtimeMap.values()) as unknown as Record<string, unknown>[],
+    pausedAgents: Array.from(pausedAgents),
+  });
+}
 
 export function getAllAgentStates(): AgentRuntimeState[] {
   return Array.from(runtimeMap.values());
@@ -62,6 +87,7 @@ export function updateAgentState(
   patch: Partial<AgentRuntimeState>
 ): AgentRuntimeState {
   const current = runtimeMap.get(agentId) ?? makeDefaultState(agentId);
+  const prevStatus = current.status;
   const updated: AgentRuntimeState = {
     ...current,
     ...patch,
@@ -69,6 +95,16 @@ export function updateAgentState(
     lastActivity: new Date().toISOString(),
   };
   runtimeMap.set(agentId, updated);
+  persist();
+
+  if (patch.status !== undefined && patch.status !== prevStatus) {
+    emitEvent(
+      "agent.status_changed",
+      { from: prevStatus, to: updated.status, progress: updated.progress },
+      { agentId, sessionId: updated.currentMissionId ?? undefined, taskId: updated.currentTaskId ?? undefined }
+    );
+  }
+
   return updated;
 }
 
@@ -82,6 +118,8 @@ export function pauseAgent(agentId: string): boolean {
 export function resumeAgent(agentId: string): boolean {
   if (!runtimeMap.has(agentId)) return false;
   pausedAgents.delete(agentId);
+  persist();
+  emitEvent("agent.status_changed", { action: "resumed" }, { agentId });
   return true;
 }
 
@@ -106,4 +144,6 @@ export function resetRuntime(): void {
   for (const id of DEFAULT_AGENTS) {
     runtimeMap.set(id, makeDefaultState(id));
   }
+  persist();
+  emitEvent("runtime.reset", { agents: DEFAULT_AGENTS.length });
 }

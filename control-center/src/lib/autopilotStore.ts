@@ -4,6 +4,7 @@ import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtif
 import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
 import { generateMissionDeliverables } from "./missionDeliverables";
 import { updateAgentState } from "./agentRuntime";
+import { emitEvent } from "./runtimeEvents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -711,6 +712,7 @@ export function runStep(sessionId: string): RunStepResult {
     message: `${agent} started task: ${task.title}`,
     source: "autopilot",
   });
+  emitEvent("task.started", { taskTitle: task.title, phase: task.phase }, { agentId: agent, sessionId, taskId: task.id });
 
   // Simulate NVIDIA runtime execution
   const executionOk = simulateExecution(agent, task);
@@ -721,17 +723,24 @@ export function runStep(sessionId: string): RunStepResult {
     tasks[targetIndex] = { ...tasks[targetIndex], status: "completed", progress: 100, updatedAt: execNow };
     // Unblock dependent tasks
     const completedIds = new Set(tasks.filter((t) => t.status === "completed").map((t) => t.id));
+    let unblocked = 0;
     for (let i = 0; i < tasks.length; i++) {
       if (tasks[i].status === "blocked" && tasks[i].dependencies.every((d) => completedIds.has(d))) {
         tasks[i] = { ...tasks[i], status: "queued", updatedAt: execNow };
+        unblocked++;
       }
     }
     updateAgentState(agent, { status: "completed", progress: 100, currentTaskId: null });
+    emitEvent("task.completed", { taskTitle: task.title, phase: task.phase }, { agentId: agent, sessionId, taskId: task.id });
+    if (unblocked > 0) {
+      emitEvent("dependency.resolved", { unblocked, completedTaskId: task.id }, { agentId: agent, sessionId, taskId: task.id });
+    }
   } else {
     tasks[targetIndex] = { ...tasks[targetIndex], status: "failed", progress: 0, updatedAt: execNow };
     // Cascade failure to dependent tasks
     const failedIds = new Set(tasks.filter((t) => t.status === "failed").map((t) => t.id));
     let cascadeChanged = true;
+    let blockedCount = 0;
     while (cascadeChanged) {
       cascadeChanged = false;
       for (let i = 0; i < tasks.length; i++) {
@@ -740,10 +749,15 @@ export function runStep(sessionId: string): RunStepResult {
           tasks[i] = { ...tasks[i], status: "failed", updatedAt: execNow };
           failedIds.add(tasks[i].id);
           cascadeChanged = true;
+          blockedCount++;
         }
       }
     }
     updateAgentState(agent, { status: "failed", progress: 0, currentTaskId: null });
+    emitEvent("task.failed", { taskTitle: task.title, phase: task.phase, cascaded: blockedCount }, { agentId: agent, sessionId, taskId: task.id });
+    if (blockedCount > 0) {
+      emitEvent("task.blocked", { count: blockedCount, rootTaskId: task.id }, { agentId: agent, sessionId });
+    }
     appendLog(sessionId, {
       timestamp: execNow,
       level: "warning",

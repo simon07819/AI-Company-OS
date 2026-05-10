@@ -1,3 +1,6 @@
+import { loadRuntimeState, saveRuntimeState } from "./runtimePersist";
+import { emitEvent } from "./runtimeEvents";
+
 export interface QueuedTask {
   sessionId: string;
   taskId: string;
@@ -18,11 +21,21 @@ export interface QueueStats {
 
 let queue: QueuedTask[] = [];
 
+// Initialize from persisted state
+(function initQueue() {
+  const saved = loadRuntimeState();
+  queue = (saved.queue as unknown as QueuedTask[]) ?? [];
+})();
+
 function sortQueue(): void {
   queue.sort((a, b) => {
     if (b.priority !== a.priority) return b.priority - a.priority;
     return new Date(a.enqueuedAt).getTime() - new Date(b.enqueuedAt).getTime();
   });
+}
+
+function persist(): void {
+  saveRuntimeState({ queue: queue as unknown as Record<string, unknown>[] });
 }
 
 export function enqueueTask(
@@ -38,6 +51,8 @@ export function enqueueTask(
     enqueuedAt: new Date().toISOString(),
   });
   sortQueue();
+  persist();
+  emitEvent("queue.updated", { action: "enqueued", taskId: task.taskId, total: queue.length }, { agentId: task.agentId, sessionId: task.sessionId, taskId: task.taskId });
 }
 
 export function dequeueNextRunnable(
@@ -53,6 +68,8 @@ export function dequeueNextRunnable(
     const depsOk = item.dependencies.every((dep) => completedTaskIds.has(dep));
     if (!depsOk) continue;
     queue.splice(i, 1);
+    persist();
+    emitEvent("queue.updated", { action: "dequeued", taskId: item.taskId, total: queue.length }, { agentId: item.agentId, sessionId: item.sessionId, taskId: item.taskId });
     return item;
   }
   return null;
@@ -63,7 +80,12 @@ export function listQueue(): QueuedTask[] {
 }
 
 export function clearSessionTasks(sessionId: string): void {
+  const before = queue.length;
   queue = queue.filter((q) => q.sessionId !== sessionId);
+  if (queue.length !== before) {
+    persist();
+    emitEvent("queue.updated", { action: "session_cleared", sessionId, removed: before - queue.length, total: queue.length });
+  }
 }
 
 export function getQueueStats(completedTaskIds: Set<string>): QueueStats {
@@ -83,4 +105,6 @@ export function getQueueStats(completedTaskIds: Set<string>): QueueStats {
 
 export function clearQueue(): void {
   queue = [];
+  persist();
+  emitEvent("queue.updated", { action: "cleared", total: 0 });
 }

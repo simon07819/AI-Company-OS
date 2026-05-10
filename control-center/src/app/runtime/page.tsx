@@ -26,6 +26,7 @@ import { AGENTS, type AgentDef } from "@/lib/agents";
 import { useLogStream, type BackendLogEntry } from "@/hooks/useLogStream";
 import { useSystemStatus } from "@/hooks/useSystemStatus";
 import { useTasks, type TaskWithProject } from "@/hooks/useTasks";
+import { useRuntimeEvents, type RuntimeEvent } from "@/hooks/useRuntimeEvents";
 import AutopilotPanel from "@/components/AutopilotPanel";
 import AutopilotSessionBanner from "@/components/AutopilotSessionBanner";
 import type { AgentRuntimeState } from "@/lib/agentRuntime";
@@ -509,6 +510,48 @@ function QueuePanel({ queue, stats }: { queue: QueuedTask[]; stats: QueueStats |
   );
 }
 
+const EVENT_TYPE_COLOR: Record<string, string> = {
+  "agent.status_changed": "#a78bfa",
+  "task.started": "#60a5fa",
+  "task.completed": "#22c55e",
+  "task.failed": "#ef4444",
+  "task.blocked": "#fb7185",
+  "dependency.resolved": "#34d399",
+  "queue.updated": "#f59e0b",
+  "runtime.reset": "#64748b",
+};
+
+function EventTimeline({ events }: { events: RuntimeEvent[] }) {
+  if (events.length === 0) {
+    return <div style={{ color: "var(--text-3)", fontSize: 12, padding: "8px 0" }}>No events yet — waiting for runtime activity</div>;
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {events.slice(0, 12).map((ev) => {
+        const color = EVENT_TYPE_COLOR[ev.type] ?? "#64748b";
+        return (
+          <motion.div
+            key={ev.id}
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+          >
+            <span style={{ width: 8, height: 8, borderRadius: 99, background: color, marginTop: 4, flexShrink: 0 }} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 10, color, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{ev.type}</div>
+              <div style={{ fontSize: 11, color: "var(--text-2)" }}>
+                {ev.agentId && <span style={{ color: "var(--text-3)", marginRight: 4 }}>{ev.agentId}</span>}
+                {ev.payload.taskTitle as string ?? ev.payload.action as string ?? ""}
+              </div>
+              <div style={{ fontSize: 10, color: "var(--text-3)" }}>{new Date(ev.timestamp).toLocaleTimeString()}</div>
+            </div>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function RuntimePage() {
   const { status, refresh: refreshStatus } = useSystemStatus(3500);
   const { tasks, summary, refresh: refreshTasks } = useTasks(undefined, 4500);
@@ -520,6 +563,7 @@ export default function RuntimePage() {
   const [runtimeQueue, setRuntimeQueue] = useState<QueuedTask[]>([]);
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
   const [resettingRuntime, setResettingRuntime] = useState(false);
+  const { events: runtimeEvents, connected: eventsConnected, lastActivity } = useRuntimeEvents(true);
 
   useLogStream((entry) => {
     setLogs((prev) => [entry, ...prev].slice(0, 16));
@@ -550,11 +594,23 @@ export default function RuntimePage() {
     }
   }, []);
 
+  // Initial fetch + refresh when runtime events arrive (event-driven updates)
   useEffect(() => {
     void fetchRuntimeData();
-    const iv = setInterval(() => void fetchRuntimeData(), 5000);
-    return () => clearInterval(iv);
   }, [fetchRuntimeData]);
+
+  useEffect(() => {
+    if (runtimeEvents.length > 0) {
+      void fetchRuntimeData();
+    }
+  }, [runtimeEvents, fetchRuntimeData]);
+
+  // Fallback: poll every 10s when SSE not connected
+  useEffect(() => {
+    if (eventsConnected) return;
+    const iv = setInterval(() => void fetchRuntimeData(), 10_000);
+    return () => clearInterval(iv);
+  }, [eventsConnected, fetchRuntimeData]);
 
   const handlePauseAgent = async (agentId: string) => {
     await fetch(`/api/runtime/agent/${agentId}/pause`, { method: "POST" });
@@ -638,7 +694,27 @@ export default function RuntimePage() {
           <p className="page-subtitle">Real-time visibility into agent inference, provider health, queues, retries and streaming output.</p>
         </div>
         <div className="page-actions runtime-actions">
-          <div className="runtime-live-badge">
+          {/* Live event stream badge */}
+          <div
+            className="runtime-live-badge"
+            title={eventsConnected ? "Event stream connected" : "Event stream disconnected — polling fallback active"}
+            style={{ display: "flex", alignItems: "center", gap: 6, cursor: "default" }}
+          >
+            <motion.span
+              style={{ width: 8, height: 8, borderRadius: 99, background: eventsConnected ? "#76b900" : "#64748b" }}
+              animate={eventsConnected ? { scale: [1, 1.5, 1], opacity: [1, 0.4, 1] } : {}}
+              transition={{ duration: 1.6, repeat: Infinity }}
+            />
+            <span style={{ fontSize: 11, color: eventsConnected ? "#76b900" : "var(--text-3)", fontWeight: 600 }}>
+              {eventsConnected ? "Live" : "Offline"}
+            </span>
+            {lastActivity && (
+              <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+                · {new Date(lastActivity).toLocaleTimeString()}
+              </span>
+            )}
+          </div>
+          <div className="runtime-live-badge" style={{ marginLeft: 4 }}>
             <StatusPulse status={providerOnline ? "streaming" : "error"} />
           </div>
           <button className="btn btn-ghost" type="button" onClick={checkRuntimeStatus} disabled={checkingRuntime}>
@@ -752,21 +828,17 @@ export default function RuntimePage() {
             </div>
           </div>
 
-          <div className="runtime-rail-card">
-            <div className="runtime-rail-title"><Radio size={14} /> Dynamic Logs</div>
-            <div className="runtime-live-log">
-              {visibleLogs.map((entry, i) => (
-                <motion.div
-                  key={`${entry.timestamp}-${i}`}
-                  className="runtime-log-line"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <span>{entry.agent ?? "runtime"}</span>
-                  <p>{entry.message ?? entry.event ?? entry.task_title ?? "inference event received"}</p>
-                </motion.div>
-              ))}
+          <div className="runtime-rail-card" data-testid="event-timeline">
+            <div className="runtime-rail-title" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Radio size={14} /> Event Timeline</span>
+              {eventsConnected && (
+                <span style={{ fontSize: 10, color: "#76b900", display: "flex", alignItems: "center", gap: 4 }}>
+                  <motion.span style={{ width: 5, height: 5, borderRadius: 99, background: "#76b900", display: "inline-block" }} animate={{ opacity: [1, 0.3, 1] }} transition={{ duration: 1.2, repeat: Infinity }} />
+                  LIVE
+                </span>
+              )}
             </div>
+            <EventTimeline events={runtimeEvents} />
           </div>
         </aside>
       </section>
