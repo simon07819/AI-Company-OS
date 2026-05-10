@@ -286,6 +286,48 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/autopilot/sessions/") && url.includes("/validate-project")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: "Project validated: 100% — Build-ready",
+        validation: {
+          ok: true,
+          score: 100,
+          checks: [
+            { name: "project-directory", path: "project/", passed: true, message: "Project directory exists" },
+            { name: "exists:package.json", path: "package.json", passed: true, message: "package.json exists and is parseable" },
+            { name: "exists:app/page.tsx", path: "app/page.tsx", passed: true, message: "app/page.tsx exists" },
+            { name: "exists:app/layout.tsx", path: "app/layout.tsx", passed: true, message: "app/layout.tsx exists" },
+            { name: "exists:components/Hero.tsx", path: "components/Hero.tsx", passed: true, message: "components/Hero.tsx exists" },
+            { name: "exists:lib/config.ts", path: "lib/config.ts", passed: true, message: "lib/config.ts exists" },
+            { name: "non-empty:package.json", path: "package.json", passed: true, message: "package.json is not empty" },
+            { name: "non-empty:app/page.tsx", path: "app/page.tsx", passed: true, message: "app/page.tsx is not empty" },
+            { name: "non-empty:app/layout.tsx", path: "app/layout.tsx", passed: true, message: "app/layout.tsx is not empty" },
+            { name: "non-empty:components/Hero.tsx", path: "components/Hero.tsx", passed: true, message: "components/Hero.tsx is not empty" },
+            { name: "non-empty:lib/config.ts", path: "lib/config.ts", passed: true, message: "lib/config.ts is not empty" },
+            { name: "package-json-parseable", path: "package.json", passed: true, message: "package.json is valid JSON" },
+          ],
+          warnings: [],
+          generatedAt: new Date().toISOString(),
+        },
+        session: {
+          sessionId: "ap-test123",
+          projectName: "TestProject",
+          projectIdea: "Test idea",
+          productType: null, template: null, stack: null,
+          status: "running", currentPhase: "frontend", progress: 50,
+          assignedAgents: [], roadmap: [], tasks: [], logs: [],
+          runtime: { status: "online", provider: "NVIDIA API", activeWorkers: 1, lastEvent: "Validation completed" },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/")) {
     return {
       ok: true,

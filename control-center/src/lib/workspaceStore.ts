@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import type { AutopilotPhase, AutopilotSession, AutopilotTask, AutopilotLog } from "./autopilotStore";
 import { AUTOPILOT_PHASES } from "./autopilotStore";
+import { validateGeneratedProject } from "./projectValidator";
 
 // ─── Paths ──────────────────────────────────────────────────────────────────
 
@@ -1246,6 +1247,9 @@ export function generateProjectScaffold(session: AutopilotSession): string[] {
     safeWriteFile(fullPath, content);
     writtenPaths.push(file.path);
   }
+
+  // Auto-validate the generated scaffold
+  validateGeneratedProject(session.sessionId);
 
   return writtenPaths;
 }

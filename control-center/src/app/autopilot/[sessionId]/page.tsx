@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Bot,
   CheckCircle2,
+  CircleDot,
   Clock3,
   Code2,
   Cpu,
@@ -26,6 +27,7 @@ import {
   RefreshCw,
   Rocket,
   RotateCcw,
+  ShieldCheck,
   Terminal,
   Zap,
 } from "lucide-react";
@@ -174,6 +176,14 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   const [projectExists, setProjectExists] = useState(false);
   const [projectFiles, setProjectFiles] = useState<{ path: string; name: string; size: number }[]>([]);
   const [generatingProject, setGeneratingProject] = useState(false);
+  const [validation, setValidation] = useState<{
+    ok: boolean;
+    score: number;
+    checks: { name: string; path: string; passed: boolean; message: string }[];
+    warnings: string[];
+    generatedAt: string;
+  } | null>(null);
+  const [validatingProject, setValidatingProject] = useState(false);
 
   const loadWorkspace = async () => {
     if (!sessionId) return;
@@ -233,6 +243,7 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
   useEffect(() => {
     void loadSession();
     void loadWorkspace();
+    void loadValidation();
     const iv = setInterval(() => { void loadSession(); void loadWorkspace(); }, 4000);
     return () => clearInterval(iv);
   }, [sessionId]);
@@ -273,6 +284,41 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       // ignore
     } finally {
       setGeneratingProject(false);
+    }
+  };
+
+  const handleValidateProject = async () => {
+    if (!sessionId) return;
+    setValidatingProject(true);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/validate-project`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await res.json()) as { ok: boolean; validation?: typeof validation; session?: AutopilotSession };
+      if (payload.ok && payload.validation) {
+        setValidation(payload.validation);
+      }
+      if (payload.session) {
+        setSession(payload.session);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setValidatingProject(false);
+    }
+  };
+
+  const loadValidation = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/validate-project`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; validation?: typeof validation };
+      if (payload.ok && payload.validation) {
+        setValidation(payload.validation);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -898,16 +944,38 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
           <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
             <Hammer size={12} style={{ display: "inline", marginRight: 4 }} /> Generated SaaS Project
           </div>
-          {projectExists && (
-            <span style={{
-              fontSize: 9, fontWeight: 700,
-              padding: "2px 8px", borderRadius: 99,
-              background: "rgba(16,185,129,0.12)", color: "#34d399",
-              display: "flex", alignItems: "center", gap: 3,
-            }}>
-              <CheckCircle2 size={10} /> Ready for local preview
-            </span>
-          )}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {projectExists && validation?.ok && (
+              <span style={{
+                fontSize: 9, fontWeight: 700,
+                padding: "2px 8px", borderRadius: 99,
+                background: "rgba(16,185,129,0.12)", color: "#34d399",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <ShieldCheck size={10} /> Build-ready
+              </span>
+            )}
+            {projectExists && !validation?.ok && validation && (
+              <span style={{
+                fontSize: 9, fontWeight: 700,
+                padding: "2px 8px", borderRadius: 99,
+                background: "rgba(245,158,11,0.12)", color: "#f59e0b",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <CircleDot size={10} /> Needs attention
+              </span>
+            )}
+            {projectExists && !validation && (
+              <span style={{
+                fontSize: 9, fontWeight: 700,
+                padding: "2px 8px", borderRadius: 99,
+                background: "rgba(99,102,241,0.12)", color: "#818cf8",
+                display: "flex", alignItems: "center", gap: 3,
+              }}>
+                <CheckCircle2 size={10} /> Ready for local preview
+              </span>
+            )}
+          </div>
         </div>
 
         {!workspaceExists ? (
@@ -969,6 +1037,88 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
                 +{projectFiles.length - 9} more files — view all in Project Workspace above
               </div>
             )}
+
+            {/* Validation section */}
+            <div style={{ marginTop: 12, padding: "12px 14px", background: "var(--bg-2)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: validation ? 10 : 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <ShieldCheck size={13} style={{ color: validation?.ok ? "#34d399" : validation ? "#f59e0b" : "#818cf8" }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-2)" }}>Validation</span>
+                  {validation && (
+                    <span style={{
+                      fontSize: 14, fontWeight: 800,
+                      color: validation.ok ? "#34d399" : "#f59e0b",
+                      fontFamily: "ui-monospace, monospace",
+                    }}>
+                      {validation.score}%
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleValidateProject}
+                  disabled={validatingProject}
+                  style={{
+                    padding: "4px 12px", borderRadius: 4,
+                    background: validatingProject ? "var(--surface-2)" : "rgba(99,102,241,0.14)",
+                    border: `1px solid ${validatingProject ? "var(--border-2)" : "rgba(99,102,241,0.3)"}`,
+                    color: validatingProject ? "var(--text-3)" : "#818cf8",
+                    fontWeight: 600, fontSize: 10, cursor: validatingProject ? "not-allowed" : "pointer",
+                    fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4,
+                    transition: "all 140ms ease",
+                  }}
+                >
+                  {validatingProject ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span> : <ShieldCheck size={10} />}
+                  Validate Project
+                </button>
+              </div>
+              {validation && (
+                <div>
+                  {/* Score bar */}
+                  <div style={{ height: 4, borderRadius: 2, background: "var(--border)", marginBottom: 8, overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%", borderRadius: 2,
+                      width: `${validation.score}%`,
+                      background: validation.ok ? "#34d399" : "#f59e0b",
+                      transition: "width 300ms ease",
+                    }} />
+                  </div>
+                  {/* Checks */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 6 }}>
+                    {validation.checks.slice(0, 8).map((check) => (
+                      <div key={check.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
+                        <span style={{ color: check.passed ? "#34d399" : "#f43f5e", fontWeight: 700, flexShrink: 0 }}>
+                          {check.passed ? "PASS" : "FAIL"}
+                        </span>
+                        <span style={{ color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {check.message}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Warnings */}
+                  {validation.warnings.length > 0 && (
+                    <div style={{ borderTop: "1px solid var(--border)", paddingTop: 6 }}>
+                      {validation.warnings.slice(0, 3).map((w, i) => (
+                        <div key={i} style={{ fontSize: 10, color: "#f59e0b", marginBottom: 2 }}>
+                          {w}
+                        </div>
+                      ))}
+                      {validation.warnings.length > 3 && (
+                        <div style={{ fontSize: 9, color: "var(--text-3)" }}>
+                          +{validation.warnings.length - 3} more warnings
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!validation && (
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 4 }}>
+                  Click Validate to check project integrity.
+                </div>
+              )}
+            </div>
+
             <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
               <span style={{ fontSize: 11, color: "var(--text-3)" }}>
                 {projectFiles.length} file{projectFiles.length !== 1 ? "s" : ""} in <code style={{ fontSize: 10, color: "var(--accent-light)" }}>project/</code>
