@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
-import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists } from "./workspaceStore";
+import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists, writeAgentRun } from "./workspaceStore";
+import { runNvidiaAdapter } from "./nvidiaAgentAdapter";
 import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
 import { generateMissionDeliverables } from "./missionDeliverables";
 import { updateAgentState } from "./agentRuntime";
@@ -635,7 +636,7 @@ export type RunStepResult = {
  * 4. Mark task completed/failed, update progress/status/phase
  * 5. Log result
  */
-export function runStep(sessionId: string): RunStepResult {
+export async function runStep(sessionId: string): Promise<RunStepResult> {
   const session = getSession(sessionId);
   if (!session) {
     return { ok: false, task: null, log: null, completed: false, artifactPaths: [], session: null };
@@ -714,9 +715,26 @@ export function runStep(sessionId: string): RunStepResult {
   });
   emitEvent("task.started", { taskTitle: task.title, phase: task.phase }, { agentId: agent, sessionId, taskId: task.id });
 
-  // Simulate NVIDIA runtime execution
-  const executionOk = simulateExecution(agent, task);
+  // Run via NVIDIA adapter (falls back to simulation if key not configured)
+  const adapterResult = await runNvidiaAdapter(session, task);
+  const executionOk = adapterResult.mode === "nvidia"
+    ? adapterResult.ok
+    : simulateExecution(agent, task);
   const execNow = new Date().toISOString();
+
+  // Write agent run output to workspace
+  writeAgentRun(sessionId, task.id, adapterResult.output);
+
+  // Log execution mode
+  appendLog(sessionId, {
+    timestamp: execNow,
+    level: "info",
+    agent,
+    message: adapterResult.mode === "nvidia"
+      ? `NVIDIA runtime — ${adapterResult.tokensUsed ?? "?"} tokens, ${adapterResult.durationMs}ms`
+      : `Simulation fallback — NVIDIA_API_KEY not configured`,
+    source: adapterResult.mode,
+  });
 
   // Update the task based on result
   if (executionOk) {
@@ -820,7 +838,7 @@ export function runStep(sessionId: string): RunStepResult {
     message: executionOk
       ? `${agent} completed: ${task.title} [${phaseInfo?.label ?? task.phase}]`
       : `${agent} failed: ${task.title} — will require retry`,
-    source: executionOk ? "agent" : "agent",
+    source: adapterResult.mode,
   });
 
   // Generate agent artifact on success
@@ -925,7 +943,7 @@ const MAX_RUN_ALL_STEPS = 10;
  * Tracks agent runtime states and respects dependency ordering.
  * Stops when: session completes, a task fails, or limit reached.
  */
-export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllResult {
+export async function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): Promise<RunAllResult> {
   const steps: RunStepResult[] = [];
   let stepsExecuted = 0;
   let session = getSession(sessionId);
@@ -978,7 +996,7 @@ export function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): RunAllR
       break;
     }
 
-    const result = runStep(sessionId);
+    const result = await runStep(sessionId);
     steps.push(result);
     stepsExecuted++;
 

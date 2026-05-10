@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { sessionId } = await params;
-  const result = runAll(sessionId);
+  const result = await runAll(sessionId);
 
   if (!result.session) {
     return NextResponse.json(

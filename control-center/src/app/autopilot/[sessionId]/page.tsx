@@ -868,6 +868,16 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
                   <span style={{ color: lc.color, fontWeight: 700, flexShrink: 0, width: 32 }}>{lc.label}</span>
                   <span style={{ color: AGENT_COLORS[log.agent] ?? "var(--text-3)", flexShrink: 0, minWidth: 90 }}>{log.agent.replace("_agent", "")}</span>
                   <span style={{ color: "var(--text-2)", flex: 1 }}>{log.message}</span>
+                  {(log.source === "nvidia" || log.source === "simulation") && (
+                    <span style={{
+                      flexShrink: 0, fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                      background: log.source === "nvidia" ? "rgba(34,197,94,0.12)" : "rgba(148,163,184,0.12)",
+                      color: log.source === "nvidia" ? "#22c55e" : "#94a3b8",
+                      border: `1px solid ${log.source === "nvidia" ? "rgba(34,197,94,0.25)" : "rgba(148,163,184,0.2)"}`,
+                    }}>
+                      {log.source === "nvidia" ? "NVIDIA" : "SIM"}
+                    </span>
+                  )}
                 </motion.div>
               );
             })}

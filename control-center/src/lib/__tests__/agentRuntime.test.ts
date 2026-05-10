@@ -287,7 +287,7 @@ describe("autopilotStore dependencies", () => {
     expect(task1).toBeDefined();
 
     // Complete task 0 via runStep
-    const result = runStep(session.sessionId);
+    const result = await runStep(session.sessionId);
     expect(result.ok).toBe(true);
 
     // After completing task 0, task 1 should be runnable (not blocked)
@@ -301,7 +301,7 @@ describe("autopilotStore dependencies", () => {
     const { createSession, runAll, getSession } = await import("@/lib/autopilotStore");
     const session = createSession({ name: "TerminateTest" });
 
-    const result = runAll(session.sessionId, 30);
+    const result = await runAll(session.sessionId, 30);
     expect(result.ok).toBe(true);
     expect(result.stepsExecuted).toBeGreaterThan(0);
 

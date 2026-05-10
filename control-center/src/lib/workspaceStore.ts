@@ -140,6 +140,16 @@ export function writeWorkspaceFile(sessionId: string, relativePath: string, cont
 }
 
 /**
+ * Write agent run output to agent-runs/[taskId].md.
+ * Returns the relative path written, or null on error.
+ */
+export function writeAgentRun(sessionId: string, taskId: string, content: string): string | null {
+  const relPath = `agent-runs/${taskId}.md`;
+  const ok = writeWorkspaceFile(sessionId, relPath, content);
+  return ok ? relPath : null;
+}
+
+/**
  * Read a file from the workspace. Returns null if not found.
  */
 export function readWorkspaceFile(sessionId: string, relativePath: string): string | null {

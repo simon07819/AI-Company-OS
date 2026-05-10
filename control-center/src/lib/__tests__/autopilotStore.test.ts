@@ -189,7 +189,7 @@ describe("autopilotStore execution loop", () => {
     const session = createSession({ name: "RunStepTest", idea: "Test idea" });
     const initialCompleted = session.tasks.filter((t) => t.status === "completed").length;
 
-    const result = runStep(session.sessionId);
+    const result = await runStep(session.sessionId);
 
     expect(result.ok).toBe(true);
     expect(result.task).not.toBeNull();
@@ -205,7 +205,7 @@ describe("autopilotStore execution loop", () => {
     const session = createSession({ name: "LogTest", idea: "Test" });
     const initialLogCount = session.logs.length;
 
-    runStep(session.sessionId);
+    await runStep(session.sessionId);
 
     const updated = getSession(session.sessionId);
     expect(updated?.logs.length).toBeGreaterThan(initialLogCount);
@@ -225,7 +225,7 @@ describe("autopilotStore execution loop", () => {
     updateSession(session.sessionId, { tasks: allDone, status: "running" });
 
     // Run step on completed session
-    const result = runStep(session.sessionId);
+    const result = await runStep(session.sessionId);
 
     expect(result.ok).toBe(true);
     expect(result.completed).toBe(true);
@@ -237,7 +237,7 @@ describe("autopilotStore execution loop", () => {
     const session = createSession({ name: "RunAllTest", idea: "Test" });
 
     // Run all with max 3 steps
-    const result = runAll(session.sessionId, 3);
+    const result = await runAll(session.sessionId, 3);
 
     expect(result.ok).toBe(true);
     expect(result.stepsExecuted).toBeLessThanOrEqual(3);
@@ -250,7 +250,7 @@ describe("autopilotStore execution loop", () => {
     const session = createSession({ name: "FullRunTest", idea: "Test" });
 
     // Run all with enough steps (16 tasks, allow some failures)
-    const result = runAll(session.sessionId, 20);
+    const result = await runAll(session.sessionId, 20);
 
     expect(result.ok).toBe(true);
     expect(result.stepsExecuted).toBeGreaterThan(0);
@@ -264,7 +264,7 @@ describe("autopilotStore execution loop", () => {
   it("runStep returns null session for unknown sessionId", async () => {
     const { runStep } = await import("@/lib/autopilotStore");
 
-    const result = runStep("nonexistent-id");
+    const result = await runStep("nonexistent-id");
     expect(result.ok).toBe(false);
     expect(result.session).toBeNull();
   });
@@ -272,7 +272,7 @@ describe("autopilotStore execution loop", () => {
   it("runAll returns null session for unknown sessionId", async () => {
     const { runAll } = await import("@/lib/autopilotStore");
 
-    const result = runAll("nonexistent-id");
+    const result = await runAll("nonexistent-id");
     expect(result.session).toBeNull();
   });
 
@@ -280,7 +280,7 @@ describe("autopilotStore execution loop", () => {
     const { createSession, runStep, getSession } = await import("@/lib/autopilotStore");
 
     const session = createSession({ name: "ArtifactLogTest", idea: "Test artifact logging" });
-    const result = runStep(session.sessionId);
+    const result = await runStep(session.sessionId);
 
     if (result.ok && result.task?.status === "completed") {
       // Should have artifactPaths
@@ -302,7 +302,7 @@ describe("autopilotStore execution loop", () => {
     // Create a session, then force the next task to fail by manipulating the hash
     // We can't easily force failure, but we can check that artifactPaths is always an array
     const session = createSession({ name: "ArtifactFailTest", idea: "Test" });
-    const result = runStep(session.sessionId);
+    const result = await runStep(session.sessionId);
 
     // artifactPaths should always be an array (empty if task failed)
     expect(Array.isArray(result.artifactPaths)).toBe(true);
@@ -338,7 +338,7 @@ describe("autopilotStore execution loop", () => {
       updateSession(session.sessionId, { tasks: priorTasks, currentPhase: "frontend", progress: 18 });
 
       // Now run step — should complete the frontend task
-      const result = runStep(session.sessionId);
+      const result = await runStep(session.sessionId);
 
       // If the frontend task completed, scaffold should be generated
       if (result.ok && result.task?.agent === "frontend_agent" && result.task.status === "completed") {
