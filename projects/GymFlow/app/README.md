@@ -29,9 +29,12 @@ npm run build
 
 | Path | Description |
 |------|-------------|
-| `/` | Landing page |
-| `/dashboard` | Analytics dashboard (mock data) |
-| `/pricing` | Subscription plans |
+| `/` | Landing page (hero, features, testimonials, CTA) |
+| `/pricing` | Pricing plans with feature comparison + FAQ |
+| `/dashboard` | Analytics dashboard with revenue chart and activity feed |
+| `/members` | Member list with status, plan, and visit history |
+| `/classes` | Class schedule with instructor and capacity tracking |
+| `/settings` | Gym profile, notifications, plan info |
 
 ## API Endpoints
 
@@ -50,6 +53,11 @@ npm run build
 - Tailwind CSS
 - Prisma + PostgreSQL (optional for local dev)
 
+## Mock data
+
+All pages use mock data from `lib/mock-data.ts`. No database needed to run the UI.
+Swap in real Prisma queries when ready to connect a DB.
+
 ## Database Models
 
 - **User** — Authentication and roles (USER, ADMIN, TRAINER)
@@ -61,4 +69,4 @@ npm run build
 
 - Auth is a demo token system (base64). No real auth provider wired.
 - Billing is simulated. No Stripe integration.
-- DB queries are stubbed — UI works without a running database.
+- All UI data is mock — replace `lib/mock-data.ts` calls with DB queries to go live.
