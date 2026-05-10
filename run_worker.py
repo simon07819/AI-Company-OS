@@ -107,9 +107,17 @@ def commit_all(repo_path, message):
 
 SAAS_TASK_MAPPING = {
     "landing page": ["app/page.tsx"],
+    "landing": ["app/page.tsx"],
     "dashboard": ["app/dashboard/page.tsx"],
     "authentication": ["app/api/auth/route.ts", "lib/auth.ts"],
     "billing": ["app/api/billing/route.ts", "lib/billing.ts"],
+    "payment": ["app/api/billing/route.ts", "lib/billing.ts"],
+    "admin": ["app/admin/page.tsx", "app/api/admin/route.ts"],
+    "prisma": ["prisma/schema.prisma"],
+    "database schema": ["prisma/schema.prisma"],
+    "member": ["app/members/page.tsx", "lib/members.ts"],
+    "pricing": ["app/pricing/page.tsx"],
+    "onboarding": ["app/onboarding/page.tsx"],
 }
 
 
@@ -191,6 +199,107 @@ def saas_file_content(rel_path, task):
             "  return limits[plan];\n"
             "}\n"
         )
+    if rel_path == "app/admin/page.tsx":
+        return (
+            "export default function AdminPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen p-8">\n'
+            '      <h1 className="text-3xl font-bold mb-6">Admin Panel</h1>\n'
+            f'      <p className="text-gray-500">{description}</p>\n'
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "app/api/admin/route.ts":
+        return (
+            'import { NextResponse } from "next/server";\n\n'
+            "export async function GET() {\n"
+            '  return NextResponse.json({ status: "ok", role: "admin" });\n'
+            "}\n"
+        )
+    if rel_path == "app/members/page.tsx":
+        return (
+            "export default function MembersPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen p-8">\n'
+            '      <h1 className="text-3xl font-bold mb-6">Members</h1>\n'
+            f'      <p className="text-gray-500">{description}</p>\n'
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "lib/members.ts":
+        return (
+            "export interface Member {\n"
+            "  id: string;\n"
+            "  email: string;\n"
+            '  plan: "starter" | "pro" | "enterprise";\n'
+            "  joinedAt: Date;\n"
+            "}\n\n"
+            "export function formatMember(m: Member): string {\n"
+            "  return `${m.email} (${m.plan})`;\n"
+            "}\n"
+        )
+    if rel_path == "app/pricing/page.tsx":
+        return (
+            'import Link from "next/link";\n\n'
+            "const PLANS = [\n"
+            '  { name: "Starter", price: 29, members: 100 },\n'
+            '  { name: "Pro", price: 79, members: 500 },\n'
+            '  { name: "Enterprise", price: 199, members: -1 },\n'
+            "];\n\n"
+            "export default function PricingPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen p-8">\n'
+            '      <h1 className="text-3xl font-bold mb-8 text-center">Pricing</h1>\n'
+            '      <div className="grid grid-cols-3 gap-6 max-w-4xl mx-auto">\n'
+            "        {PLANS.map((plan) => (\n"
+            '          <div key={plan.name} className="border rounded-xl p-6">\n'
+            '            <h2 className="text-xl font-semibold mb-2">{plan.name}</h2>\n'
+            '            <p className="text-3xl font-bold mb-4">${plan.price}<span className="text-sm font-normal">/mo</span></p>\n'
+            '            <p className="text-gray-500 mb-6">{plan.members === -1 ? "Unlimited members" : `Up to ${plan.members} members`}</p>\n'
+            '            <Link href="/dashboard" className="block text-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Get Started</Link>\n'
+            "          </div>\n"
+            "        ))}\n"
+            "      </div>\n"
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "app/onboarding/page.tsx":
+        return (
+            "export default function OnboardingPage() {\n"
+            "  return (\n"
+            '    <main className="min-h-screen flex flex-col items-center justify-center p-8">\n'
+            '      <h1 className="text-3xl font-bold mb-4">Welcome!</h1>\n'
+            f'      <p className="text-gray-500 mb-8">{description}</p>\n'
+            '      <a href="/dashboard" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Go to Dashboard</a>\n'
+            "    </main>\n"
+            "  );\n"
+            "}\n"
+        )
+    if rel_path == "prisma/schema.prisma":
+        return (
+            'generator client {\n'
+            '  provider = "prisma-client-js"\n'
+            '}\n\n'
+            'datasource db {\n'
+            '  provider = "postgresql"\n'
+            '  url      = env("DATABASE_URL")\n'
+            '}\n\n'
+            'enum Role {\n'
+            '  USER\n'
+            '  ADMIN\n'
+            '}\n\n'
+            'model User {\n'
+            '  id        String   @id @default(cuid())\n'
+            '  email     String   @unique\n'
+            '  name      String?\n'
+            '  role      Role     @default(USER)\n'
+            '  createdAt DateTime @default(now())\n'
+            '  updatedAt DateTime @updatedAt\n'
+            '}\n'
+        )
     return f"// {title}: {description}\n"
 
 
@@ -208,24 +317,73 @@ def write_saas_app_files(app_dir, repo_path, targets, task):
     return written
 
 
+def _attempt_fix(app_dir, error_output):
+    """Apply simple auto-corrections based on build/lint errors."""
+    lowered = error_output.lower()
+    if not ("usestate" in lowered or "useeffect" in lowered or "hooks can only" in lowered):
+        return
+    for root, _, files in os.walk(app_dir):
+        if "node_modules" in root or ".next" in root:
+            continue
+        for fname in files:
+            if not fname.endswith((".tsx", ".ts")):
+                continue
+            fpath = os.path.join(root, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                needs_client = (
+                    ("useState" in content or "useEffect" in content or "useCallback" in content)
+                    and not content.lstrip().startswith('"use client"')
+                )
+                if needs_client:
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write('"use client";\n\n' + content)
+                    print(f"Auto-fix: added 'use client' to {os.path.relpath(fpath, app_dir)}")
+            except OSError:
+                pass
+
+
 def run_npm_steps(app_dir):
     pkg_path = os.path.join(app_dir, "package.json")
     if not os.path.isfile(pkg_path):
         return
+
+    # Ensure node_modules is gitignored before installing
+    gitignore_path = os.path.join(app_dir, ".gitignore")
+    if not os.path.isfile(gitignore_path):
+        with open(gitignore_path, "w", encoding="utf-8") as f:
+            f.write("node_modules/\n.next/\n.env\n.env.local\n")
+        print("Created .gitignore for app directory")
+
     print("Running npm install...")
     result = subprocess.run(["npm", "install"], cwd=app_dir, capture_output=True, text=True)
     if result.returncode != 0:
         print(f"npm install warning: {(result.stderr or '').strip()[:300]}")
+        return
+
     try:
         with open(pkg_path, "r", encoding="utf-8") as f:
             pkg = json.load(f)
-        if "lint" in pkg.get("scripts", {}):
+        scripts = pkg.get("scripts", {})
+
+        if "lint" in scripts:
             print("Running npm run lint...")
             lint = subprocess.run(["npm", "run", "lint"], cwd=app_dir, capture_output=True, text=True)
             if lint.returncode != 0:
-                print(f"npm run lint warning: {(lint.stdout or '').strip()[:300]}")
-    except Exception:
-        pass
+                err = ((lint.stdout or "") + (lint.stderr or "")).strip()
+                print(f"npm run lint warning: {err[:300]}")
+                _attempt_fix(app_dir, err)
+
+        if "build" in scripts:
+            print("Running npm run build...")
+            build = subprocess.run(["npm", "run", "build"], cwd=app_dir, capture_output=True, text=True)
+            if build.returncode != 0:
+                err = ((build.stdout or "") + (build.stderr or "")).strip()
+                print(f"npm run build warning: {err[:300]}")
+                _attempt_fix(app_dir, err)
+    except Exception as exc:
+        print(f"npm steps warning: {exc}")
 
 
 def write_task_code(repo_path, task, project_path=None):

@@ -423,6 +423,8 @@ def conflict_resolution_for_path(path):
         return "--ours"
     if posix_path.match("backend/task-*.py"):
         return "--theirs"
+    if posix_path.match("projects/*/app/**"):
+        return "--theirs"
     return None
 
 

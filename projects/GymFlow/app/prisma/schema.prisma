@@ -7,10 +7,63 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+  TRAINER
+}
+
+enum MemberStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum Plan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  role      Role     @default(USER)
+  member    Member?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Member {
+  id            String         @id @default(cuid())
+  userId        String         @unique
+  user          User           @relation(fields: [userId], references: [id])
+  status        MemberStatus   @default(ACTIVE)
+  plan          Plan           @default(STARTER)
+  joinedAt      DateTime       @default(now())
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  memberId  String
+  member    Member    @relation(fields: [memberId], references: [id])
+  plan      Plan
+  price     Float
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+}
+
+model GymClass {
+  id         String   @id @default(cuid())
+  name       String
+  instructor String
+  schedule   DateTime
+  capacity   Int      @default(20)
+  enrolled   Int      @default(0)
+  location   String?
+  createdAt  DateTime @default(now())
 }
