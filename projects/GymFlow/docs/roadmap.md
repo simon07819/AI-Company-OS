@@ -61,8 +61,4 @@ Idea: SaaS pour gérer les abonnements, réservations, paiements et membres des 
 
 ## Suggested First 10 Tasks
 
-1. Define product requirements
-2. Build landing page
-3. Implement authentication
-4. Implement billing
-5. Implement admin dashboard
+1. Implement admin dashboard

@@ -1,7 +1,14 @@
 {
   "id": 2,
   "title": "Build landing page",
-  "status": "queued",
+  "status": "completed_real",
   "priority": "high",
-  "created_at": "2026-05-10T04:17:06.136805"
+  "created_at": "2026-05-10T04:17:06.136805",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T04:33:39.110836",
+  "mode": "REAL",
+  "branch": "ai-company/task-2-build-landing-page",
+  "started_at": "2026-05-10T04:33:39.889218",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/160",
+  "completed_at": "2026-05-10T04:33:44.000211"
 }

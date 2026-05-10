@@ -1,7 +1,14 @@
 {
   "id": 1,
   "title": "Define product requirements",
-  "status": "queued",
+  "status": "completed_real",
   "priority": "high",
-  "created_at": "2026-05-10T04:17:06.136805"
+  "created_at": "2026-05-10T04:17:06.136805",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T04:32:56.122492",
+  "mode": "REAL",
+  "branch": "ai-company/task-1-define-product-requirements-v5",
+  "started_at": "2026-05-10T04:32:57.250391",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/159",
+  "completed_at": "2026-05-10T04:33:01.906938"
 }

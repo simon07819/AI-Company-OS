@@ -1,7 +1,14 @@
 {
   "id": 4,
   "title": "Implement billing",
-  "status": "queued",
+  "status": "completed_real",
   "priority": "medium",
-  "created_at": "2026-05-10T04:17:06.136805"
+  "created_at": "2026-05-10T04:17:06.136805",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T04:33:52.233925",
+  "mode": "REAL",
+  "branch": "ai-company/task-4-implement-billing",
+  "started_at": "2026-05-10T04:33:53.050876",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/162",
+  "completed_at": "2026-05-10T04:33:57.406524"
 }

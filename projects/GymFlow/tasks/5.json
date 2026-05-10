@@ -1,7 +1,14 @@
 {
   "id": 5,
   "title": "Implement admin dashboard",
-  "status": "queued",
+  "status": "completed_real",
   "priority": "low",
-  "created_at": "2026-05-10T04:17:06.136805"
+  "created_at": "2026-05-10T04:17:06.136805",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T04:33:58.865379",
+  "mode": "REAL",
+  "branch": "ai-company/task-5-implement-admin-dashboard",
+  "started_at": "2026-05-10T04:33:59.636912",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/163",
+  "completed_at": "2026-05-10T04:34:03.925689"
 }

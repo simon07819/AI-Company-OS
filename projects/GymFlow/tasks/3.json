@@ -1,7 +1,14 @@
 {
   "id": 3,
   "title": "Implement authentication",
-  "status": "queued",
+  "status": "completed_real",
   "priority": "medium",
-  "created_at": "2026-05-10T04:17:06.136805"
+  "created_at": "2026-05-10T04:17:06.136805",
+  "locked_by": "worker-1",
+  "locked_at": "2026-05-10T04:33:45.426301",
+  "mode": "REAL",
+  "branch": "ai-company/task-3-implement-authentication",
+  "started_at": "2026-05-10T04:33:46.225428",
+  "pr_url": "https://github.com/simon07819/tonymage/pull/161",
+  "completed_at": "2026-05-10T04:33:50.777728"
 }
