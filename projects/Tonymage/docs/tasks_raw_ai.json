@@ -2,183 +2,183 @@
 [
   {
     "id": 1,
-    "title": "Implement Project Structure",
+    "title": "Implement Django project structure",
     "department": "Backend",
-    "description": "Create the project structure for the Tonymage platform",
-    "acceptance_criteria": "The project structure is created and the necessary files are in place",
+    "description": "Create the basic project structure for Tonymage using Django",
+    "acceptance_criteria": "Project structure is created and functional",
     "estimated_cost_usd": 100,
     "branch_name": "feature/project-structure"
   },
   {
     "id": 2,
-    "title": "Design Database Schema",
+    "title": "Design database schema",
     "department": "Backend",
-    "description": "Design the database schema for the Tonymage platform",
-    "acceptance_criteria": "The database schema is designed and the necessary migrations are created",
+    "description": "Design the database schema for Tonymage using PostgreSQL",
+    "acceptance_criteria": "Database schema is designed and functional",
     "estimated_cost_usd": 150,
     "branch_name": "feature/database-schema"
   },
   {
     "id": 3,
-    "title": "Implement AI Multi-Agent System",
+    "title": "Implement user authentication",
     "department": "Backend",
-    "description": "Implement the AI multi-agent system for the Tonymage platform",
-    "acceptance_criteria": "The AI multi-agent system is implemented and working as expected",
-    "estimated_cost_usd": 500,
-    "branch_name": "feature/ai-multi-agent"
-  },
-  {
-    "id": 4,
-    "title": "Integrate with Development Tools",
-    "department": "Backend",
-    "description": "Integrate the Tonymage platform with development tools such as Jira and Asana",
-    "acceptance_criteria": "The Tonymage platform is integrated with development tools and working as expected",
-    "estimated_cost_usd": 200,
-    "branch_name": "feature/integration"
-  },
-  {
-    "id": 5,
-    "title": "Implement User Authentication",
-    "department": "Backend",
-    "description": "Implement user authentication for the Tonymage platform",
-    "acceptance_criteria": "User authentication is implemented and working as expected",
+    "description": "Implement user authentication using Django's built-in authentification",
+    "acceptance_criteria": "User authentication is implemented and functional",
     "estimated_cost_usd": 120,
     "branch_name": "feature/user-authentication"
   },
   {
-    "id": 6,
-    "title": "Design Frontend UI",
-    "department": "Frontend",
-    "description": "Design the frontend UI for the Tonymage platform",
-    "acceptance_criteria": "The frontend UI is designed and working as expected",
+    "id": 4,
+    "title": "Create API endpoints for projects",
+    "department": "Backend",
+    "description": "Create API endpoints for projects using Django's built-in API framework",
+    "acceptance_criteria": "API endpoints for projects are created and functional",
     "estimated_cost_usd": 180,
-    "branch_name": "feature/frontend-ui"
+    "branch_name": "feature/api-projects"
+  },
+  {
+    "id": 5,
+    "title": "Implement task management",
+    "department": "Backend",
+    "description": "Implement task management using Django's built-in ORM",
+    "acceptance_criteria": "Task management is implemented and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/task-management"
+  },
+  {
+    "id": 6,
+    "title": "Design user interface",
+    "department": "Frontend",
+    "description": "Design the user interface for Tonymage using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "User interface is designed and functional",
+    "estimated_cost_usd": 180,
+    "branch_name": "feature/user-interface"
   },
   {
     "id": 7,
-    "title": "Implement Frontend UI",
+    "title": "Implement user interface components",
     "department": "Frontend",
-    "description": "Implement the frontend UI for the Tonymage platform",
-    "acceptance_criteria": "The frontend UI is implemented and working as expected",
-    "estimated_cost_usd": 250,
-    "branch_name": "feature/frontend-implementation"
+    "description": "Implement user interface components using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "User interface components are implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/user-interface-components"
   },
   {
     "id": 8,
-    "title": "Implement API Endpoints",
+    "title": "Create API endpoints for tasks",
     "department": "Backend",
-    "description": "Implement API endpoints for the Tonymage platform",
-    "acceptance_criteria": "API endpoints are implemented and working as expected",
-    "estimated_cost_usd": 220,
-    "branch_name": "feature/api-endpoints"
+    "description": "Create API endpoints for tasks using Django's built-in API framework",
+    "acceptance_criteria": "API endpoints for tasks are created and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/api-tasks"
   },
   {
     "id": 9,
-    "title": "Implement Authentication and Authorization",
+    "title": "Implement task assignment",
     "department": "Backend",
-    "description": "Implement authentication and authorization for the Tonymage platform",
-    "acceptance_criteria": "Authentication and authorization are implemented and working as expected",
-    "estimated_cost_usd": 280,
-    "branch_name": "feature/authentication-authorization"
+    "description": "Implement task assignment using Django's built-in ORM",
+    "acceptance_criteria": "Task assignment is implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/task-assignment"
   },
   {
     "id": 10,
-    "title": "Implement Project Management Features",
-    "department": "Backend",
-    "description": "Implement project management features for the Tonymage platform",
-    "acceptance_criteria": "Project management features are implemented and working as expected",
-    "estimated_cost_usd": 320,
-    "branch_name": "feature/project-management"
+    "title": "Design project dashboard",
+    "department": "Frontend",
+    "description": "Design the project dashboard for Tonymage using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "Project dashboard is designed and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/project-dashboard"
   },
   {
     "id": 11,
-    "title": "Implement AI Model Training",
-    "department": "Backend",
-    "description": "Implement AI model training for the Tonymage platform",
-    "acceptance_criteria": "AI model training is implemented and working as expected",
-    "estimated_cost_usd": 380,
-    "branch_name": "feature/ai-model-training"
+    "title": "Implement project dashboard",
+    "department": "Frontend",
+    "description": "Implement the project dashboard using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "Project dashboard is implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/project-dashboard"
   },
   {
     "id": 12,
-    "title": "Implement Deployment and Scaling",
+    "title": "Create API endpoints for project dashboard",
     "department": "Backend",
-    "description": "Implement deployment and scaling for the Tonymage platform",
-    "acceptance_criteria": "Deployment and scaling are implemented and working as expected",
-    "estimated_cost_usd": 420,
-    "branch_name": "feature/deployment-scaling"
+    "description": "Create API endpoints for project dashboard using Django's built-in API framework",
+    "acceptance_criteria": "API endpoints for project dashboard are created and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/api-project-dashboard"
   },
   {
     "id": 13,
-    "title": "Implement Monitoring and Logging",
+    "title": "Implement user notification",
     "department": "Backend",
-    "description": "Implement monitoring and logging for the Tonymage platform",
-    "acceptance_criteria": "Monitoring and logging are implemented and working as expected",
-    "estimated_cost_usd": 460,
-    "branch_name": "feature/monitoring-logging"
+    "description": "Implement user notification using Django's built-in messaging system",
+    "acceptance_criteria": "User notification is implemented and functional",
+    "estimated_cost_usd": 180,
+    "branch_name": "feature/user-notification"
   },
   {
     "id": 14,
-    "title": "Implement Security Features",
-    "department": "Backend",
-    "description": "Implement security features for the Tonymage platform",
-    "acceptance_criteria": "Security features are implemented and working as expected",
-    "estimated_cost_usd": 500,
-    "branch_name": "feature/security-features"
+    "title": "Design user settings",
+    "department": "Frontend",
+    "description": "Design the user settings for Tonymage using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "User settings are designed and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/user-settings"
   },
   {
     "id": 15,
-    "title": "Implement Backup and Recovery",
-    "department": "Backend",
-    "description": "Implement backup and recovery for the Tonymage platform",
-    "acceptance_criteria": "Backup and recovery are implemented and working as expected",
-    "estimated_cost_usd": 540,
-    "branch_name": "feature/backup-recovery"
+    "title": "Implement user settings",
+    "department": "Frontend",
+    "description": "Implement the user settings using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "User settings are implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/user-settings"
   },
   {
     "id": 16,
-    "title": "Implement User Management",
+    "title": "Create API endpoints for user settings",
     "department": "Backend",
-    "description": "Implement user management for the Tonymage platform",
-    "acceptance_criteria": "User management is implemented and working as expected",
-    "estimated_cost_usd": 580,
-    "branch_name": "feature/user-management"
+    "description": "Create API endpoints for user settings using Django's built-in API framework",
+    "acceptance_criteria": "API endpoints for user settings are created and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/api-user-settings"
   },
   {
     "id": 17,
-    "title": "Implement Role-Based Access Control",
+    "title": "Implement project reporting",
     "department": "Backend",
-    "description": "Implement role-based access control for the Tonymage platform",
-    "acceptance_criteria": "Role-based access control is implemented and working as expected",
-    "estimated_cost_usd": 620,
-    "branch_name": "feature/role-based-access-control"
+    "description": "Implement project reporting using Django's built-in ORM",
+    "acceptance_criteria": "Project reporting is implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/project-reporting"
   },
   {
     "id": 18,
-    "title": "Implement API Documentation",
-    "department": "Backend",
-    "description": "Implement API documentation for the Tonymage platform",
-    "acceptance_criteria": "API documentation is implemented and working as expected",
-    "estimated_cost_usd": 660,
-    "branch_name": "feature/api-documentation"
+    "title": "Design project reporting dashboard",
+    "department": "Frontend",
+    "description": "Design the project reporting dashboard for Tonymage using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "Project reporting dashboard is designed and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/project-reporting-dashboard"
   },
   {
     "id": 19,
-    "title": "Implement Testing and Quality Assurance",
-    "department": "Backend",
-    "description": "Implement testing and quality assurance for the Tonymage platform",
-    "acceptance_criteria": "Testing and quality assurance are implemented and working as expected",
-    "estimated_cost_usd": 700,
-    "branch_name": "feature/testing-quality-assurance"
+    "title": "Implement project reporting dashboard",
+    "department": "Frontend",
+    "description": "Implement the project reporting dashboard using HTML, CSS, and JavaScript",
+    "acceptance_criteria": "Project reporting dashboard is implemented and functional",
+    "estimated_cost_usd": 220,
+    "branch_name": "feature/project-reporting-dashboard"
   },
   {
     "id": 20,
-    "title": "Implement Deployment and Rollback",
+    "title": "Create API endpoints for project reporting dashboard",
     "department": "Backend",
-    "description": "Implement deployment and rollback for the Tonymage platform",
-    "acceptance_criteria": "Deployment and rollback are implemented and working as expected",
-    "estimated_cost_usd": 740,
-    "branch_name": "feature/deployment-rollback"
+    "description": "Create API endpoints for project reporting dashboard using Django's built-in API framework",
+    "acceptance_criteria": "API endpoints for project reporting dashboard are created and functional",
+    "estimated_cost_usd": 200,
+    "branch_name": "feature/api-project-reporting-dashboard"
   }
 ]
 ```

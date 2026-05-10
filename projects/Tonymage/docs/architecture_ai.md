@@ -1,221 +1,100 @@
 **Tonymage Technical Architecture**
 =====================================
 
-### 1. Recommended Stack
--------------------------
+**Recommended Stack**
+--------------------
 
 * **Language**: Python 3.9+
 * **Framework**: Django 4.0+
 * **Database**: PostgreSQL 13+
-* **Cloud Provider**: AWS (EC2, RDS, S3, etc.)
-* **Containerization**: Docker
-* **Orchestration**: Kubernetes
+* **Server**: Apache 2.4+
+* **Operating System**: Linux (Ubuntu 20.04+)
 
-### 2. App Structure
----------------------
+**App Structure**
+----------------
 
-* **Project Structure**:
-```markdown
-tonymage/
-    tonymage/
-        __init__.py
-        settings.py
-        urls.py
-        wsgi.py
-    apps/
-        project/
-            __init__.py
-            models.py
-            views.py
-            urls.py
-        ai/
-            __init__.py
-            models.py
-            views.py
-            urls.py
-        integrations/
-            __init__.py
-            models.py
-            views.py
-            urls.py
-    static/
-        css/
-        js/
-    templates/
-        base.html
-        project/
-            project.html
-        ai/
-            ai.html
-    requirements.txt
-    manage.py
-```
-* **App Structure**:
-```markdown
-tonymage/
-    apps/
-        project/
-            models/
-                project.py
-                task.py
-            views/
-                project_views.py
-                task_views.py
-            urls/
-                project_urls.py
-        ai/
-            models/
-                ai.py
-                agent.py
-            views/
-                ai_views.py
-                agent_views.py
-            urls/
-                ai_urls.py
-        integrations/
-            models/
-                integration.py
-            views/
-                integration_views.py
-            urls/
-                integration_urls.py
-```
-### 3. Database Model
----------------------
+* **tonymage**: le nom du projet
+ * **tonymage**: le nom de l'application
+  * **settings**: les paramètres de l'application
+  * **urls**: les URLs de l'application
+  * **wsgi**: le serveur WSGI
+* **apps**: les applications de l'application
+ * **core**: l'application principale
+  * **models**: les modèles de données
+  * **views**: les vues de l'application
+  * **forms**: les formulaires de l'application
+  * **utils**: les outils de l'application
+* **static**: les fichiers statiques de l'application
+* **media**: les fichiers multimédias de l'application
 
-* **Project Model**:
-```python
-from django.db import models
-
-class Project(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    start_date = models.DateField()
-    end_date = models.DateField()
-    tasks = models.ManyToManyField(Task)
-```
-* **Task Model**:
-```python
-from django.db import models
-
-class Task(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    start_date = models.DateField()
-    end_date = models.DateField()
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
-```
-* **AI Model**:
-```python
-from django.db import models
-
-class AI(models.Model):
-    name = models.CharField(max_length=255)
-    description = models.TextField()
-    model = models.FileField(upload_to='ai_models/')
-```
-### 4. API Design
+**Database Model**
 -----------------
 
-* **API Endpoints**:
-```markdown
-GET /projects/
-GET /projects/{id}/
-POST /projects/
-PUT /projects/{id}/
-DELETE /projects/{id}/
+* **Project**: un projet
+ * **id**: l'identifiant du projet
+ * **name**: le nom du projet
+ * **description**: la description du projet
+* **Task**: une tâche
+ * **id**: l'identifiant de la tâche
+ * **project**: le projet àquel la tâche appartient
+ * **name**: le nom de la tâche
+ * **description**: la description de la tâche
+* **User**: un utilisateur
+ * **id**: l'identifiant de l'utilisateur
+ * **username**: le nom d'utilisateur de l'utilisateur
+ * **email**: l'adresse e-mail de l'utilisateur
+* **Assignment**: une affectation de tâche à un utilisateur
+ * **id**: l'identifiant de l'affectation
+ * **task**: la tâche à laquelle l'utilisateur est affecté
+ * **user**: l'utilisateur affecté à la tâche
 
-GET /tasks/
-GET /tasks/{id}/
-POST /tasks/
-PUT /tasks/{id}/
-DELETE /tasks/{id}/
+**API Design**
+----------------
 
-GET /ai/
-GET /ai/{id}/
-POST /ai/
-PUT /ai/{id}/
-DELETE /ai/{id}/
-```
-* **API Request/Response**:
-```python
-from rest_framework import status
-from rest_framework.response import Response
+* **GET /projects**: récupérer la liste des projets
+* **GET /projects/{id}**: récupérer un projet par son identifiant
+* **POST /projects**: créer un nouveau projet
+* **PUT /projects/{id}**: mettre à jour un projet par son identifiant
+* **DELETE /projects/{id}**: supprimer un projet par son identifiant
+* **GET /tasks**: récupérer la liste des tâches
+* **GET /tasks/{id}**: récupérer une tâche par son identifiant
+* **POST /tasks**: créer une nouvelle tâche
+* **PUT /tasks/{id}**: mettre à jour une tâche par son identifiant
+* **DELETE /tasks/{id}**: supprimer une tâche par son identifiant
+* **GET /users**: récupérer la liste des utilisateurs
+* **GET /users/{id}**: récupérer un utilisateur par son identifiant
+* **POST /users**: créer un nouveau utilisateur
+* **PUT /users/{id}**: mettre à jour un utilisateur par son identifiant
+* **DELETE /users/{id}**: supprimer un utilisateur par son identifiant
 
-class ProjectView(APIView):
-    def get(self, request):
-        projects = Project.objects.all()
-        return Response({'projects': projects}, status=status.HTTP_200_OK)
+**Auth/Security**
+-----------------
 
-    def post(self, request):
-        project = Project.objects.create(**request.data)
-        return Response({'project': project}, status=status.HTTP_201_CREATED)
-```
-### 5. Auth/Security
+* **Authentication**: utiliser Django's built-in authentification
+* **Authorization**: utiliser Django's built-in autorisation
+* **Password Hashing**: utiliser Django's built-in hashing de mot de passe
+* **CSRF Protection**: utiliser Django's built-in protection contre les attaques CSRF
+
+**Deployment Plan**
 -------------------
 
-* **Authentication**:
-```python
-from rest_framework.authentication import SessionAuthentication
-from rest_framework.permissions import IsAuthenticated
+* **Development**: utiliser un environnement de développement local (e.g. Docker)
+* **Testing**: utiliser un environnement de test (e.g. Docker)
+* **Staging**: utiliser un environnement de pré-production (e.g. Docker)
+* **Production**: utiliser un environnement de production (e.g. Docker)
 
-class ProjectView(APIView):
-    authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated]
+**Testing Strategy**
+---------------------
 
-    def get(self, request):
-        # ...
-```
-* **Authorization**:
-```python
-from rest_framework.permissions import IsAdminUser
+* **Unit Tests**: écrire des tests unitaires pour chaque module de l'application
+* **Integration Tests**: écrire des tests d'intégration pour chaque fonctionnalité de l'application
+* **System Tests**: écrire des tests système pour chaque scénario d'utilisation de l'application
 
-class ProjectView(APIView):
-    permission_classes = [IsAdminUser]
-
-    def get(self, request):
-        # ...
-```
-### 6. Deployment Plan
-----------------------
-
-* **Containerization**:
-```bash
-docker build -t tonymage .
-docker run -p 8000:8000 tonymage
-```
-* **Orchestration**:
-```bash
-kubectl apply -f deployment.yaml
-kubectl get pods
-```
-### 7. Testing Strategy
+**Risks and Tradeoffs**
 -------------------------
 
-* **Unit Testing**:
-```python
-from django.test import TestCase
+* **Complexité technique**: la plateforme nécessite une complexité technique importante pour implémenter les fonctionnalités d'IA multi-agents et d'analyse de données.
+* **Intégration avec les outils de développement**: l'intégration avec les outils de développement peut être complexe et nécessiter des ajustements importants.
+* **Adoption par les utilisateurs**: la plateforme peut nécessiter du temps pour être adoptée par les utilisateurs.
 
-class ProjectTestCase(TestCase):
-    def test_project_creation(self):
-        project = Project.objects.create(**{'name': 'Test Project'})
-        self.assertEqual(project.name, 'Test Project')
-```
-* **Integration Testing**:
-```python
-from rest_framework.test import APITestCase
-
-class ProjectAPITestCase(APITestCase):
-    def test_project_creation(self):
-        response = self.client.post('/projects/', {'name': 'Test Project'})
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-```
-### 8. Risks and Tradeoffs
----------------------------
-
-* **Risk 1: Complexity of AI Multi-Agent System**
-	+ Tradeoff: Use a simpler AI model or use a pre-trained model to reduce complexity.
-* **Risk 2: Difficulty of Integration with Development Tools**
-	+ Tradeoff: Use a third-party library or service to simplify integration.
-* **Risk 3: Security and Confidentiality of Data**
-	+ Tradeoff: Use encryption and secure protocols to protect data.
+En résumé, la plateforme Tonymage nécessite une complexité technique importante pour implémenter les fonctionnalités d'IA multi-agents et d'analyse de données. L'intégration avec les outils de développement peut être complexe et nécessiter des ajustements importants. La plateforme peut nécessiter du temps pour être adoptée par les utilisateurs.
