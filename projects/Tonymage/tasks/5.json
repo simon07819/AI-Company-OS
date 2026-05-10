@@ -2,14 +2,10 @@
   "id": "5",
   "title": "Implement User Authentication",
   "department": "Backend",
-  "description": "Implement user authentication using Django's built-in auth system",
-  "acceptance_criteria": "User authentication is implemented with required functionality",
-  "estimated_cost_usd": 125,
-  "branch_name": "feature/user-auth",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:22:19.125184",
-  "completed_at": "2026-05-10T01:22:26.433972",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/124"
+  "description": "Implement user authentication for the Tonymage platform",
+  "acceptance_criteria": "User authentication is implemented and working as expected",
+  "estimated_cost_usd": 120,
+  "branch_name": "feature/user-authentication",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

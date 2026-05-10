@@ -1,15 +1,11 @@
 {
   "id": "1",
-  "title": "Implement Django Project Structure",
+  "title": "Implement Project Structure",
   "department": "Backend",
-  "description": "Create a basic Django project structure",
-  "acceptance_criteria": "Project structure is created with required apps and models",
-  "estimated_cost_usd": 50,
+  "description": "Create the project structure for the Tonymage platform",
+  "acceptance_criteria": "The project structure is created and the necessary files are in place",
+  "estimated_cost_usd": 100,
   "branch_name": "feature/project-structure",
-  "status": "failed",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T01:20:31.491288",
-  "failed_at": "2026-05-10T01:20:31.728955",
-  "error": "Task 1 is not queued or locked for this worker (status: failed)."
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
   "id": "20",
-  "title": "Implement Task Tests",
+  "title": "Implement Deployment and Rollback",
   "department": "Backend",
-  "description": "Create tests for task-related operations",
-  "acceptance_criteria": "Tests are created with required functionality",
-  "estimated_cost_usd": 150,
-  "branch_name": "feature/task-tests",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:39:16.651630",
-  "completed_at": "2026-05-10T01:39:22.849111",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/140"
+  "description": "Implement deployment and rollback for the Tonymage platform",
+  "acceptance_criteria": "Deployment and rollback are implemented and working as expected",
+  "estimated_cost_usd": 740,
+  "branch_name": "feature/deployment-rollback",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

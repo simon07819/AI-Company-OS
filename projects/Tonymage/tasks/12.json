@@ -1,15 +1,11 @@
 {
   "id": "12",
-  "title": "Implement User Templates",
-  "department": "Frontend",
-  "description": "Create templates for user-related operations",
-  "acceptance_criteria": "Templates are created with required functionality",
-  "estimated_cost_usd": 75,
-  "branch_name": "feature/user-templates",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T01:27:06.923393",
-  "completed_at": "2026-05-10T01:27:13.919841",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/129"
+  "title": "Implement Deployment and Scaling",
+  "department": "Backend",
+  "description": "Implement deployment and scaling for the Tonymage platform",
+  "acceptance_criteria": "Deployment and scaling are implemented and working as expected",
+  "estimated_cost_usd": 420,
+  "branch_name": "feature/deployment-scaling",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
   "id": "16",
-  "title": "Implement Project JavaScript Code",
-  "department": "Frontend",
-  "description": "Create JavaScript code for project-related operations",
-  "acceptance_criteria": "JavaScript code is created with required functionality",
-  "estimated_cost_usd": 100,
-  "branch_name": "feature/project-js",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T01:31:00.491745",
-  "completed_at": "2026-05-10T01:31:07.211959",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/135"
+  "title": "Implement User Management",
+  "department": "Backend",
+  "description": "Implement user management for the Tonymage platform",
+  "acceptance_criteria": "User management is implemented and working as expected",
+  "estimated_cost_usd": 580,
+  "branch_name": "feature/user-management",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

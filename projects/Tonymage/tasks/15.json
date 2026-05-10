@@ -1,15 +1,11 @@
 {
   "id": "15",
-  "title": "Implement User CSS Styles",
-  "department": "Frontend",
-  "description": "Create CSS styles for user-related operations",
-  "acceptance_criteria": "CSS styles are created with required functionality",
-  "estimated_cost_usd": 50,
-  "branch_name": "feature/user-css",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T01:28:19.239751",
-  "completed_at": "2026-05-10T01:28:25.199531",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/133"
+  "title": "Implement Backup and Recovery",
+  "department": "Backend",
+  "description": "Implement backup and recovery for the Tonymage platform",
+  "acceptance_criteria": "Backup and recovery are implemented and working as expected",
+  "estimated_cost_usd": 540,
+  "branch_name": "feature/backup-recovery",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

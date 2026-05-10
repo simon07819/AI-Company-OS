@@ -1,15 +1,11 @@
 {
   "id": "6",
-  "title": "Implement Authorization and Permissions",
-  "department": "Backend",
-  "description": "Implement authorization and permissions using Django's built-in permission system",
-  "acceptance_criteria": "Authorization and permissions are implemented with required functionality",
-  "estimated_cost_usd": 150,
-  "branch_name": "feature/authorization",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T01:22:19.297727",
-  "completed_at": "2026-05-10T01:22:26.554554",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/123"
+  "title": "Design Frontend UI",
+  "department": "Frontend",
+  "description": "Design the frontend UI for the Tonymage platform",
+  "acceptance_criteria": "The frontend UI is designed and working as expected",
+  "estimated_cost_usd": 180,
+  "branch_name": "feature/frontend-ui",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

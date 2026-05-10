@@ -1,15 +1,11 @@
 {
   "id": "13",
-  "title": "Implement Project CSS Styles",
-  "department": "Frontend",
-  "description": "Create CSS styles for project-related operations",
-  "acceptance_criteria": "CSS styles are created with required functionality",
-  "estimated_cost_usd": 50,
-  "branch_name": "feature/project-css",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-1",
-  "locked_at": "2026-05-10T01:28:19.003307",
-  "completed_at": "2026-05-10T01:28:25.014570",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/131"
+  "title": "Implement Monitoring and Logging",
+  "department": "Backend",
+  "description": "Implement monitoring and logging for the Tonymage platform",
+  "acceptance_criteria": "Monitoring and logging are implemented and working as expected",
+  "estimated_cost_usd": 460,
+  "branch_name": "feature/monitoring-logging",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
   "id": "9",
-  "title": "Implement User Views",
+  "title": "Implement Authentication and Authorization",
   "department": "Backend",
-  "description": "Create views for user-related operations",
-  "acceptance_criteria": "Views are created with required functionality",
-  "estimated_cost_usd": 100,
-  "branch_name": "feature/user-views",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T01:23:59.507060",
-  "completed_at": "2026-05-10T01:24:05.603748",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/127"
+  "description": "Implement authentication and authorization for the Tonymage platform",
+  "acceptance_criteria": "Authentication and authorization are implemented and working as expected",
+  "estimated_cost_usd": 280,
+  "branch_name": "feature/authentication-authorization",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

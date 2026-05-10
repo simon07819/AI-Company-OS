@@ -1,15 +1,11 @@
 {
   "id": "14",
-  "title": "Implement Task CSS Styles",
-  "department": "Frontend",
-  "description": "Create CSS styles for task-related operations",
-  "acceptance_criteria": "CSS styles are created with required functionality",
-  "estimated_cost_usd": 50,
-  "branch_name": "feature/task-css",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:28:19.120668",
-  "completed_at": "2026-05-10T01:28:25.085971",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/132"
+  "title": "Implement Security Features",
+  "department": "Backend",
+  "description": "Implement security features for the Tonymage platform",
+  "acceptance_criteria": "Security features are implemented and working as expected",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/security-features",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
   "id": "17",
-  "title": "Implement Task JavaScript Code",
-  "department": "Frontend",
-  "description": "Create JavaScript code for task-related operations",
-  "acceptance_criteria": "JavaScript code is created with required functionality",
-  "estimated_cost_usd": 100,
-  "branch_name": "feature/task-js",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:31:00.620985",
-  "completed_at": "2026-05-10T01:31:07.271719",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/134"
+  "title": "Implement Role-Based Access Control",
+  "department": "Backend",
+  "description": "Implement role-based access control for the Tonymage platform",
+  "acceptance_criteria": "Role-based access control is implemented and working as expected",
+  "estimated_cost_usd": 620,
+  "branch_name": "feature/role-based-access-control",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

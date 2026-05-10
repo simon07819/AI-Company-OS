@@ -1,15 +1,11 @@
 {
   "id": "3",
-  "title": "Implement Project API Endpoints",
+  "title": "Implement AI Multi-Agent System",
   "department": "Backend",
-  "description": "Create API endpoints for project CRUD operations",
-  "acceptance_criteria": "API endpoints are created with required functionality",
-  "estimated_cost_usd": 100,
-  "branch_name": "feature/project-api",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-3",
-  "locked_at": "2026-05-10T01:20:31.725415",
-  "completed_at": "2026-05-10T01:20:39.358357",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/121"
+  "description": "Implement the AI multi-agent system for the Tonymage platform",
+  "acceptance_criteria": "The AI multi-agent system is implemented and working as expected",
+  "estimated_cost_usd": 500,
+  "branch_name": "feature/ai-multi-agent",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

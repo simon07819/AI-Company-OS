@@ -1,15 +1,11 @@
 {
   "id": "2",
-  "title": "Create Project Models",
+  "title": "Design Database Schema",
   "department": "Backend",
-  "description": "Create models for Project and Task",
-  "acceptance_criteria": "Models are created with required fields and relationships",
-  "estimated_cost_usd": 75,
-  "branch_name": "feature/project-models",
-  "status": "failed",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:20:31.608164",
-  "failed_at": "2026-05-10T01:20:31.787628",
-  "error": "Task 2 is not queued or locked for this worker (status: failed)."
+  "description": "Design the database schema for the Tonymage platform",
+  "acceptance_criteria": "The database schema is designed and the necessary migrations are created",
+  "estimated_cost_usd": 150,
+  "branch_name": "feature/database-schema",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }

@@ -1,15 +1,11 @@
 {
   "id": "11",
-  "title": "Implement Task Templates",
-  "department": "Frontend",
-  "description": "Create templates for task-related operations",
-  "acceptance_criteria": "Templates are created with required functionality",
-  "estimated_cost_usd": 75,
-  "branch_name": "feature/task-templates",
-  "status": "completed_real",
-  "mode": "DRY_RUN",
-  "locked_by": "worker-2",
-  "locked_at": "2026-05-10T01:27:06.796764",
-  "completed_at": "2026-05-10T01:27:13.858352",
-  "pr_url": "https://github.com/simon07819/tonymage/pull/128"
+  "title": "Implement AI Model Training",
+  "department": "Backend",
+  "description": "Implement AI model training for the Tonymage platform",
+  "acceptance_criteria": "AI model training is implemented and working as expected",
+  "estimated_cost_usd": 380,
+  "branch_name": "feature/ai-model-training",
+  "status": "queued",
+  "mode": "DRY_RUN"
 }
