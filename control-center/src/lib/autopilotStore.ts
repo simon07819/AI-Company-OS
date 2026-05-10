@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists, writeAgentRun } from "./workspaceStore";
 import { runNvidiaAdapter } from "./nvidiaAgentAdapter";
+import { reviewDeliverables } from "./deliverableReview";
 import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./missionTypes";
 import { generateMissionDeliverables } from "./missionDeliverables";
 import { updateAgentState } from "./agentRuntime";
@@ -904,6 +905,27 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
       latestSession.logs,
       tasks[targetIndex],
     );
+  }
+
+  // Trigger quality review on every successful task completion
+  if (executionOk) {
+    const latestForReview = getSession(sessionId);
+    if (latestForReview) {
+      const reviewReport = reviewDeliverables(
+        sessionId,
+        latestForReview.projectName,
+        latestForReview.missionType
+      );
+      if (reviewReport && reviewReport.deliverables.length > 0) {
+        appendLog(sessionId, {
+          timestamp: new Date().toISOString(),
+          level: "info",
+          agent,
+          message: `Quality review updated — ${reviewReport.deliverables.length} deliverables, score ${reviewReport.globalScore}/100`,
+          source: "review",
+        });
+      }
+    }
   }
 
   return {

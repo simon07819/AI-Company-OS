@@ -28,7 +28,10 @@ import {
   Rocket,
   RotateCcw,
   ShieldCheck,
+  Star,
   Terminal,
+  ThumbsDown,
+  ThumbsUp,
   Zap,
 } from "lucide-react";
 
@@ -92,6 +95,34 @@ interface AutopilotSession {
   createdAt: string;
   updatedAt: string;
 }
+
+interface ReviewReport {
+  sessionId: string;
+  globalScore: number;
+  status: string;
+  deliverables: Array<{
+    path: string;
+    name: string;
+    score: number;
+    status: string;
+    checks: Array<{ name: string; passed: boolean; detail: string }>;
+    warnings: string[];
+    reviewedAt: string;
+    approvedAt?: string;
+    rejectedAt?: string;
+    rejectionReason?: string;
+  }>;
+  clientReady: boolean;
+  generatedAt: string;
+  updatedAt: string;
+}
+
+const REVIEW_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  draft:        { label: "DRAFT",        color: "#8b97b2", bg: "rgba(139,151,178,0.1)" },
+  needs_review: { label: "NEEDS REVIEW", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  approved:     { label: "APPROVED",     color: "#34d399", bg: "rgba(52,211,153,0.12)" },
+  rejected:     { label: "REJECTED",     color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
+};
 
 const STATUS_CONFIG: Record<SessionStatus, { label: string; color: string; bg: string }> = {
   running:   { label: "RUNNING",   color: "#34d399", bg: "rgba(16,185,129,0.12)" },
@@ -242,6 +273,9 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
     generatedAt: string;
   } | null>(null);
   const [validatingProject, setValidatingProject] = useState(false);
+  const [review, setReview] = useState<ReviewReport | null>(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewActionLoading, setReviewActionLoading] = useState<string | null>(null);
 
   const loadWorkspace = async () => {
     if (!sessionId) return;
@@ -350,7 +384,8 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
     void loadWorkspace();
     void loadDeliverables();
     void loadValidation();
-    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); void loadDeliverables(); }, 4000);
+    void loadReview();
+    const iv = setInterval(() => { void loadSession(); void loadWorkspace(); void loadDeliverables(); void loadReview(); }, 4000);
     return () => clearInterval(iv);
   }, [sessionId]);
 
@@ -425,6 +460,70 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
       }
     } catch {
       // ignore
+    }
+  };
+
+  const loadReview = async () => {
+    if (!sessionId) return;
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/reviews`, { cache: "no-store" });
+      const payload = (await res.json()) as { ok: boolean; report?: ReviewReport | null };
+      if (payload.ok) setReview(payload.report ?? null);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRunReview = async () => {
+    if (!sessionId) return;
+    setReviewLoading(true);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/review-deliverables`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const payload = (await res.json()) as { ok: boolean; report?: ReviewReport };
+      if (payload.ok && payload.report) setReview(payload.report);
+    } catch {
+      // ignore
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const handleApprove = async (delivPath: string) => {
+    if (!sessionId) return;
+    setReviewActionLoading(delivPath);
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/approve-deliverable`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: delivPath }),
+      });
+      const payload = (await res.json()) as { ok: boolean; report?: ReviewReport };
+      if (payload.ok && payload.report) setReview(payload.report);
+    } catch {
+      // ignore
+    } finally {
+      setReviewActionLoading(null);
+    }
+  };
+
+  const handleReject = async (delivPath: string) => {
+    if (!sessionId) return;
+    setReviewActionLoading(delivPath + ":reject");
+    try {
+      const res = await fetch(`/api/autopilot/sessions/${sessionId}/reject-deliverable`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path: delivPath }),
+      });
+      const payload = (await res.json()) as { ok: boolean; report?: ReviewReport };
+      if (payload.ok && payload.report) setReview(payload.report);
+    } catch {
+      // ignore
+    } finally {
+      setReviewActionLoading(null);
     }
   };
 
@@ -1352,6 +1451,172 @@ export default function AutopilotSessionPage({ params }: { params: Promise<{ ses
           )}
         </section>
       )}
+
+      {/* ── QUALITY REVIEW ── */}
+      <section data-testid="quality-review-section" style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.6px" }}>
+              <Star size={12} style={{ display: "inline", marginRight: 4 }} /> Quality Review
+            </div>
+            {review?.clientReady && (
+              <span style={{
+                fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                background: "rgba(52,211,153,0.15)", color: "#34d399",
+                border: "1px solid rgba(52,211,153,0.3)",
+              }}>
+                Client-ready ✓
+              </span>
+            )}
+            {review && !review.clientReady && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, fontFamily: "ui-monospace, monospace",
+                color: review.globalScore >= 80 ? "#f59e0b" : review.globalScore >= 40 ? "#fb923c" : "#f43f5e",
+              }}>
+                {review.globalScore}/100
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleRunReview}
+            disabled={reviewLoading}
+            style={{
+              padding: "4px 12px", borderRadius: 4,
+              background: reviewLoading ? "var(--surface-2)" : "rgba(99,102,241,0.14)",
+              border: `1px solid ${reviewLoading ? "var(--border-2)" : "rgba(99,102,241,0.3)"}`,
+              color: reviewLoading ? "var(--text-3)" : "#818cf8",
+              fontWeight: 600, fontSize: 10, cursor: reviewLoading ? "not-allowed" : "pointer",
+              fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4,
+              transition: "all 140ms ease",
+            }}
+          >
+            {reviewLoading
+              ? <motion.span animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} style={{ display: "inline-block" }}>⚙</motion.span>
+              : <Star size={10} />
+            }
+            {review ? "Re-review" : "Run Review"}
+          </button>
+        </div>
+
+        {!review ? (
+          <div style={{ padding: 16, textAlign: "center", color: "var(--text-3)", fontSize: 12, background: "var(--bg-2)", borderRadius: "var(--radius-sm)" }}>
+            No review yet. Run a step or click Run Review to score deliverable quality.
+          </div>
+        ) : (
+          <div>
+            {/* Global score bar */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: "var(--text-3)" }}>Global score</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {(() => {
+                    const sc = REVIEW_STATUS_CONFIG[review.status] ?? REVIEW_STATUS_CONFIG.draft;
+                    return (
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 99, background: sc.bg, color: sc.color }}>
+                        {sc.label}
+                      </span>
+                    );
+                  })()}
+                  <span style={{ fontSize: 13, fontWeight: 800, fontFamily: "ui-monospace, monospace", color: "var(--text)" }}>
+                    {review.globalScore}/100
+                  </span>
+                </div>
+              </div>
+              <div style={{ height: 5, borderRadius: 3, background: "var(--border)", overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", borderRadius: 3,
+                  width: `${review.globalScore}%`,
+                  background: review.globalScore >= 80 ? "#34d399" : review.globalScore >= 40 ? "#f59e0b" : "#f43f5e",
+                  transition: "width 400ms ease",
+                }} />
+              </div>
+            </div>
+
+            {/* Deliverables list */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {review.deliverables.map((d) => {
+                const sc = REVIEW_STATUS_CONFIG[d.status] ?? REVIEW_STATUS_CONFIG.draft;
+                const isActioning = reviewActionLoading === d.path || reviewActionLoading === d.path + ":reject";
+                return (
+                  <div
+                    key={d.path}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      padding: "6px 10px", borderRadius: 4,
+                      background: "var(--bg-2)", border: "1px solid var(--border)",
+                    }}
+                  >
+                    <FileText size={11} style={{ flexShrink: 0, color: sc.color, opacity: 0.8 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {d.name}
+                        </span>
+                        <span style={{ fontSize: 8, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: sc.bg, color: sc.color, flexShrink: 0 }}>
+                          {sc.label}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "ui-monospace, monospace", color: "var(--text-3)", flexShrink: 0 }}>
+                          {d.score}/100
+                        </span>
+                      </div>
+                      {d.warnings.length > 0 && (
+                        <div style={{ fontSize: 9, color: "#f59e0b", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <AlertTriangle size={8} style={{ display: "inline", marginRight: 2 }} />
+                          {d.warnings.slice(0, 2).join(" · ")}
+                          {d.warnings.length > 2 && ` +${d.warnings.length - 2}`}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                      <button
+                        onClick={() => void handleApprove(d.path)}
+                        disabled={isActioning || d.status === "approved"}
+                        title="Approve"
+                        style={{
+                          padding: "3px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700,
+                          cursor: isActioning || d.status === "approved" ? "not-allowed" : "pointer",
+                          border: "1px solid rgba(52,211,153,0.3)",
+                          background: d.status === "approved" ? "rgba(52,211,153,0.15)" : "transparent",
+                          color: d.status === "approved" ? "#34d399" : "var(--text-3)",
+                          display: "flex", alignItems: "center", gap: 3,
+                          fontFamily: "inherit", transition: "all 120ms ease",
+                          opacity: isActioning ? 0.5 : 1,
+                        }}
+                      >
+                        <ThumbsUp size={9} />
+                      </button>
+                      <button
+                        onClick={() => void handleReject(d.path)}
+                        disabled={isActioning || d.status === "rejected"}
+                        title="Reject"
+                        style={{
+                          padding: "3px 6px", borderRadius: 3, fontSize: 9, fontWeight: 700,
+                          cursor: isActioning || d.status === "rejected" ? "not-allowed" : "pointer",
+                          border: "1px solid rgba(244,63,94,0.3)",
+                          background: d.status === "rejected" ? "rgba(244,63,94,0.15)" : "transparent",
+                          color: d.status === "rejected" ? "#f43f5e" : "var(--text-3)",
+                          display: "flex", alignItems: "center", gap: 3,
+                          fontFamily: "inherit", transition: "all 120ms ease",
+                          opacity: isActioning ? 0.5 : 1,
+                        }}
+                      >
+                        <ThumbsDown size={9} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-3)" }}>
+              {review.deliverables.length} deliverable{review.deliverables.length !== 1 ? "s" : ""} ·
+              {" "}{review.deliverables.filter((d) => d.status === "approved").length} approved ·
+              {" "}{review.deliverables.filter((d) => d.status === "rejected").length} rejected ·
+              {" "}last updated {new Date(review.updatedAt).toLocaleTimeString("en-CA", { hour12: false, hour: "2-digit", minute: "2-digit" })}
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* ── RUNTIME HEALTH ── */}
       <section style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", padding: "18px 22px", marginBottom: 40 }}>
