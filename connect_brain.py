@@ -1,3 +1,4 @@
+import argparse
 import os
 import json
 import re
@@ -291,6 +292,18 @@ def normalize_tasks(tasks):
     return valid_tasks
 
 def main():
+    global BASE, PROJECT_NAME, PROJECT
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--project", default="Tonymage")
+    parser.add_argument("--repo-path", default=BASE)
+    args = parser.parse_args()
+
+    BASE = os.path.abspath(os.path.expanduser(args.repo_path))
+    PROJECT_NAME = args.project
+    PROJECT = os.path.join(BASE, "projects", PROJECT_NAME)
+    print(f"Active project: {PROJECT_NAME}")
+
     memory = load_memory()
     memory["runs_count"] += 1
     memory["last_run_timestamp"] = datetime.utcnow().isoformat()
@@ -322,7 +335,7 @@ def main():
     except Exception:
         save_memory(memory)
         print("❌ L’IA n’a pas retourné du JSON parfait.")
-        print("Regarde: ~/AI-Company/projects/Tonymage/docs/tasks_raw_ai.json")
+        print(f"Regarde: {os.path.join(PROJECT, 'docs', 'tasks_raw_ai.json')}")
         return
 
     os.makedirs(tasks_dir, exist_ok=True)
@@ -356,9 +369,9 @@ def main():
     save_memory(memory)
 
     print(f"✅ Brain connecté. {len(created_titles)} tâches IA créées.")
-    print("📄 Specs: projects/Tonymage/docs/specs_ai.md")
-    print("🏗️ Architecture: projects/Tonymage/docs/architecture_ai.md")
-    print("📋 Tâches: projects/Tonymage/tasks/")
+    print(f"📄 Specs: projects/{PROJECT_NAME}/docs/specs_ai.md")
+    print(f"🏗️ Architecture: projects/{PROJECT_NAME}/docs/architecture_ai.md")
+    print(f"📋 Tâches: projects/{PROJECT_NAME}/tasks/")
 
 if __name__ == "__main__":
     main()

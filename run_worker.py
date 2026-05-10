@@ -313,7 +313,8 @@ def main():
     parser.add_argument("--limit", type=int, help="Run up to this many queued tasks.")
     parser.add_argument("--doctor", action="store_true", help="Print worker diagnostics.")
     parser.add_argument("--task-id", help="Run one specific queued task id.")
-    parser.add_argument("--project-path", default=DEFAULT_PROJECT, help="AI Company project path.")
+    parser.add_argument("--project", default="Tonymage", help="AI Company project name.")
+    parser.add_argument("--project-path", help="AI Company project path.")
     parser.add_argument("--repo-path", default=os.getcwd(), help="Git repo where the worker commits.")
     parser.add_argument("--base-branch", default="main", help="Branch the worker must start from and return to.")
     args = parser.parse_args()
@@ -329,8 +330,11 @@ def main():
     if args.task_id is not None:
         limit = 1
 
-    project_path = os.path.abspath(os.path.expanduser(args.project_path))
     repo_path = os.path.abspath(os.path.expanduser(args.repo_path))
+    project_path = os.path.abspath(os.path.expanduser(
+        args.project_path or os.path.join(repo_path, "projects", args.project)
+    ))
+    print(f"Active project: {os.path.basename(project_path)}")
 
     if args.doctor:
         return doctor(project_path, repo_path)
