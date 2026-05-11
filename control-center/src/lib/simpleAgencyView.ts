@@ -8,10 +8,12 @@ import { getAllOutputs, type OutputVisualPreview, type VisibleOutput } from "./v
 export interface SimpleCompany {
   id: string;
   name: string;
+  type: string;
   status: string;
   avatar: string;
   projectsCount: number;
   projectIds: string[];
+  hasPendingApproval: boolean;
   lastResult?: VisibleOutput;
 }
 
@@ -71,7 +73,10 @@ export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
   const workspaces = listWorkspaces();
   const pendingApprovals = collectPendingApprovals();
 
-  const approvals = pendingApprovals.slice(0, 20).map((item) => {
+  const approvals = pendingApprovals
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 20)
+    .map((item) => {
     const preview = getApprovalPreview(item.id);
     const visualPreview = visualFromPreview(preview);
     return {
@@ -91,10 +96,12 @@ export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
       return {
         id: workspace.id,
         name: workspace.name,
+        type: workspace.industry,
         status: companyStatus(workspace, sessions),
         avatar: initials(workspace.name),
         projectsCount: projectIds.length,
         projectIds,
+        hasPendingApproval: approvals.some((approval) => approval.item.sessionId && workspace.activeMissionIds.includes(approval.item.sessionId)),
         lastResult: missionOutputs[0],
       };
     })

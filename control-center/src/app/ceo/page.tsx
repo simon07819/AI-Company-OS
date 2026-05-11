@@ -22,6 +22,7 @@ import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
 type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
+type SimpleUiStatus = "working" | "preparing" | "ready" | "approved" | "changes" | "done" | "check";
 
 interface CeoAction {
   type: string;
@@ -82,10 +83,12 @@ interface VisibleOutput {
 interface CompanyGroup {
   id: string;
   name: string;
+  type?: string;
   status: string;
   avatar: string;
   projectsCount: number;
   projectIds: string[];
+  hasPendingApproval?: boolean;
   lastResult?: VisibleOutput;
 }
 
@@ -113,13 +116,24 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "Agents au travail",
   running: "Agents au travail",
   paused: "En pause",
-  review: "Attend approbation",
-  waiting_approval: "Attend approbation",
-  completed: "Resultat pret",
+  review: "Resultat pret - approbation requise",
+  waiting_approval: "Resultat pret - approbation requise",
+  completed: "Termine",
   delivered: "Livre",
   approved: "Approuve",
+  rejected: "Changements demandes",
+  changes_requested: "Changements demandes",
   failed: "A verifier",
 };
+
+const TECHNICAL_LOG_PATTERNS = [
+  "runtime scheduler",
+  "nvidia",
+  "scaffold",
+  "worker health",
+  "task queue",
+  "dependency",
+];
 
 function agentMeta(agentId: string) {
   return AGENT_META[agentId] ?? { name: agentId.replace(/_/g, " "), role: "Travaille sur la mission", avatar: agentId.slice(0, 2).toUpperCase(), color: "#94a3b8" };
@@ -127,6 +141,45 @@ function agentMeta(agentId: string) {
 
 function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? status.replace(/_/g, " ");
+}
+
+function simpleStatusFor(session?: AutopilotSession | null, output?: VisibleOutput | null, approval?: ApprovalCardData | null): { label: string; badge: string; kind: SimpleUiStatus; progress: number } {
+  if (approval) return { label: "Resultat pret - approbation requise", badge: "Pret a approuver", kind: "ready", progress: 100 };
+  if (output?.status === "approved") return { label: "Approuve", badge: "Approuve", kind: "approved", progress: 100 };
+  if (output?.status === "draft" && session?.status === "waiting_approval") return { label: "Changements demandes", badge: "A retravailler", kind: "changes", progress: 100 };
+  if (session?.status === "waiting_approval") return { label: "Resultat pret - approbation requise", badge: "Pret a approuver", kind: "ready", progress: 100 };
+  if (session?.status === "running") {
+    const progress = Math.max(session.progress, output ? 55 : 20);
+    return { label: output ? "Resultats en preparation" : "Agents au travail", badge: output ? "En preparation" : "Travaille", kind: output ? "preparing" : "working", progress };
+  }
+  if (session?.status === "completed") return { label: "Termine", badge: "Termine", kind: "done", progress: 100 };
+  if (session?.status === "failed") return { label: "A verifier", badge: "A verifier", kind: "check", progress: session.progress };
+  return { label: output ? statusLabel(output.status) : "En preparation", badge: output ? statusLabel(output.status) : "En preparation", kind: "preparing", progress: session?.progress ?? 0 };
+}
+
+function outputForProject(project: CeoProject, outputs: VisibleOutput[]) {
+  return outputs.find((output) => output.projectId === project.id || (!!project.sessionId && output.sessionId === project.sessionId)) ?? null;
+}
+
+function approvalForSession(sessionId: string | null | undefined, approvals: ApprovalCardData[]) {
+  if (!sessionId) return null;
+  return approvals.find((approval) => approval.item.sessionId === sessionId) ?? null;
+}
+
+function friendlyAgentAction(text: string) {
+  const lower = text.toLowerCase();
+  if (lower.includes("approval") || lower.includes("approbation")) return "Le premier concept est pret pour approbation.";
+  if (lower.includes("visible output") || lower.includes("generated visible")) return "Resultat visuel prepare.";
+  if (lower.includes("auto-execution") || lower.includes("étapes") || lower.includes("etapes")) return "Les agents ont avance automatiquement.";
+  if (lower.includes("équipe") || lower.includes("equipe") || lower.includes("assigned")) return "Equipe AI assignee au projet.";
+  if (lower.includes("brand") || lower.includes("creative")) return "Direction creative definie.";
+  if (lower.includes("design") || lower.includes("visual")) return "Concept visuel prepare.";
+  return text.replace(/Runtime scheduler started.*/i, "Mission demarree.");
+}
+
+function isSimpleLog(log: AutopilotSession["logs"][number]) {
+  const lower = `${log.source} ${log.message}`.toLowerCase();
+  return !TECHNICAL_LOG_PATTERNS.some((pattern) => lower.includes(pattern)) || lower.includes("approval") || lower.includes("visible output") || lower.includes("équipe") || lower.includes("equipe");
 }
 
 function Avatar({ label, color, pulse = false }: { label: string; color: string; pulse?: boolean }) {
@@ -163,19 +216,32 @@ export default function EasyAgencyOSPage() {
   const [logs, setLogs] = useState<AutopilotSession["logs"]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [changeRequestId, setChangeRequestId] = useState<string | null>(null);
+  const [changeRequestText, setChangeRequestText] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
-    const res = await fetch("/api/ceo/simple-agency", { cache: "no-store" });
-    const payload = await res.json().catch(() => ({}));
-    const view = payload.view ?? {};
-    setMessages(view.messages ?? []);
-    setProjects(view.projects ?? []);
-    setSessions(view.sessions ?? []);
-    setOutputs(view.outputs ?? []);
-    setApprovals(view.approvals ?? []);
-    setCompanies(view.companies ?? []);
-    setLogs(view.logs ?? []);
+    try {
+      const res = await fetch("/api/ceo/simple-agency", { cache: "no-store" });
+      if (!res.ok) throw new Error("Impossible de charger l'agence.");
+      const payload = await res.json().catch(() => ({}));
+      const view = payload.view ?? {};
+      setMessages(view.messages ?? []);
+      setProjects(view.projects ?? []);
+      setSessions(view.sessions ?? []);
+      setOutputs(view.outputs ?? []);
+      setApprovals(view.approvals ?? []);
+      setCompanies(view.companies ?? []);
+      setLogs(view.logs ?? []);
+      setLoadError(null);
+    } catch {
+      setLoadError("Connexion au runtime en attente. Nouvelle tentative automatique.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -191,6 +257,9 @@ export default function EasyAgencyOSPage() {
   const latestSession = sessions[0] ?? null;
   const activeSessionIds = new Set(sessions.filter((s) => s.status === "running" || s.status === "waiting_approval").map((s) => s.sessionId));
   const latestOutputs = outputs.slice(0, 5);
+  const primaryApproval = approvals[0] ?? null;
+  const primaryApprovalSession = primaryApproval?.item.sessionId ? sessions.find((session) => session.sessionId === primaryApproval.item.sessionId) : null;
+  const primaryStatus = simpleStatusFor(primaryApprovalSession ?? latestSession, latestOutputs[0] ?? null, primaryApproval);
 
   const agentRows = useMemo(() => {
     const ids = new Set<string>(["ceo"]);
@@ -202,22 +271,27 @@ export default function EasyAgencyOSPage() {
       const session = sessions.find((s) => s.assignedAgents?.some((a) => a.agentId === id) || s.tasks?.some((t) => t.agent === id));
       const task = session?.tasks?.find((t) => t.agent === id && (t.status === "running" || t.status === "queued"));
       const meta = agentMeta(id);
+      const agentOutput = outputs.find((output) => output.sessionId === session?.sessionId && output.assignedAgent === id);
+      const waiting = !!session && session.status === "waiting_approval";
       const active = id === "ceo" || task?.status === "running" || session?.status === "running";
-      return { id, ...meta, active, task: task?.title ?? meta.role };
+      const status = waiting
+        ? id === "ceo" ? "Attend ta decision" : agentOutput ? "A livre" : "Attend approbation"
+        : active ? "Travaille" : agentOutput ? "A livre" : "En ligne";
+      return { id, ...meta, active: active && !waiting, task: waiting && id === "ceo" ? "Attend ta decision" : agentOutput?.title ?? task?.title ?? meta.role, status, lastResult: agentOutput?.title };
     });
-  }, [sessions]);
+  }, [sessions, outputs]);
 
   const conversationItems = useMemo(() => {
     const items: Array<{ id: string; type: "message" | "agent" | "output" | "approval"; payload: CeoMessage | { agent: string; text: string; color: string } | VisibleOutput | ApprovalCardData; timestamp: string }> = [];
     for (const message of messages.slice(-18)) {
       items.push({ id: message.id, type: "message", payload: message, timestamp: message.timestamp });
     }
-    for (const log of logs.slice(0, 8)) {
+    for (const log of logs.filter(isSimpleLog).slice(0, 6)) {
       const meta = agentMeta(log.agent);
       items.push({
         id: `log-${log.id}`,
         type: "agent",
-        payload: { agent: meta.name, text: log.message, color: meta.color },
+        payload: { agent: meta.name, text: friendlyAgentAction(log.message), color: meta.color },
         timestamp: log.timestamp,
       });
     }
@@ -227,7 +301,7 @@ export default function EasyAgencyOSPage() {
         items.push({
           id: `task-${task.id}`,
           type: "agent",
-          payload: { agent: meta.name, text: task.status === "running" ? task.title : `${task.title} termine`, color: meta.color },
+          payload: { agent: meta.name, text: task.status === "running" ? task.title : "Action terminee.", color: meta.color },
           timestamp: new Date().toISOString(),
         });
       }
@@ -236,6 +310,12 @@ export default function EasyAgencyOSPage() {
       items.push({ id: `output-${output.id}`, type: "output", payload: output, timestamp: output.updatedAt });
     }
     for (const approval of approvals.slice(0, 1)) {
+      items.push({
+        id: `ceo-approval-${approval.item.id}`,
+        type: "agent",
+        payload: { agent: "CEO AI", text: "Le premier concept est pret. Tu peux l'approuver ou demander des changements.", color: "#f59e0b" },
+        timestamp: approval.item.createdAt,
+      });
       items.push({ id: `approval-${approval.item.id}`, type: "approval", payload: approval, timestamp: approval.item.createdAt });
     }
     return items.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()).slice(-24);
@@ -262,26 +342,42 @@ export default function EasyAgencyOSPage() {
   };
 
   const approveOutput = async (outputId: string) => {
+    setActionBusy(outputId);
     await fetch("/api/visible-outputs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ outputId, status: "approved" }),
     });
     await load();
+    setActionBusy(null);
   };
 
   const approveApproval = async (approvalId: string) => {
-    await fetch(`/api/approvals/${approvalId}/approve`, { method: "POST" });
-    await load();
+    setActionBusy(approvalId);
+    try {
+      await fetch(`/api/approvals/${approvalId}/approve`, { method: "POST" });
+      setMessages((prev) => [...prev, { id: `approved-${Date.now()}`, role: "ceo", text: "C'est approuve. Je marque ce resultat comme valide.", timestamp: new Date().toISOString() }]);
+      await load();
+    } finally {
+      setActionBusy(null);
+    }
   };
 
-  const rejectApproval = async (approvalId: string) => {
-    await fetch(`/api/approvals/${approvalId}/reject`, {
+  const rejectApproval = async (approvalId: string, reason: string) => {
+    setActionBusy(approvalId);
+    try {
+      await fetch(`/api/approvals/${approvalId}/reject`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason: "Changements demandes depuis le mode simple CEO." }),
-    });
-    await load();
+        body: JSON.stringify({ reason }),
+      });
+      setMessages((prev) => [...prev, { id: `changes-${Date.now()}`, role: "ceo", text: "Demande envoyee. Le CEO va preparer une nouvelle version.", timestamp: new Date().toISOString() }]);
+      setChangeRequestId(null);
+      setChangeRequestText("");
+      await load();
+    } finally {
+      setActionBusy(null);
+    }
   };
 
   return (
@@ -291,21 +387,27 @@ export default function EasyAgencyOSPage() {
         <header className="topbar">
           <div className="brand-mark"><Sparkles size={17} /> AI Company OS</div>
           <div className="status-pill"><span className="online-dot" /> CEO AI en ligne</div>
-          <div className="status-pill soft"><Zap size={13} /> Agence active</div>
+          <div className={`status-pill soft ${primaryStatus.kind === "ready" ? "ready" : ""}`}><Zap size={13} /> {primaryStatus.badge}</div>
           <Link href="/ceo/expert" className="expert-link">Mode expert <ChevronRight size={13} /></Link>
         </header>
 
         <aside className="left-rail">
           <SectionTitle icon={<BriefcaseBusiness size={14} />} label="Mes entreprises" />
           <div className="contact-list">
-            {companies.map((company) => (
+            {companies.length === 0 ? (
+              <div className="empty-hint">
+                Commence par dire au CEO quelle entreprise tu veux lancer.
+                <span>Exemples: compagnie de photo, marque de vetements, agence marketing AI.</span>
+              </div>
+            ) : companies.map((company) => (
               <div key={company.id} className="company-card active">
                 <Avatar label={company.avatar} color="#38bdf8" pulse={company.status !== "Pret a lancer"} />
                 <div className="contact-copy">
                   <strong>{company.name}</strong>
-                  <span>{company.status} · {company.projectsCount} projet{company.projectsCount > 1 ? "s" : ""}</span>
+                  <span>{company.type ?? "Entreprise"} · {company.projectsCount} projet{company.projectsCount > 1 ? "s" : ""}</span>
                   <small>{company.lastResult ? `Dernier resultat: ${company.lastResult.title}` : "Dis au CEO ce que tu veux creer"}</small>
                 </div>
+                {company.hasPendingApproval && <b className="mini-badge">Action</b>}
               </div>
             ))}
           </div>
@@ -317,17 +419,21 @@ export default function EasyAgencyOSPage() {
             ) : projects.slice(0, 8).map((project) => {
               const session = sessions.find((s) => s.sessionId === project.sessionId);
               const company = companies.find((item) => item.projectIds.includes(project.id));
-              const status = statusLabel(session?.status ?? project.status);
+              const output = outputForProject(project, outputs);
+              const approval = approvalForSession(project.sessionId, approvals);
+              const status = simpleStatusFor(session, output, approval);
               return (
-                <Link key={project.id} href={project.sessionId ? `/mission/${project.sessionId}` : "/projects"} className="project-row">
+                <Link key={project.id} href={project.sessionId ? `/mission/${project.sessionId}` : "/projects"} className={`project-row ${status.kind === "ready" ? "needs-action" : ""}`}>
                   <div>
                     <strong>{project.name}</strong>
                     <span>{company?.name ?? "Entreprise AI"}</span>
                   </div>
+                  {output && <small>Dernier resultat: {output.title}</small>}
                   <div className="progress-mini">
-                    <span>{status}</span>
-                    <div><i style={{ width: `${session?.progress ?? project.progress ?? 0}%` }} /></div>
+                    <span>{status.label}</span>
+                    <div><i style={{ width: `${status.progress}%` }} /></div>
                   </div>
+                  {status.kind === "ready" && <b className="ready-badge">Pret a approuver</b>}
                 </Link>
               );
             })}
@@ -346,11 +452,22 @@ export default function EasyAgencyOSPage() {
             <Avatar label="AI" color="#f59e0b" pulse />
             <div>
               <strong>CEO AI</strong>
-              <span>Dis-lui ce que tu veux creer. Il lance les agents automatiquement.</span>
+              <span>{primaryApproval ? "Resultat pret - ta decision debloque la suite." : "Dis-lui ce que tu veux creer. Il lance les agents automatiquement."}</span>
             </div>
           </div>
 
           <div className="chat-stream">
+            {loadError && <div className="system-note">{loadError}</div>}
+            {loading && <div className="system-note">Connexion au runtime...</div>}
+            {primaryApproval && (
+              <div className="primary-approval-banner">
+                <div>
+                  <strong>Pret a approuver</strong>
+                  <span>Les agents ont prepare un premier resultat. Valide-le ou demande des changements.</span>
+                </div>
+                <button disabled={!primaryApproval.canApprove || actionBusy === primaryApproval.item.id} onClick={() => void approveApproval(primaryApproval.item.id)}>Approuver</button>
+              </div>
+            )}
             {conversationItems.length === 0 && (
               <div className="welcome-card">
                 <h1>Que fait ton agence AI maintenant?</h1>
@@ -376,7 +493,7 @@ export default function EasyAgencyOSPage() {
                   const approval = item.payload as ApprovalCardData;
                   return (
                     <motion.div key={item.id} className="timeline-output" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                      <div className="agent-name"><CheckCircle2 size={13} /> Approval pret</div>
+                      <div className="agent-name"><CheckCircle2 size={13} /> Pret a approuver</div>
                       <VisualOutputPreview visualPreview={approval.visualPreview} title={approval.item.title} summary={approval.item.summary} compact />
                       <div className="output-line">
                         <strong>{approval.item.title}</strong>
@@ -389,8 +506,9 @@ export default function EasyAgencyOSPage() {
                   const update = item.payload as { agent: string; text: string; color: string };
                   return (
                     <motion.div key={item.id} className="agent-update" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                      <span style={{ background: update.color }} />
-                      <div><strong>{update.agent}</strong>{update.text}</div>
+                      <span className="agent-dot-avatar" style={{ background: update.color }}>{update.agent.slice(0, 2).toUpperCase()}</span>
+                      <div><strong>{update.agent}</strong><em>{update.text}</em></div>
+                      <small>maintenant</small>
                     </motion.div>
                   );
                 }
@@ -435,8 +553,9 @@ export default function EasyAgencyOSPage() {
                 <div>
                   <strong>{agent.name}</strong>
                   <span>{agent.task}</span>
+                  {agent.lastResult && <small>{agent.lastResult}</small>}
                 </div>
-                <i className={agent.active ? "working-dot" : "idle-dot"} />
+                <em className={`agent-state ${agent.status === "Travaille" ? "working" : agent.status === "A livre" ? "done" : agent.status.includes("Attend") ? "waiting" : ""}`}>{agent.status}</em>
               </div>
             ))}
           </div>
@@ -448,13 +567,13 @@ export default function EasyAgencyOSPage() {
                 <VisualOutputPreview visualPreview={output.visualPreview} title={output.title} summary={output.summary} compact />
                 <div className="result-meta">
                   <strong>{output.title}</strong>
-                  <span>{statusLabel(output.status)}</span>
+                  <span>{simpleStatusFor(sessions.find((s) => s.sessionId === output.sessionId), output, approvalForSession(output.sessionId, approvals)).label}</span>
                 </div>
                 <p>{output.summary || output.preview}</p>
                 <div className="result-actions">
                   <Link href={`/outputs/${output.id}`}>Voir</Link>
                   {(output.status === "review" || activeSessionIds.has(output.sessionId)) && (
-                    <button onClick={() => void approveOutput(output.id)}>Approuver</button>
+                    <button disabled={actionBusy === output.id} onClick={() => void approveOutput(output.id)}>Approuver</button>
                   )}
                 </div>
               </div>
@@ -463,15 +582,37 @@ export default function EasyAgencyOSPage() {
 
           <SectionTitle icon={<CheckCircle2 size={14} />} label="A approuver" />
           {approvals.length === 0 ? <EmptyHint text="Aucune decision urgente." /> : approvals.slice(0, 3).map((approval) => (
-            <div key={approval.item.id} className="approval-card">
-              <VisualOutputPreview visualPreview={approval.visualPreview} title={approval.item.title} summary={approval.item.summary} compact />
+            <div key={approval.item.id} className={`approval-card ${approval.item.id === primaryApproval?.item.id ? "featured" : ""}`}>
+              <div className="approval-card-head">
+                <strong>{approval.item.id === primaryApproval?.item.id ? "Pret a approuver" : "En attente"}</strong>
+                <span>{simpleStatusFor(sessions.find((s) => s.sessionId === approval.item.sessionId), null, approval).label}</span>
+              </div>
+              <VisualOutputPreview visualPreview={approval.visualPreview} title={approval.item.title} summary={approval.item.summary} compact={approval.item.id !== primaryApproval?.item.id} />
               <strong>{approval.item.title}</strong>
               <span>{approval.item.summary}</span>
               <div className="result-actions">
-                <Link href={approval.item.sessionId ? `/mission/${approval.item.sessionId}` : "/outputs"}>Voir details</Link>
-                <button disabled={!approval.canApprove} onClick={() => void approveApproval(approval.item.id)}>Approuver</button>
-                <button className="reject-action" onClick={() => void rejectApproval(approval.item.id)}>Changements</button>
+                <button className="primary-action" disabled={!approval.canApprove || actionBusy === approval.item.id} onClick={() => void approveApproval(approval.item.id)}>Approuver</button>
+                <button className="reject-action" disabled={actionBusy === approval.item.id} onClick={() => { setChangeRequestId(approval.item.id); setChangeRequestText(""); }}>Demander des changements</button>
+                <Link className="quiet-action" href={approval.item.sessionId ? `/mission/${approval.item.sessionId}` : "/outputs"}>Voir details</Link>
               </div>
+              {changeRequestId === approval.item.id && (
+                <form className="change-request" onSubmit={(event) => {
+                  event.preventDefault();
+                  const reason = changeRequestText.trim() || "Je veux une nouvelle version plus proche de ma direction.";
+                  void rejectApproval(approval.item.id, reason);
+                }}>
+                  <label>Quels changements veux-tu demander?</label>
+                  <textarea
+                    value={changeRequestText}
+                    onChange={(event) => setChangeRequestText(event.target.value)}
+                    placeholder="Ex: Je veux quelque chose de plus luxe et minimaliste"
+                  />
+                  <div>
+                    <button type="submit" disabled={actionBusy === approval.item.id}>Envoyer la demande</button>
+                    <button type="button" onClick={() => setChangeRequestId(null)}>Annuler</button>
+                  </div>
+                </form>
+              )}
               {!approval.canApprove && <small>Preview visuelle requise avant approbation.</small>}
             </div>
           ))}
@@ -523,6 +664,7 @@ const styles = `
 .brand-mark { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; color: #0f172a; margin-right: auto; }
 .status-pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(34,197,94,0.24); background: rgba(34,197,94,0.09); color: #15803d; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; }
 .status-pill.soft { color: #2563eb; background: rgba(59,130,246,0.09); border-color: rgba(59,130,246,0.18); }
+.status-pill.ready { color: #92400e; background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.28); }
 .online-dot, .working-dot, .idle-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block; }
 .working-dot { animation: pulse-dot 1.2s infinite; }
 .idle-dot { background: #cbd5e1; }
@@ -544,7 +686,10 @@ const styles = `
 .contact-copy strong, .project-row strong, .agent-row strong, .result-meta strong { font-size: 13px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact-copy span, .project-row span, .agent-row span, .result-meta span, .approval-card span { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact-copy small { color: #94a3b8; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mini-badge, .ready-badge { align-self: start; justify-self: end; border-radius: 999px; background: rgba(245,158,11,0.16); color: #92400e; border: 1px solid rgba(245,158,11,0.24); padding: 4px 7px; font-size: 9px; font-weight: 900; text-transform: uppercase; }
 .project-row { padding: 10px; text-decoration: none; display: grid; gap: 8px; }
+.project-row.needs-action { border-color: rgba(245,158,11,0.45); background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(254,243,199,0.62)); }
+.project-row small { color: #94a3b8; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-mini { display: grid; gap: 5px; }
 .progress-mini div { height: 5px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
 .progress-mini i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #8b5cf6); border-radius: inherit; }
@@ -554,6 +699,13 @@ const styles = `
 .chat-header strong { display: block; font-size: 15px; }
 .chat-header span { color: #64748b; font-size: 12px; }
 .chat-stream { overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.system-note { align-self: center; border: 1px solid rgba(148,163,184,0.22); background: rgba(255,255,255,0.7); color: #64748b; border-radius: 999px; padding: 7px 11px; font-size: 11px; font-weight: 800; }
+.primary-approval-banner { display: flex; justify-content: space-between; gap: 12px; align-items: center; border: 1px solid rgba(245,158,11,0.32); background: linear-gradient(135deg, rgba(255,255,255,0.96), rgba(254,243,199,0.74)); border-radius: 16px; padding: 12px; box-shadow: 0 12px 28px rgba(146,64,14,0.1); }
+.primary-approval-banner div { display: grid; gap: 2px; min-width: 0; }
+.primary-approval-banner strong { color: #92400e; font-size: 13px; }
+.primary-approval-banner span { color: #64748b; font-size: 12px; line-height: 1.4; }
+.primary-approval-banner button { border: none; border-radius: 999px; background: linear-gradient(135deg, #22c55e, #15803d); color: #fff; padding: 8px 12px; font-size: 12px; font-weight: 900; cursor: pointer; white-space: nowrap; }
+.primary-approval-banner button:disabled { opacity: 0.5; cursor: not-allowed; }
 .welcome-card { align-self: center; margin-top: 12vh; max-width: 520px; text-align: center; background: rgba(255,255,255,0.72); border: 1px solid rgba(59,130,246,0.14); border-radius: 22px; padding: 28px; }
 .welcome-card h1 { margin: 0 0 8px; font-size: 24px; }
 .welcome-card p { margin: 0; color: #64748b; line-height: 1.5; }
@@ -565,9 +717,11 @@ const styles = `
 .bubble p { margin: 0; white-space: pre-wrap; line-height: 1.45; font-size: 13px; }
 .bubble-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
 .bubble-actions a, .result-actions a, .result-actions button { border: 1px solid rgba(59,130,246,0.22); background: rgba(59,130,246,0.08); color: #2563eb; border-radius: 999px; padding: 5px 9px; font-size: 11px; font-weight: 900; text-decoration: none; cursor: pointer; }
-.agent-update { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: #475569; font-size: 12px; background: rgba(255,255,255,0.6); border: 1px solid rgba(148,163,184,0.18); border-radius: 999px; padding: 7px 10px; }
-.agent-update span { width: 9px; height: 9px; border-radius: 50%; }
+.agent-update { align-self: flex-start; display: flex; align-items: center; gap: 8px; color: #475569; font-size: 12px; background: rgba(255,255,255,0.72); border: 1px solid rgba(148,163,184,0.18); border-radius: 999px; padding: 6px 9px; }
+.agent-dot-avatar { width: 26px; height: 26px; border-radius: 50%; color: #fff; display: grid; place-items: center; font-size: 9px; font-weight: 900; flex: 0 0 auto; }
 .agent-update strong { margin-right: 6px; color: #0f172a; }
+.agent-update em { font-style: normal; }
+.agent-update small { color: #94a3b8; font-size: 10px; margin-left: 4px; }
 .timeline-output { max-width: 460px; align-self: flex-start; border: 1px solid rgba(139,92,246,0.18); background: rgba(255,255,255,0.78); border-radius: 16px; padding: 10px; }
 .agent-name { color: #7c3aed; display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; }
 .output-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
@@ -578,17 +732,35 @@ const styles = `
 .composer button { width: 46px; border: none; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #2563eb); color: #fff; display: grid; place-items: center; cursor: pointer; }
 .composer button:disabled { opacity: 0.45; cursor: not-allowed; }
 .agent-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 10px; }
+.agent-row small { color: #94a3b8; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-state { border-radius: 999px; background: rgba(148,163,184,0.14); color: #64748b; border: 1px solid rgba(148,163,184,0.2); padding: 4px 7px; font-size: 9px; font-weight: 900; font-style: normal; white-space: nowrap; }
+.agent-state.working { background: rgba(34,197,94,0.12); color: #15803d; border-color: rgba(34,197,94,0.24); }
+.agent-state.done { background: rgba(59,130,246,0.1); color: #2563eb; border-color: rgba(59,130,246,0.2); }
+.agent-state.waiting { background: rgba(245,158,11,0.14); color: #92400e; border-color: rgba(245,158,11,0.24); }
 .result-card { padding: 10px; display: grid; gap: 8px; }
 .result-meta { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
 .result-card p { margin: 0; color: #64748b; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.result-actions { display: flex; gap: 6px; }
+.result-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 .result-actions button { color: #15803d; border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.09); }
 .result-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.result-actions .primary-action { color: #fff; border-color: transparent; background: linear-gradient(135deg, #22c55e, #15803d); }
 .result-actions .reject-action { color: #92400e; border-color: rgba(245,158,11,0.28); background: rgba(245,158,11,0.1); }
-.approval-card { display: grid; gap: 4px; text-decoration: none; padding: 10px; }
+.result-actions .quiet-action { color: #64748b; background: rgba(148,163,184,0.08); border-color: rgba(148,163,184,0.18); }
+.approval-card { display: grid; gap: 8px; text-decoration: none; padding: 10px; }
+.approval-card.featured { border-color: rgba(245,158,11,0.42); background: linear-gradient(135deg, rgba(255,255,255,0.97), rgba(254,243,199,0.64)); box-shadow: 0 14px 30px rgba(146,64,14,0.12); }
+.approval-card-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.approval-card-head strong { color: #92400e; font-size: 11px; text-transform: uppercase; }
+.approval-card-head span { color: #64748b; font-size: 10px; text-align: right; }
 .approval-card strong { color: #0f172a; font-size: 12px; }
 .approval-card small { color: #b45309; font-size: 10px; font-weight: 800; }
 .approval-card em { color: #7c3aed; font-size: 11px; font-style: normal; font-weight: 900; }
+.change-request { display: grid; gap: 7px; border-top: 1px solid rgba(245,158,11,0.2); padding-top: 8px; }
+.change-request label { color: #92400e; font-size: 11px; font-weight: 900; }
+.change-request textarea { min-height: 74px; resize: vertical; border: 1px solid rgba(245,158,11,0.28); border-radius: 10px; padding: 9px; font: inherit; font-size: 12px; color: #0f172a; background: rgba(255,255,255,0.88); outline: none; }
+.change-request div { display: flex; gap: 6px; }
+.change-request button { border: 1px solid rgba(245,158,11,0.28); border-radius: 999px; padding: 6px 9px; font-size: 11px; font-weight: 900; color: #92400e; background: rgba(245,158,11,0.1); cursor: pointer; }
+.change-request button:first-child { color: #fff; border-color: transparent; background: linear-gradient(135deg, #f59e0b, #d97706); }
+.empty-hint span { display: block; margin-top: 5px; color: #64748b; }
 .empty-hint { color: #94a3b8; font-size: 12px; line-height: 1.45; border: 1px dashed rgba(148,163,184,0.38); border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.46); }
 @keyframes pulse-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.25); } }
 @media (max-width: 1100px) {

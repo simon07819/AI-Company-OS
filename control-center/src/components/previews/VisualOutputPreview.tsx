@@ -56,32 +56,44 @@ export function VisualOutputPreview({ visualPreview, title, summary, compact = f
     const primary = colors[0] ?? "#0F172A";
     const accent = colors[1] ?? "#38BDF8";
     const surface = colors[2] ?? "#F8FAFC";
+    const brandName = compact
+      ? visualPreview.logoText ?? visualPreview.mockup?.title ?? title
+      : visualPreview.mockup?.title ?? visualPreview.logoText ?? title.replace(/^(Concept|Logo|Approval Preview)\s*/i, "Studio Lumiere");
+    const keywords = (visualPreview.mockup?.blocks?.length ? visualPreview.mockup.blocks : ["Premium", "Lumineux", "Moderne"]).slice(0, 3);
     return (
       <div style={{ ...frameStyle, minHeight: height, background: surface, color: "#0f172a" }}>
-        <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1.05fr 0.95fr", minHeight: height }}>
-          <div style={{ background: primary, color: surface, padding: compact ? 14 : 22, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-            <div style={{ width: compact ? 48 : 76, height: compact ? 48 : 76, borderRadius: 12, border: `2px solid ${accent}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: compact ? 16 : 24, fontWeight: 900, color: accent, marginBottom: 10 }}>
-              {visualPreview.logoText ?? "Aa"}
+        <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1.08fr 0.92fr", minHeight: height }}>
+          <div style={{ background: `radial-gradient(circle at 28% 18%, ${accent}55, transparent 28%), ${primary}`, color: surface, padding: compact ? 14 : 22, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+            <div style={{ width: compact ? 54 : 86, height: compact ? 54 : 86, borderRadius: "50%", border: `2px solid ${accent}`, display: "grid", placeItems: "center", color: accent, marginBottom: 10, position: "relative", background: "rgba(255,255,255,0.06)" }}>
+              <svg viewBox="0 0 64 64" width={compact ? 34 : 48} height={compact ? 34 : 48} aria-hidden="true">
+                <circle cx="32" cy="32" r="19" fill="none" stroke="currentColor" strokeWidth="5" />
+                <circle cx="32" cy="32" r="7" fill="currentColor" opacity="0.82" />
+                <path d="M20 13h12l4 7h10a8 8 0 0 1 8 8v15a8 8 0 0 1-8 8H18a8 8 0 0 1-8-8V28a8 8 0 0 1 8-8h2z" fill="none" stroke="currentColor" strokeWidth="3" opacity="0.38" />
+              </svg>
             </div>
-            <div style={{ fontSize: compact ? 12 : 18, fontWeight: 900 }}>{visualPreview.mockup?.title ?? title}</div>
-            <div style={{ fontSize: compact ? 8 : 10, opacity: 0.72, marginTop: 4, textTransform: "uppercase" }}>{visualPreview.tagline ?? "Brand concept"}</div>
+            <div style={{ fontSize: compact ? 13 : 20, fontWeight: 900 }}>{brandName}</div>
+            {compact && visualPreview.mockup?.title && (
+              <div style={{ fontSize: 9, opacity: 0.72, marginTop: 2 }}>{visualPreview.mockup.title}</div>
+            )}
+            <div style={{ fontSize: compact ? 9 : 11, opacity: 0.76, marginTop: 4, textTransform: "uppercase", letterSpacing: 0 }}>{visualPreview.tagline ?? "Capture the light"}</div>
           </div>
           {!compact && (
             <div style={{ padding: 18, display: "grid", gap: 12, alignContent: "center" }}>
               <div style={{ display: "flex", gap: 7 }}>
-                {colors.slice(0, 5).map((color) => (
-                  <span key={color} title={color} style={{ width: 30, height: 30, borderRadius: 6, background: color, border: "1px solid rgba(15,23,42,0.16)" }} />
+                {colors.slice(0, 4).map((color) => (
+                  <span key={color} title={color} style={{ width: 32, height: 32, borderRadius: 7, background: color, border: "1px solid rgba(15,23,42,0.16)" }} />
                 ))}
               </div>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 900 }}>{visualPreview.typography?.heading ?? "Inter Bold"}</div>
-                <div style={{ fontSize: 11, color: "#475569", marginTop: 3 }}>{visualPreview.typography?.body ?? "Inter Regular"} for body copy</div>
+                <div style={{ fontSize: 11, color: "#475569", marginTop: 3 }}>{visualPreview.typography?.body ?? "Inter Regular"} pour textes courts</div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
-                {(visualPreview.mockup?.blocks ?? ["Logo", "Palette", "Type", "Mockup"]).map((block) => (
-                  <span key={block} style={{ borderRadius: 6, padding: "7px 8px", fontSize: 10, fontWeight: 700, color: primary, background: `${accent}1f`, border: `1px solid ${accent}44` }}>{block}</span>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {keywords.map((block) => (
+                  <span key={block} style={{ borderRadius: 999, padding: "6px 8px", fontSize: 10, fontWeight: 800, color: primary, background: `${accent}1f`, border: `1px solid ${accent}44` }}>{block}</span>
                 ))}
               </div>
+              <div style={{ fontSize: 11, lineHeight: 1.45, color: "#475569" }}>Un concept premium et lumineux pour une marque photo moderne.</div>
             </div>
           )}
         </div>
