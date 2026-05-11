@@ -1,3 +1,85 @@
 {
-  "workspaces": []
+  "workspaces": [
+    {
+      "id": "workspace-default",
+      "name": "AI Company OS",
+      "slug": "ai-company-os",
+      "description": "Default workspace for unassigned missions and operations.",
+      "industry": "AI operations",
+      "primaryMissionTypes": [
+        "saas_project",
+        "website",
+        "social_campaign",
+        "automation_workflow"
+      ],
+      "activeMissionIds": [],
+      "revenue": 0,
+      "branding": {
+        "primaryColor": "#6366f1",
+        "secondaryColor": "#22c55e",
+        "tone": "pragmatic",
+        "logoUrl": null
+      },
+      "automationLevel": "assisted",
+      "settings": {
+        "defaultChannels": [
+          "internal_feed"
+        ],
+        "preferredCurrency": "USD",
+        "timezone": "America/Toronto"
+      },
+      "metrics": {
+        "activeMissions": 0,
+        "totalMissions": 0,
+        "revenue": 0,
+        "proposalValue": 0,
+        "activeCampaigns": 0,
+        "publishedAssets": 0,
+        "crmClients": 0,
+        "crmLeads": 0
+      },
+      "createdAt": "2026-05-11T23:29:30.823Z",
+      "updatedAt": "2026-05-11T23:29:30.823Z"
+    },
+    {
+      "id": "workspace-mp1u35xl-c9zk",
+      "name": "Nouvelle Marque AI",
+      "slug": "nouvelle-marque-ai",
+      "description": "Entreprise creee avec les agents AI.",
+      "industry": "branding pack",
+      "primaryMissionTypes": [
+        "branding_pack"
+      ],
+      "activeMissionIds": [
+        "ap-mp1u35xd-eqvb"
+      ],
+      "revenue": 0,
+      "branding": {
+        "primaryColor": "#0f172a",
+        "secondaryColor": "#38bdf8",
+        "tone": "premium visual",
+        "logoUrl": null
+      },
+      "automationLevel": "assisted",
+      "settings": {
+        "defaultChannels": [
+          "internal_feed"
+        ],
+        "preferredCurrency": "USD",
+        "timezone": "America/Toronto"
+      },
+      "metrics": {
+        "activeMissions": 0,
+        "totalMissions": 0,
+        "revenue": 0,
+        "proposalValue": 0,
+        "activeCampaigns": 0,
+        "publishedAssets": 0,
+        "crmClients": 0,
+        "crmLeads": 0
+      },
+      "createdAt": "2026-05-11T23:29:30.825Z",
+      "updatedAt": "2026-05-11T23:29:30.826Z"
+    }
+  ]
 }
