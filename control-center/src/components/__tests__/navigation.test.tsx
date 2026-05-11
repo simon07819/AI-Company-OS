@@ -6,15 +6,16 @@ import NavSidebar from "@/components/NavSidebar";
 
 const primaryLinks = [
   "Dashboard",
-  "Projects",
-  "New Project",
-  "Live Ops",
-  "Factory",
-  "Tasks Graph",
-  "Logs",
+  "CEO",
+  "Entreprises",
+  "Projets",
   "Agents",
-  "Runtime",
-  "Demo",
+  "Resultats",
+  "Approvals",
+  "Messages",
+  "Mission Rooms",
+  "Mode expert",
+  "Workspaces",
   "Settings",
 ];
 
@@ -28,11 +29,11 @@ describe("NavSidebar", () => {
   });
 
   it("marks the active route", () => {
-    globalThis.__TEST_PATHNAME__ = "/runtime";
+    globalThis.__TEST_PATHNAME__ = "/projects";
 
     render(React.createElement(NavSidebar));
 
-    expect(screen.getByRole("link", { name: "Runtime" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Projets" })).toHaveClass("active");
     expect(screen.getByRole("link", { name: "Dashboard" })).not.toHaveClass("active");
   });
 });
@@ -51,7 +52,8 @@ describe("AppShell", () => {
 
     expect(screen.getAllByText("AI Company OS").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Settings" })[0]).toHaveAttribute("href", "/settings");
-    expect(screen.getByText("Search projects, tasks, agents")).toBeInTheDocument();
+    expect(screen.getByText("Agence AI active")).toBeInTheDocument();
+    expect(screen.getByText("Mode simple")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Settings child content" })).toBeInTheDocument();
   });
 });

@@ -3,6 +3,10 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import AgentsPage from "@/app/agents/page";
 import AutopilotPage from "@/app/autopilot/page";
+import DashboardPage from "@/app/page";
+import CompaniesPage from "@/app/companies/page";
+import ProjectsPage from "@/app/projects/page";
+import ApprovalsPage from "@/app/approvals/page";
 import FactoryPage from "@/app/factory/page";
 import LogsPage from "@/app/logs/page";
 import RuntimePage from "@/app/runtime/page";
@@ -20,6 +24,15 @@ vi.mock("@/components/AutopilotSessionBanner", () => ({
 }));
 
 describe("critical Control Center pages", () => {
+  it("renders the simple OS dashboard", async () => {
+    render(React.createElement(DashboardPage));
+
+    expect(await screen.findByRole("heading", { name: "Ce que votre agence AI fait maintenant" })).toBeInTheDocument();
+    expect(screen.getByText("Ce qui se passe maintenant")).toBeInTheDocument();
+    expect(screen.getAllByText("Studio Lumiere").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Logo Concept").length).toBeGreaterThan(0);
+  });
+
   it("renders Settings without crashing", () => {
     render(React.createElement(SettingsPage));
 
@@ -38,10 +51,30 @@ describe("critical Control Center pages", () => {
   it("renders Agents without crashing", () => {
     render(React.createElement(AgentsPage));
 
-    expect(screen.getByRole("heading", { name: "AI Team Command Center" })).toBeInTheDocument();
-    expect(screen.getByText("Product Agent")).toBeInTheDocument();
-    expect(screen.getByText("NVIDIA API")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Agents au travail" })).toBeInTheDocument();
+    expect(screen.getByText("Equipe AI active")).toBeInTheDocument();
+    return waitFor(() => expect(screen.getAllByText("Designer").length).toBeGreaterThan(0));
   }, 10000);
+
+  it("renders simple companies and projects pages from agency view", async () => {
+    const { unmount } = render(React.createElement(CompaniesPage));
+    expect(await screen.findByRole("heading", { name: "Les entreprises que vous construisez" })).toBeInTheDocument();
+    expect(screen.getAllByText("Studio Lumiere").length).toBeGreaterThan(0);
+
+    unmount();
+    render(React.createElement(ProjectsPage));
+    expect((await screen.findAllByRole("heading", { name: "Projets actifs" })).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Resultat pret - approbation requise").length).toBeGreaterThan(0);
+  });
+
+  it("renders approval inbox with visual approval card", async () => {
+    render(React.createElement(ApprovalsPage));
+
+    expect(await screen.findByRole("heading", { name: "Decisions a prendre" })).toBeInTheDocument();
+    expect(screen.getAllByText("Pret a approuver").length).toBeGreaterThan(0);
+    expect(screen.getByText("Approuver")).toBeInTheDocument();
+    expect(screen.getByText("Demander des changements")).toBeInTheDocument();
+  });
 
   it("renders Factory without crashing", () => {
     render(React.createElement(FactoryPage));

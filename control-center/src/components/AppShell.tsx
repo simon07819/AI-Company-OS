@@ -3,9 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, ChevronRight, Menu, Search, ShieldCheck, X, Zap } from "lucide-react";
+import { ChevronRight, Crown, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
 import NavSidebar, { getActiveNavItem } from "@/components/NavSidebar";
-import { useSystemStatus } from "@/hooks/useSystemStatus";
 
 function formatSegment(segment: string) {
   return segment
@@ -29,11 +28,10 @@ function buildBreadcrumbs(pathname: string) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { status } = useSystemStatus(8000);
 
   const active = getActiveNavItem(pathname);
   const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname]);
-  const nvidiaOnline = status?.nvidiaStatus === "online" || status?.nvidiaStatus === "unknown";
+  const expertMode = pathname.startsWith("/ceo/expert") || pathname.startsWith("/runtime") || pathname.startsWith("/logs");
 
   return (
     <div className="app-shell">
@@ -66,21 +64,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <div className="top-header-actions">
-            <div className="global-search">
-              <Search size={14} />
-              <span>Search projects, tasks, agents</span>
-            </div>
-            <div className={`global-status ${nvidiaOnline ? "online" : "offline"}`}>
-              <Zap size={13} />
-              NVIDIA {status?.nvidiaStatus ?? "checking"}
+            <div className="global-status online">
+              <Sparkles size={13} />
+              Agence AI active
             </div>
             <div className="global-status">
               <ShieldCheck size={13} />
-              {status?.workers ?? 0} workers
+              {expertMode ? "Mode expert" : "Mode simple"}
             </div>
-            <button className="icon-button" type="button" aria-label="Notifications">
-              <Bell size={15} />
-            </button>
+            <Link className="top-header-link" href="/ceo"><Crown size={14} /> Parler au CEO</Link>
+            <Link className="top-header-link subtle" href="/ceo/expert">Mode expert</Link>
           </div>
         </header>
 

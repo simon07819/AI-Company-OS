@@ -223,6 +223,25 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/ceo/simple-agency")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        view: {
+          messages: [],
+          companies: [{ id: "workspace-photo", name: "Studio Lumiere", type: "photography", status: "Attend ton avis", avatar: "SL", projectsCount: 1, projectIds: ["proj-logo"], hasPendingApproval: true }],
+          projects: [{ id: "proj-logo", name: "Logo pour compagnie de photo", missionType: "branding_pack", status: "review", sessionId: "session-logo", workspaceId: "workspace-photo", progress: 70, outputsCount: 1, updatedAt: new Date().toISOString() }],
+          sessions: [{ sessionId: "session-logo", projectName: "Logo pour compagnie de photo", projectIdea: "", missionType: "branding_pack", businessStatus: "review", status: "waiting_approval", progress: 70, assignedAgents: [{ agentId: "frontend_agent", role: "Designer", status: "done", provider: "NVIDIA API" }], tasks: [], logs: [], runtime: { lastEvent: "Waiting for approval", activeWorkers: 0 } }],
+          outputs: [{ id: "out-logo", sessionId: "session-logo", projectId: "proj-logo", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette #0F172A #38BDF8", status: "review", assignedAgent: "frontend_agent", updatedAt: new Date().toISOString(), visualPreview: { kind: "brand_card", logoText: "SL", tagline: "Capture the light", colors: ["#172033", "#2f6fed", "#f8fafc", "#d8a63f"], typography: { heading: "Inter SemiBold", body: "Inter Regular" }, mockup: { title: "Studio Lumiere", subtitle: "Photo", blocks: ["Premium", "Lumineux", "Moderne"] } } }],
+          approvals: [{ item: { id: "output-out-logo", title: "Logo Concept", type: "logo", status: "pending", agentId: "frontend_agent", agentName: "Designer", sessionId: "session-logo", missionType: "branding_pack", createdAt: new Date().toISOString(), summary: "Concept premium", hasPreviewContent: true, previewType: "output_list" }, preview: null, canApprove: true, visualPreview: { kind: "brand_card", logoText: "SL", tagline: "Capture the light", colors: ["#172033", "#2f6fed", "#f8fafc", "#d8a63f"], typography: { heading: "Inter SemiBold", body: "Inter Regular" }, mockup: { title: "Studio Lumiere", subtitle: "Photo", blocks: ["Premium", "Lumineux", "Moderne"] } } }],
+          logs: [],
+        },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/") && url.includes("/logs")) {
     return {
       ok: true,
