@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import AgentsPage from "@/app/agents/page";
@@ -69,9 +69,11 @@ describe("critical Control Center pages", () => {
   it("renders CEO chat controls", async () => {
     render(React.createElement(CeoPage));
 
-    expect(await screen.findByText("New Chat")).toBeInTheDocument();
-    expect(screen.getByText("Archive Chat")).toBeInTheDocument();
-    expect(screen.getByText("Open Conversations")).toBeInTheDocument();
+    expect(await screen.findByText("AI Company OS")).toBeInTheDocument();
+    expect(screen.getByText("CEO AI en ligne")).toBeInTheDocument();
+    expect(screen.getByText("Mode expert")).toBeInTheDocument();
+    expect(screen.getByText("Mes entreprises")).toBeInTheDocument();
+    expect(screen.getByText("Agents au travail")).toBeInTheDocument();
   });
 
   it("renders global archive page", async () => {
@@ -81,11 +83,10 @@ describe("critical Control Center pages", () => {
     expect(await screen.findByText("Archived Project")).toBeInTheDocument();
   });
 
-  it("clicking an agent opens direct conversation header", async () => {
+  it("renders CEO simple agency conversation", async () => {
     render(React.createElement(CeoPage));
 
-    await screen.findByText("Diana Park");
-    fireEvent.click(screen.getByTestId("team-chat-cfo"));
-    await waitFor(() => expect(screen.getByText("Participant actuel: CFO")).toBeInTheDocument());
+    expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText(/Ecris au CEO AI/)).toBeInTheDocument();
   });
 });
