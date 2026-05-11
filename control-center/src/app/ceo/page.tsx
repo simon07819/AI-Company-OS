@@ -1496,6 +1496,13 @@ export default function CeoPage() {
               style={{ display: "none" }}
               onChange={handleFileInputChange}
             />
+
+            {/* Conversation link */}
+            <div style={{ marginTop: 8, padding: "6px 8px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "center" }}>
+              <a href="/conversations" style={{ fontSize: 10, color: "#3b82f6", textDecoration: "none", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                <MessageSquare size={10} /> View All Conversations
+              </a>
+            </div>
           </div>
         </Panel>
         </div>

@@ -365,6 +365,31 @@ export default function MissionRoomPage() {
                   </div>
                 );
               })}
+              {/* Direct Employee Chat buttons */}
+              <div style={{ marginTop: 6, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 6 }}>Direct Chat</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {[
+                    { id: "cfo", label: "CFO", emoji: "💰" },
+                    { id: "cmo", label: "Marketing", emoji: "📣" },
+                    { id: "logistics", label: "Logistics", emoji: "📦" },
+                    { id: "ceo", label: "CEO", emoji: "👑" },
+                  ].map((p) => (
+                    <a
+                      key={p.id}
+                      href={`/conversations?newThread=true&participant=${p.id}&missionId=${session.sessionId}&title=Mission ${session.projectName} - Chat with ${p.label}`}
+                      style={{
+                        padding: "3px 8px", fontSize: 9, fontWeight: 600,
+                        background: "var(--bg-2)", border: "1px solid var(--border)",
+                        borderRadius: 6, color: "var(--text-2)", textDecoration: "none",
+                        display: "flex", alignItems: "center", gap: 3,
+                      }}
+                    >
+                      {p.emoji} Message {p.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
