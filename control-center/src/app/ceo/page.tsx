@@ -587,7 +587,23 @@ function CeoMessageBubble({ msg }: { msg: CeoMessage }) {
 
 // ─── CEO Typing ───────────────────────────────────────────────────────────
 
+const THINKING_PHASES = [
+  "analyzing your request…",
+  "consulting executive team…",
+  "reviewing options…",
+  "preparing response…",
+];
+
 function CeoTypingIndicator() {
+  const [phaseIdx, setPhaseIdx] = useState(0);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setPhaseIdx((i) => (i + 1) % THINKING_PHASES.length);
+    }, 900);
+    return () => clearInterval(t);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
@@ -612,7 +628,18 @@ function CeoTypingIndicator() {
           />
         ))}
       </div>
-      <span style={{ fontSize: 10, color: "var(--text-3)" }}>CEO AI consulting executive team…</span>
+      <AnimatePresence mode="wait">
+        <motion.span
+          key={phaseIdx}
+          initial={{ opacity: 0, y: 3 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -3 }}
+          transition={{ duration: 0.2 }}
+          style={{ fontSize: 10, color: "var(--text-3)" }}
+        >
+          CEO AI — {THINKING_PHASES[phaseIdx]}
+        </motion.span>
+      </AnimatePresence>
     </motion.div>
   );
 }

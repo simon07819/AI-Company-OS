@@ -206,7 +206,7 @@ describe("ceoCommand with executive discussions", () => {
 
   it("sendMessage returns ceoMessage and discussion", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const result = sendMessage("Je veux lancer une boutique dropshipping");
+    const result = await sendMessage("Je veux lancer une boutique dropshipping");
     expect(result.ceoMessage).toBeDefined();
     expect(result.discussion).toBeDefined();
     expect(result.ceoMessage.role).toBe("ceo");
@@ -215,27 +215,27 @@ describe("ceoCommand with executive discussions", () => {
 
   it("CEO asks questions on greeting", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const result = sendMessage("Bonjour");
+    const result = await sendMessage("Bonjour");
     expect(result.ceoMessage.text).toContain("CEO");
     expect(result.discussion.messages.length).toBeGreaterThan(0);
   });
 
   it("discussion is linked to ceoMessage via discussionId", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const result = sendMessage("Créer un site web");
+    const result = await sendMessage("Créer un site web");
     expect(result.ceoMessage.discussionId).toBe(result.discussion.id);
   });
 
   it("director delegation is visible in discussion", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const result = sendMessage("Lancer une boutique dropshipping");
+    const result = await sendMessage("Lancer une boutique dropshipping");
     const delegationMessages = result.discussion.messages.filter((m) => m.type === "delegation");
     expect(delegationMessages.length).toBeGreaterThan(0);
   });
 
   it("CEO synthesizes at the end", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const result = sendMessage("Je veux lancer une boutique dropshipping");
+    const result = await sendMessage("Je veux lancer une boutique dropshipping");
     const synthesisMessages = result.discussion.messages.filter((m) => m.type === "synthesis");
     expect(synthesisMessages.length).toBeGreaterThan(0);
     expect(synthesisMessages.some((m) => m.from === "ceo")).toBe(true);

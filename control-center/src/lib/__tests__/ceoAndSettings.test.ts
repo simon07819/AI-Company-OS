@@ -209,7 +209,7 @@ describe("ceoCommand", () => {
 
   it("saves user and CEO messages", async () => {
     const { sendMessage, getMessages } = await import("@/lib/ceoCommand");
-    const { ceoMessage } = sendMessage("Bonjour!");
+    const { ceoMessage } = await sendMessage("Bonjour!");
 
     expect(ceoMessage.role).toBe("ceo");
     expect(ceoMessage.intent).toBe("greeting");
@@ -224,7 +224,7 @@ describe("ceoCommand", () => {
 
   it("detects launch_mission intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const { ceoMessage } = sendMessage("Lancer une mission pour moi");
+    const { ceoMessage } = await sendMessage("Lancer une mission pour moi");
 
     expect(ceoMessage.intent).toBe("launch_mission");
     expect(ceoMessage.actions).toBeDefined();
@@ -233,7 +233,7 @@ describe("ceoCommand", () => {
 
   it("detects create_flyer intent and creates session", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const { ceoMessage } = sendMessage("Créer un flyer pour mon entreprise");
+    const { ceoMessage } = await sendMessage("Créer un flyer pour mon entreprise");
 
     expect(ceoMessage.intent).toBe("create_flyer");
     expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);
@@ -241,7 +241,7 @@ describe("ceoCommand", () => {
 
   it("detects create_invoice intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const { ceoMessage } = sendMessage("Créer une facture pour le client");
+    const { ceoMessage } = await sendMessage("Créer une facture pour le client");
 
     expect(ceoMessage.intent).toBe("create_invoice");
     expect(ceoMessage.actions!.some((a) => a.type === "created_invoice")).toBe(true);
@@ -249,7 +249,7 @@ describe("ceoCommand", () => {
 
   it("detects create_dropshipping_business intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const { ceoMessage } = sendMessage("Créer une entreprise dropshipping");
+    const { ceoMessage } = await sendMessage("Créer une entreprise dropshipping");
 
     expect(ceoMessage.intent).toBe("create_dropshipping_business");
     expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);

@@ -100,12 +100,14 @@ function nextId(prefix: string): string {
 
 // ─── Discussion Message Templates ─────────────────────────────────────────
 
-function buildMessages(intent: string, userText: string): DiscussionMessage[] {
-  const now = Date.now();
+// Multiple variants per intent to avoid repetition
+type MsgVariants = Array<Array<Parameters<ReturnType<typeof makeMessageBuilder>>>>;
+
+function makeMessageBuilder(now: number) {
   let cumulativeDelay = 0;
   const MSG_INTERVAL = 2000;
 
-  const msg = (
+  return (
     from: ExecutiveId,
     text: string,
     type: DiscussionMessageType,
@@ -122,103 +124,214 @@ function buildMessages(intent: string, userText: string): DiscussionMessage[] {
       delayMs: cumulativeDelay,
     };
   };
+}
+
+const _lastVariant: Record<string, number> = {};
+
+function pickVariant<T>(intent: string, variants: T[][]): T[] {
+  if (variants.length === 1) return variants[0];
+  const last = _lastVariant[intent] ?? -1;
+  let idx: number;
+  do { idx = Math.floor(Math.random() * variants.length); }
+  while (idx === last && variants.length > 1);
+  _lastVariant[intent] = idx;
+  return variants[idx];
+}
+
+function buildMessages(intent: string, userText: string): DiscussionMessage[] {
+  const now = Date.now();
+  const msg = makeMessageBuilder(now);
+  const short = userText.slice(0, 60);
 
   // ── Dropshipping ──
   if (intent === "create_dropshipping_business") {
-    return [
-      msg("ceo", `Team, priority request received: "${userText.slice(0, 60)}". I'm calling an immediate strategy session. Marcus, Diana, Sophie, Raj, Emma — I need your full analysis.`, "delegation", "all"),
-      msg("coo", "I've reviewed our operational baseline. We can stand up a dropshipping workflow in 2–3 weeks. Recommend starting with a single niche, 10–15 hero products, then expanding. I'll own the process mapping.", "analysis", "ceo"),
-      msg("logistics", "I can vet 5 AliExpress/CJ Dropshipping suppliers within 48 hours and negotiate priority shipping. Targeting <15 day delivery to US/EU. Main risk: quality consistency — I'll require sample orders before launch.", "analysis", "ceo"),
-      msg("cfo", "Financial model: Shopify Basic $29/mo, domain $15, DSers $0 (free tier), initial ad budget $500. Month 1 total cost ≈ $544. Break-even at ~$1,100 monthly revenue assuming 3.2% conversion. Achievable by month 2–3.", "analysis", "ceo"),
-      msg("cmo", "Strong market opportunity. Winning niches right now: pet accessories, home organization, fitness micro-gear. TikTok ads + UGC content outperforming Meta by 35%. I'll launch a $500 test split across 3 audiences and optimize from day 3.", "analysis", "ceo"),
-      msg("cto", "Tech stack recommendation: Shopify + DSers for automated order routing + Klaviyo for email flows. Setup time: 3 days for store, 1 day for payment gateway, 1 day for automations. No custom dev required — proven SaaS stack, zero technical debt.", "analysis", "ceo"),
-      msg("coo", "One question for Diana: are we allocating the ad budget from existing reserves or do we need a capital injection?", "question", "cfo"),
-      msg("cfo", "We have runway. I recommend allocating from Q2 marketing reserves. ROI threshold: $3 return per $1 ad spend within 60 days, or we pivot the niche.", "agreement", "coo"),
-      msg("cmo", "Agreed on the ROI threshold. Sophie — I'll have the first creative brief ready for Emma's supplier samples within 24 hours of kickoff.", "agreement", "ceo"),
-      msg("ceo", "Clear alignment from the team. Proceeding to formal proposal. This is a green-light recommendation pending your approval.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", `Team, priority request: "${short}". Strategy session now. Marcus, Diana, Sophie, Raj, Emma — full analysis needed.`, "delegation", "all"),
+        msg("coo", "Operational baseline reviewed. Dropshipping workflow: 2–3 weeks. Recommend single niche, 10–15 hero products to start. I'll own process mapping.", "analysis", "ceo"),
+        msg("logistics", "I'll vet 5 AliExpress/CJ Dropshipping suppliers in 48h and negotiate priority shipping. Target: <15 day delivery to US/EU. Requiring sample orders before launch.", "analysis", "ceo"),
+        msg("cfo", "Month 1 cost: Shopify $29 + domain $15 + DSers free + $500 ads = $544 total. Break-even at ~$1,100 revenue (3.2% conversion). Achievable by month 2–3.", "analysis", "ceo"),
+        msg("cmo", "Hot niches right now: pet accessories, home organization, fitness micro-gear. TikTok + UGC outperforming Meta by 35%. I'll run a $500 3-audience test from day 1.", "analysis", "ceo"),
+        msg("cto", "Stack: Shopify + DSers (automated order routing) + Klaviyo (email flows). 5 days total setup. Zero custom dev — proven SaaS stack.", "analysis", "ceo"),
+        msg("coo", "Diana — ad budget from Q2 reserves or do we need a capital injection?", "question", "cfo"),
+        msg("cfo", "We have runway. Allocate from Q2 marketing. ROI gate: $3 return per $1 ad spend within 60 days, otherwise we pivot niche.", "agreement", "coo"),
+        msg("ceo", "Aligned. Proceeding to formal proposal. Green-light recommendation — pending your approval.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", `New request: "${short}". Emma — lead on supplier research. Sophie — niche analysis. Diana — financial model. Raj — tech stack. Go.`, "delegation", "all"),
+        msg("logistics", "I'll shortlist 3 niches with verified AliExpress supplier pools. Criteria: <$20 unit cost, <3 week ship time, >4.5 star rating. Report in 48h.", "analysis", "ceo"),
+        msg("cmo", "Niche scoring framework ready. Analyzing: search volume trend, competition density, TikTok organic potential. Will cross-reference Emma's supplier list.", "analysis", "ceo"),
+        msg("cfo", "Lean launch budget: $544 Month 1. If we hit 2% conversion on 1,000 visitors, we're at break-even. I'll model 3 scenarios: conservative, base, optimistic.", "analysis", "ceo"),
+        msg("cto", "Tech is the easy part here. Shopify handles everything. My recommendation: launch fast, iterate. Don't over-engineer. Store can be live in 72h.", "analysis", "ceo"),
+        msg("cmo", "Raj's point is right — speed to market matters here. I need Emma's supplier data to finalize ad creative. How fast can you confirm the niche?", "question", "logistics"),
+        msg("logistics", "48 hours on my end. I'll prioritize the top 2 niches so Sophie can start creative before I'm done with all 3.", "agreement", "cmo"),
+        msg("ceo", "Good parallel execution. Proposal ready for your review.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Website ──
   if (intent === "create_website") {
-    return [
-      msg("ceo", `Team, we need to build a website. Request: "${userText.slice(0, 60)}". Raj, Sophie — your assessment.`, "delegation", "all"),
-      msg("cto", "I recommend Next.js 14 + Vercel deployment. Build time: 5–10 days depending on complexity. Clean architecture, fast performance, built-in SEO. If it's a landing page only, 3 days. Full multi-page site: 8–10 days.", "analysis", "ceo"),
-      msg("cmo", "SEO strategy should be built in from day 1. I'll need the sitemap architecture and meta strategy defined before Raj starts development. Target: top 3 for 3 primary keywords within 90 days.", "analysis", "ceo"),
-      msg("cto", "Agreed on SEO-first approach. I'll add structured data, sitemap generation, and Core Web Vitals optimization to the scope from the start. No performance debt.", "agreement", "cmo"),
-      msg("ceo", "Good coordination. Raj leads tech, Sophie owns positioning and SEO. I'll formalize the proposal now.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", `Website request: "${short}". Raj, Sophie — your assessment.`, "delegation", "all"),
+        msg("cto", "Next.js 14 + Vercel. Landing page: 3 days. Full multi-page site: 8–10 days. SEO-first architecture built in from day 1.", "analysis", "ceo"),
+        msg("cmo", "SEO brief needed before dev starts — sitemap, meta strategy, keyword targeting. I can have it ready in 4 hours. Target: top 3 for 3 primary keywords in 90 days.", "analysis", "ceo"),
+        msg("cto", "Agreed. I'll wire structured data, sitemap generation, and Core Web Vitals from the jump. No performance debt.", "agreement", "cmo"),
+        msg("ceo", "Raj leads tech, Sophie owns positioning and SEO. Proposal incoming.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", `Site build request: "${short}". What's the fastest path to production?`, "delegation", "all"),
+        msg("cto", "Fastest path: Vercel + Next.js scaffold, deploy in 1 day. Full-featured site adds 5–7 days. What's the priority — speed or polish?", "question", "ceo"),
+        msg("cmo", "I'd say neither — priority is conversion. Whatever we build needs a clear CTA and SEO foundation. Sophie — I'll need your buyer persona brief upfront.", "debate", "cto"),
+        msg("cto", "Fair. I'll reserve a day at the start for Sophie's brief, then we build fast. Total: 5 days to live site.", "agreement", "cmo"),
+        msg("ceo", "Speed with intent. 5 days, SEO-first, conversion-optimized. That's the scope.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Flyer ──
   if (intent === "create_flyer") {
-    return [
-      msg("ceo", `Creative request: flyer needed. "${userText.slice(0, 60)}". Sophie, lead on this.`, "delegation", "cmo"),
-      msg("cmo", "On it. I'll design a high-impact A4 flyer with strong headline, clear CTA, and branded visuals. Turnaround: 24–48 hours. I need the key message and target audience confirmed first.", "analysis", "ceo"),
-      msg("ceo", "Sophie has this. Fast turnaround, quality first. Proposal incoming.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", `Creative request: "${short}". Sophie — lead on this.`, "delegation", "cmo"),
+        msg("cmo", "On it. High-impact A4 flyer, strong headline, clear CTA, branded visuals. 24–48h turnaround. Need key message and target audience confirmed.", "analysis", "ceo"),
+        msg("ceo", "Sophie has this. Fast, quality first.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", `Flyer needed: "${short}". Sophie, what's your read?`, "delegation", "cmo"),
+        msg("cmo", "Straightforward. Send me the event details and target audience — I'll have a first draft in 24h. If it needs photography, add 1 day for asset sourcing.", "analysis", "ceo"),
+        msg("ceo", "Sophie's on it. 24h clock starts when you confirm the brief details.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Invoice ──
   if (intent === "create_invoice") {
-    return [
-      msg("ceo", "Diana, invoice creation needed — please handle.", "delegation", "cfo"),
-      msg("cfo", "Already on it. I'll generate the invoice with standard Net-30 terms. Once you confirm the client and amount, I'll dispatch immediately. Payment tracking automated.", "analysis", "ceo"),
-      msg("ceo", "Diana owns this. Invoice will be ready within minutes.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", "Diana — invoice creation needed.", "delegation", "cfo"),
+        msg("cfo", "On it. Standard Net-30 terms. Confirm client and amount and I'll dispatch immediately. Payment tracking automated.", "analysis", "ceo"),
+        msg("ceo", "Diana owns this. Ready within minutes.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", "Diana, we need an invoice generated.", "delegation", "cfo"),
+        msg("cfo", "Invoice system ready. I'll set up Net-30, automated reminder at day 15 and 30. Send me the client name and amount.", "analysis", "ceo"),
+        msg("ceo", "Diana's on it — invoice will be in the Revenue section shortly.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Launch Mission ──
   if (intent === "launch_mission") {
-    return [
-      msg("ceo", `Strategic mission request: "${userText.slice(0, 60)}". Marcus, Raj — rapid assessment.`, "delegation", "all"),
-      msg("coo", "I can have the operational framework ready in 24 hours. Define scope, assign agents, set milestones. What's the priority level — standard or critical path?", "analysis", "ceo"),
-      msg("cto", "Technical scoping depends on the mission type. If it's a build mission, I'll run architecture planning first — 4–6 hours. Parallel workstreams possible. Estimated delivery: 1–3 weeks.", "analysis", "ceo"),
-      msg("coo", "Let's treat it as critical path. I'll mobilize agents immediately upon approval.", "agreement", "ceo"),
-      msg("ceo", "Good. Mission framework locked. Ready to launch on your approval.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", `Mission request: "${short}". Marcus, Raj — rapid assessment.`, "delegation", "all"),
+        msg("coo", "Operational framework: 24h to define scope, assign agents, set milestones. Priority level — standard or critical path?", "question", "ceo"),
+        msg("cto", "Tech scoping: 4–6h for architecture if it's a build mission. Parallel workstreams possible. Delivery: 1–3 weeks.", "analysis", "ceo"),
+        msg("coo", "Treating as critical path. Agents mobilized on approval.", "agreement", "ceo"),
+        msg("ceo", "Framework locked. Ready to launch on your go.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", `New mission: "${short}". Marcus — what's the fastest execution path?`, "delegation", "coo"),
+        msg("coo", "If we have all requirements, I can have agents running in 2h. The blocker is usually unclear scope. What's the definition of done here?", "question", "ceo"),
+        msg("cto", "From tech side — I need 30 minutes to define the architecture. After that, agents can run in parallel. I've done similar scope before.", "analysis", "coo"),
+        msg("coo", "Good. Raj handles architecture, I'll coordinate agent assignments. We can be in execution mode in 3h.", "agreement", "ceo"),
+        msg("ceo", "Execute. Session is live.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Business Review ──
   if (intent === "review_business") {
-    return [
-      msg("ceo", "Full business review requested. Diana, Marcus, Rachel — comprehensive status.", "delegation", "all"),
-      msg("cfo", "Revenue systems are operational. I'll pull the latest P&L, pipeline value, and outstanding invoices. Any red flags will be flagged immediately.", "analysis", "ceo"),
-      msg("coo", "Operations are running at normal capacity. I'll compile agent utilization, active missions, and delivery metrics into a single dashboard view.", "analysis", "ceo"),
-      msg("sales", "Pipeline health is critical context here. I'll add conversion rates, active deals, and lead velocity to the review. Need the full picture to make good recommendations.", "analysis", "ceo"),
-      msg("ceo", "Comprehensive review incoming. All systems being audited.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", "Full business review. Diana, Marcus, Rachel — comprehensive status.", "delegation", "all"),
+        msg("cfo", "Pulling P&L, pipeline value, and outstanding invoices. Any red flags flagged immediately.", "analysis", "ceo"),
+        msg("coo", "Agent utilization, active missions, delivery metrics — compiling now.", "analysis", "ceo"),
+        msg("sales", "Adding conversion rates, active deals, and lead velocity. Need full picture for recommendations.", "analysis", "ceo"),
+        msg("ceo", "Comprehensive review compiling. All systems audited.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", "Business health check. Diana leads, Marcus and Rachel support.", "delegation", "all"),
+        msg("cfo", "Running financial audit. I'll flag anything that needs immediate attention — margins, burn rate, outstanding receivables.", "analysis", "ceo"),
+        msg("coo", "Operations look stable. I'll confirm agent utilization and any mission blockers.", "analysis", "ceo"),
+        msg("sales", "Pipeline is healthy. I'll quantify it — deal count, weighted value, velocity compared to last period.", "analysis", "ceo"),
+        msg("cfo", "One flag upfront: if outstanding invoices are above 30 days, Rachel and I need to align on a collection strategy.", "debate", "sales"),
+        msg("ceo", "Good catch Diana. Rachel — add that to your report. Full review incoming.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Status Check ──
   if (intent === "status_check") {
-    return [
-      msg("ceo", "Marcus, quick status sweep across all operations.", "delegation", "coo"),
-      msg("coo", "On it. Scanning active agents, running missions, and any blockers. Back to you in 30 seconds.", "analysis", "ceo"),
-      msg("ceo", "Status report compiling now.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", "Marcus, quick status sweep across all operations.", "delegation", "coo"),
+        msg("coo", "Scanning active agents, running missions, any blockers. Back in 30 seconds.", "analysis", "ceo"),
+        msg("ceo", "Status report compiling.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", "Status check — Marcus, what's the current operational picture?", "delegation", "coo"),
+        msg("coo", "On it. I'll look at agent load, mission progress, and any escalations that need your attention.", "analysis", "ceo"),
+        msg("ceo", "Good. Pull everything into one view.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Delegate ──
   if (intent === "delegate_tasks") {
-    return [
-      msg("ceo", "Marcus, task delegation needed. Prioritize and assign to available agents.", "delegation", "coo"),
-      msg("coo", "Received. I'll audit the current task queue, identify bandwidth by agent, and assign optimally. Expect task assignments within 2 minutes.", "analysis", "ceo"),
-      msg("ceo", "Marcus is handling delegation. Queue being optimized now.", "synthesis", "all"),
+    const variants = [
+      [
+        msg("ceo", "Marcus, task delegation needed. Prioritize and assign to available agents.", "delegation", "coo"),
+        msg("coo", "Auditing task queue, identifying bandwidth by agent, assigning optimally. Expect assignments in 2 minutes.", "analysis", "ceo"),
+        msg("ceo", "Marcus handling delegation. Queue being optimized.", "synthesis", "all"),
+      ],
+      [
+        msg("ceo", "Marcus — I need the current task queue rebalanced.", "delegation", "coo"),
+        msg("coo", "Understood. I'll look at current agent load and move tasks to whoever has capacity. Any priority tasks I should push to the front of the queue?", "question", "ceo"),
+        msg("ceo", "Prioritize anything that's blocking client deliverables. You have full authority to reassign.", "synthesis", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Greeting ──
   if (intent === "greeting") {
-    return [
-      msg("ceo", "Good to have you. I'm Alexandra Chen, your CEO AI. The executive team is standing by — Marcus (Operations), Diana (Finance), Sophie (Marketing), Raj (Technology), Emma (Logistics), Carlos (Support), Rachel (Sales), James (HR). What's on the agenda?", "opening", "all"),
+    const variants = [
+      [
+        msg("ceo", "Good to have you. I'm Alexandra Chen, your CEO AI. The team is on standby — Marcus (Ops), Diana (Finance), Sophie (Marketing), Raj (Tech), Emma (Logistics). What's on the agenda?", "opening", "all"),
+      ],
+      [
+        msg("ceo", "Welcome back. Alexandra Chen here. Your executive team is ready — just tell me what you want to tackle today.", "opening", "all"),
+      ],
+      [
+        msg("ceo", "Hey — Alexandra Chen, CEO. Team is online: Marcus, Diana, Sophie, Raj, Emma, Carlos, Rachel, James. All systems operational. What do you need?", "opening", "all"),
+      ],
     ];
+    return pickVariant(intent, variants);
   }
 
   // ── Unknown / Default ──
-  return [
-    msg("ceo", `I've received your message: "${userText.slice(0, 80)}". I'm analyzing the best approach and will route to the appropriate director. Can you provide more specifics so I can give you a precise recommendation?`, "clarification", "all"),
+  const defaultVariants = [
+    [
+      msg("ceo", `Received: "${userText.slice(0, 80)}". Analyzing the best approach — routing to the right director. Can you give me more specifics?`, "clarification", "all"),
+    ],
+    [
+      msg("ceo", `I've got your message. To give you a precise recommendation, I need a bit more context — what's the end goal here?`, "clarification", "all"),
+    ],
+    [
+      msg("ceo", `"${userText.slice(0, 70)}" — interesting. Let me think about who's best positioned to handle this. Give me more context on what you're trying to accomplish.`, "clarification", "all"),
+    ],
   ];
+  return pickVariant("unknown", defaultVariants);
 }
 
 // ─── Proposal Generation ──────────────────────────────────────────────────

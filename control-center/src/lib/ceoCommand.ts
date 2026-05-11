@@ -6,6 +6,14 @@ import { getBusinessOverview } from "./businessOps";
 import { getCrmOverview } from "./clientCrm";
 import { getRevenueOverview, createInvoice, type Invoice } from "./revenueSystem";
 import { createDiscussion, type ExecutiveDiscussion } from "./executiveDiscussion";
+import {
+  generateSmartResponseAsync,
+  generateSmartResponse,
+  getThinkingState,
+  updateCeoMemory,
+  recordCeoDecision,
+  type ThinkingState,
+} from "./ceoConversation";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -35,6 +43,7 @@ export interface CeoMessage {
   sessionId?: string;
   actions?: CeoAction[];
   discussionId?: string;
+  thinkingState?: ThinkingState;
   timestamp: string;
 }
 
@@ -96,16 +105,16 @@ function nextId(prefix: string): string {
 }
 
 const INTENT_KEYWORDS: Record<CeoIntent, string[]> = {
-  launch_mission: ["mission", "lancer", "launch", "démarrer", "start", "projet", "project"],
-  create_invoice: ["facture", "invoice", "facturation", "billing", "payer", "paiement"],
-  create_flyer: ["flyer", "dépliant", "affiche", "poster", "promotionnel"],
-  create_website: ["site web", "website", "site internet", "landing", "page web"],
+  launch_mission:               ["mission", "lancer", "launch", "démarrer", "start", "projet", "project"],
+  create_invoice:               ["facture", "invoice", "facturation", "billing", "payer", "paiement"],
+  create_flyer:                 ["flyer", "dépliant", "affiche", "poster", "promotionnel"],
+  create_website:               ["site web", "website", "site internet", "landing", "page web"],
   create_dropshipping_business: ["dropshipping", "e-commerce", "boutique", "ecommerce", "boutique en ligne", "magasin"],
-  review_business: ["état", "status", "résumé", "bilan", "review", "vérifie", "check", "situation", "compagnie"],
-  delegate_tasks: ["délègue", "delegate", "assigne", "assign", "tâche", "task"],
-  greeting: ["bonjour", "salut", "hello", "hi", "hey", "bonsoir"],
-  status_check: ["comment", "how", "quoi de neuf", "what's up", "avance", "progress"],
-  unknown: [],
+  review_business:              ["état", "status", "résumé", "bilan", "review", "vérifie", "check", "situation", "compagnie"],
+  delegate_tasks:               ["délègue", "delegate", "assigne", "assign", "tâche", "task"],
+  greeting:                     ["bonjour", "salut", "hello", "hi", "hey", "bonsoir"],
+  status_check:                 ["comment", "how", "quoi de neuf", "what's up", "avance", "progress"],
+  unknown:                      [],
 };
 
 function detectIntent(text: string): CeoIntent {
@@ -128,53 +137,14 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
 
 // ─── CEO Response Logic ───────────────────────────────────────────────────
 
-function buildCeoResponse(
-  intent: CeoIntent,
-  userText: string,
-  actions: CeoAction[]
-): string {
-  switch (intent) {
-    case "greeting":
-      return "Bonjour! Je suis votre CEO AI. Je peux lancer des missions, créer des factures, gérer vos projets et plus. Que puis-je faire pour vous?";
-    case "launch_mission":
-      return actions.some((a) => a.type === "created_session")
-        ? `Mission lancée! J'ai créé une nouvelle session autopilot. Les agents vont commencer à travailler.`
-        : "Je vais lancer une mission pour vous. Quel type de projet souhaitez-vous?";
-    case "create_invoice":
-      return actions.some((a) => a.type === "created_invoice")
-        ? "Facture créée! Vous pouvez la retrouver dans la section Revenue."
-        : "Je vais créer une facture. Quel client et quel montant?";
-    case "create_flyer":
-      return actions.some((a) => a.type === "created_session")
-        ? "Flyer en cours de création! J'ai assigné le frontend_agent pour le design."
-        : "Je vais créer un flyer pour vous. Quelle est l'occasion?";
-    case "create_website":
-      return actions.some((a) => a.type === "created_session")
-        ? "Site web en cours de création! L'équipe d'agents est mobilisée."
-        : "Je vais créer un site web. Quel type de site souhaitez-vous?";
-    case "create_dropshipping_business":
-      return actions.some((a) => a.type === "created_session")
-        ? "Business dropshipping lancé! Je vais configurer l'opérateur e-commerce et rechercher des produits."
-        : "Je vais monter votre business dropshipping. Quel créneau de produits vous intéresse?";
-    case "review_business":
-      return buildBusinessReview();
-    case "delegate_tasks":
-      return "Je délègue les tâches aux agents disponibles. Les résultats apparaîtront dans la timeline.";
-    case "status_check":
-      return buildStatusCheck();
-    default:
-      return "Je comprends votre demande. Laissez-moi analyser la meilleure approche. Vous pouvez aussi utiliser les suggestions rapides ci-dessous pour des actions spécifiques.";
-  }
-}
-
 function buildBusinessReview(): string {
   try {
     const biz = getBusinessOverview();
     const crm = getCrmOverview();
     const rev = getRevenueOverview();
-    return `📊 Résumé de votre compagnie:\n• Missions actives: ${biz.activeMissions}\n• Missions livrées: ${biz.deliveredMissions}\n• Clients: ${crm.totalClients} (${crm.activeClients} actifs)\n• Leads: ${crm.totalLeads}\n• Revenus totaux: $${rev.totalRevenue}\n• Pipeline: $${rev.pipelineValue}\n• Factures en attente: ${rev.outstandingInvoices}`;
+    return `Missions actives: ${biz.activeMissions} | Livrées: ${biz.deliveredMissions}\nClients: ${crm.totalClients} (${crm.activeClients} actifs) | Leads: ${crm.totalLeads}\nRevenus: $${rev.totalRevenue} | Pipeline: $${rev.pipelineValue} | Factures en attente: ${rev.outstandingInvoices}`;
   } catch {
-    return "Je n'arrive pas à récupérer le résumé maintenant. Le système est peut-être en cours d'initialisation. Essayez de seed les données demo d'abord.";
+    return "Données pas encore disponibles — seed les données demo si nécessaire.";
   }
 }
 
@@ -184,10 +154,33 @@ function buildStatusCheck(): string {
     const active = agents.filter((a) => a.status !== "idle").length;
     const sessions = listSessions();
     const running = sessions.filter((s) => s.status === "running").length;
-    return `État actuel:\n• ${agents.length} agents disponibles (${active} actifs)\n• ${sessions.length} sessions (${running} en cours)\n• Agents: ${agents.map((a) => `${a.agentId} (${a.status})`).join(", ")}`;
+    return `${agents.length} agents (${active} actifs) | ${sessions.length} sessions (${running} en cours)\nAgents: ${agents.map((a) => `${a.agentId} (${a.status})`).join(", ")}`;
   } catch {
-    return "Système en cours d'initialisation. Les agents seront bientôt disponibles.";
+    return "Système en initialisation. Agents bientôt disponibles.";
   }
+}
+
+async function buildCeoResponse(
+  intent: CeoIntent,
+  userText: string,
+  actions: CeoAction[],
+): Promise<string> {
+  // For intents that need live system data, prepend smart intro to real data
+  if (intent === "review_business") {
+    const intro = generateSmartResponse("review_business");
+    const data = buildBusinessReview();
+    return `${intro}\n${data}`;
+  }
+
+  if (intent === "status_check") {
+    const intro = generateSmartResponse("status_check");
+    const data = buildStatusCheck();
+    return `${intro}\n${data}`;
+  }
+
+  // Use smart response (NVIDIA if available, else intelligent simulation)
+  const { text } = await generateSmartResponseAsync(intent, userText);
+  return text;
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────
@@ -197,7 +190,7 @@ export function getMessages(limit = 50): CeoMessage[] {
   return data.messages.slice(-limit);
 }
 
-export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion: ExecutiveDiscussion } {
+export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessage; discussion: ExecutiveDiscussion }> {
   const data = readChat();
 
   // Save user message
@@ -213,19 +206,28 @@ export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion:
   const intent = detectIntent(text);
   const actions: CeoAction[] = [];
 
+  // Update conversation memory
+  updateCeoMemory(intent, text);
+
   let sessionId: string | undefined;
 
-  // Execute intent
-  if (intent === "launch_mission" || intent === "create_flyer" || intent === "create_website" || intent === "create_dropshipping_business") {
+  if (
+    intent === "launch_mission" ||
+    intent === "create_flyer" ||
+    intent === "create_website" ||
+    intent === "create_dropshipping_business"
+  ) {
     const missionTypeKey = missionTypeForIntent(intent);
     const projectName = text.length > 5 ? text.slice(0, 40).trim() : `Mission ${intent}`;
     try {
-      const session = createSession({
-        name: projectName,
-        missionType: missionTypeKey ?? null,
-      });
+      const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
-      actions.push({ type: "created_session", label: `Session créée: ${session.sessionId}`, targetId: session.sessionId, href: `/autopilot/${session.sessionId}` });
+      actions.push({
+        type: "created_session",
+        label: `Session créée: ${session.sessionId}`,
+        targetId: session.sessionId,
+        href: `/autopilot/${session.sessionId}`,
+      });
     } catch {
       actions.push({ type: "created_session", label: "Erreur lors de la création de session" });
     }
@@ -233,9 +235,17 @@ export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion:
 
   if (intent === "create_invoice") {
     try {
-      const inv = createInvoice({ amount: 0, dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0] });
+      const inv = createInvoice({
+        amount: 0,
+        dueDate: new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
+      });
       if (inv) {
-        actions.push({ type: "created_invoice", label: `Facture ${inv.invoiceId} créée`, targetId: inv.invoiceId, href: "/revenue" });
+        actions.push({
+          type: "created_invoice",
+          label: `Facture ${inv.invoiceId} créée`,
+          targetId: inv.invoiceId,
+          href: "/revenue",
+        });
       }
     } catch {
       actions.push({ type: "created_invoice", label: "Erreur création facture" });
@@ -247,17 +257,23 @@ export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion:
       const sessions = listSessions();
       for (const s of sessions) {
         if (s.businessStatus === "review") {
-          actions.push({ type: "approval_needed", label: `Mission "${s.projectName}" requiert approbation`, targetId: s.sessionId, href: `/autopilot/${s.sessionId}` });
+          actions.push({
+            type: "approval_needed",
+            label: `Mission "${s.projectName}" requiert approbation`,
+            targetId: s.sessionId,
+            href: `/autopilot/${s.sessionId}`,
+          });
         }
       }
     } catch { /* */ }
   }
 
-  // Generate executive discussion for this request
+  // Generate executive discussion
   const discussion = createDiscussion(text, intent);
 
-  // Build CEO response
-  const responseText = buildCeoResponse(intent, text, actions);
+  // Build CEO response (smart + contextual)
+  const responseText = await buildCeoResponse(intent, text, actions);
+  const thinkingState = getThinkingState(intent);
 
   const ceoMsg: CeoMessage = {
     id: nextId("msg"),
@@ -267,6 +283,7 @@ export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion:
     sessionId,
     actions,
     discussionId: discussion.id,
+    thinkingState,
     timestamp: new Date().toISOString(),
   };
   data.messages.push(ceoMsg);
@@ -284,7 +301,6 @@ export function getCeoOverview(): CeoOverview {
 
   const pendingDecisions: PendingDecision[] = [];
 
-  // Pending approvals from sessions
   for (const s of sessions) {
     if (s.businessStatus === "review") {
       pendingDecisions.push({
@@ -306,10 +322,7 @@ export function getCeoOverview(): CeoOverview {
     }
   }
 
-  // Pending invoices
   try {
-    const crm = getCrmOverview();
-    // Outstanding invoices as decisions
     if (rev.outstandingInvoices > 0) {
       pendingDecisions.push({
         id: "dec-invoices",
@@ -334,8 +347,6 @@ export function delegateTask(sessionId: string, agentId: string): { ok: boolean;
   try {
     const session = getSession(sessionId);
     if (!session) return { ok: false, message: "Session introuvable" };
-
-    // runStep is async — we can't await here, so note it's queued
     return { ok: true, message: `Tâche déléguée à ${agentId} pour la session ${sessionId}. Exécution en cours.` };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Erreur inconnue";
@@ -345,7 +356,6 @@ export function delegateTask(sessionId: string, agentId: string): { ok: boolean;
 
 export function approveDecision(decisionId: string): { ok: boolean; message: string } {
   const data = readChat();
-  // Log the approval
   const msg: CeoMessage = {
     id: nextId("msg"),
     role: "ceo",
@@ -354,6 +364,7 @@ export function approveDecision(decisionId: string): { ok: boolean; message: str
   };
   data.messages.push(msg);
   writeChat(data);
+  recordCeoDecision(`approved: ${decisionId}`);
   return { ok: true, message: `Décision ${decisionId} approuvée` };
 }
 
@@ -367,5 +378,6 @@ export function rejectDecision(decisionId: string): { ok: boolean; message: stri
   };
   data.messages.push(msg);
   writeChat(data);
+  recordCeoDecision(`rejected: ${decisionId}`);
   return { ok: true, message: `Décision ${decisionId} rejetée` };
 }
