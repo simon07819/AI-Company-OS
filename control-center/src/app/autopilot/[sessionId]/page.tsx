@@ -37,7 +37,7 @@ import {
   Zap,
 } from "lucide-react";
 
-type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
+type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
 type LogLevel = "info" | "success" | "warning" | "error";
 
@@ -160,6 +160,7 @@ const REVIEW_STATUS_CONFIG: Record<string, { label: string; color: string; bg: s
 const STATUS_CONFIG: Record<SessionStatus, { label: string; color: string; bg: string }> = {
   running:   { label: "RUNNING",   color: "#34d399", bg: "rgba(16,185,129,0.12)" },
   paused:    { label: "PAUSED",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  waiting_approval: { label: "WAITING APPROVAL", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   completed: { label: "COMPLETED", color: "#38bdf8", bg: "rgba(59,130,246,0.12)" },
   failed:    { label: "FAILED",    color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
   draft:     { label: "DRAFT",     color: "#8b97b2", bg: "rgba(139,151,178,0.1)" },

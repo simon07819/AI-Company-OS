@@ -6,6 +6,8 @@ import {
   AlertTriangle, CheckCircle2, Clock, DollarSign, Eye, FileText,
   Image as ImageIcon, Layout, Palette, Rocket, X, XCircle, ShieldCheck, Sparkles,
 } from "lucide-react";
+import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
+import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -45,8 +47,8 @@ interface ApprovalPreview {
     client: string;
     items: { description: string; quantity: number; unitPrice: number; total: number }[];
   };
-  files?: { name: string; path: string; score?: number; status: string; preview?: string }[];
-  outputs?: { title: string; type: string; status: string; preview: string; visualKind?: "image" | "website" | "invoice" | "document" | "brand"; colors?: string[] }[];
+  files?: { name: string; path: string; score?: number; status: string; preview?: string; imageUrl?: string; mimeType?: string }[];
+  outputs?: { id: string; title: string; type: string; status: string; preview: string; visualKind?: "image" | "website" | "invoice" | "document" | "brand"; colors?: string[]; visualPreview?: OutputVisualPreview | null }[];
   mission?: {
     name: string;
     missionType: string;
@@ -401,41 +403,23 @@ export function ApprovalPreviewModal({ preview, open, onClose, onApprove, onReje
                           {out.status}
                         </span>
                       </div>
-                      {out.visualKind === "brand" && (
-                        <div style={{
-                          margin: "8px 0", padding: 10, borderRadius: 8,
-                          background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))",
-                          border: "1px solid rgba(148,163,184,0.24)",
-                        }}>
-                          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 900, color: "#f8fafc", letterSpacing: 0 }}>
-                            Aa
-                          </div>
-                          <div style={{ fontSize: 9, color: "#cbd5e1", marginTop: 5 }}>Logo / brand concept preview</div>
-                          {out.colors && out.colors.length > 0 && (
-                            <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
-                              {out.colors.map((c) => (
-                                <span key={c} title={c} style={{ width: 22, height: 22, borderRadius: 5, background: c, border: "1px solid rgba(255,255,255,0.35)" }} />
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      {out.visualKind === "website" && (
-                        <div style={{ margin: "8px 0", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--bg-2)" }}>
-                          <div style={{ height: 20, display: "flex", alignItems: "center", gap: 4, padding: "0 8px", borderBottom: "1px solid var(--border)" }}>
-                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#ef4444" }} />
-                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#f59e0b" }} />
-                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#22c55e" }} />
-                          </div>
-                          <div style={{ padding: 12 }}>
-                            <div style={{ height: 12, width: "55%", background: "#38bdf8", borderRadius: 3, marginBottom: 8 }} />
-                            <div style={{ height: 7, width: "82%", background: "var(--border)", borderRadius: 3, marginBottom: 5 }} />
-                            <div style={{ height: 7, width: "68%", background: "var(--border)", borderRadius: 3, marginBottom: 10 }} />
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
-                              {[0, 1, 2].map((n) => <span key={n} style={{ height: 30, borderRadius: 5, background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.2)" }} />)}
-                            </div>
-                          </div>
-                        </div>
+                      <VisualOutputPreview visualPreview={out.visualPreview} title={out.title} summary={out.preview} />
+                      {!out.visualPreview && (
+                        <button
+                          onClick={() => fetch(`/api/visible-outputs/${out.id}`, {
+                            method: "PATCH",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ action: "generate_visual_preview" }),
+                          })}
+                          style={{
+                            margin: "8px 0", padding: "7px 10px", borderRadius: 7,
+                            border: "1px solid rgba(139,92,246,0.3)", background: "rgba(139,92,246,0.08)",
+                            color: "#8b5cf6", fontSize: 10, fontWeight: 700, cursor: "pointer",
+                            display: "inline-flex", alignItems: "center", gap: 5,
+                          }}
+                        >
+                          <Sparkles size={11} /> Generate visual preview
+                        </button>
                       )}
                       <p style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, margin: 0, whiteSpace: "pre-wrap" }}>
                         {out.preview || "No preview text available."}
@@ -474,6 +458,11 @@ export function ApprovalPreviewModal({ preview, open, onClose, onApprove, onReje
                         }}>
                           {f.preview}
                         </pre>
+                      )}
+                      {f.imageUrl && (
+                        <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid var(--border)", background: "#0f172a" }}>
+                          <img src={f.imageUrl} alt={f.name} style={{ width: "100%", maxHeight: 260, objectFit: "contain", display: "block" }} />
+                        </div>
                       )}
                     </div>
                   ))}

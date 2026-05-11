@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getProfile } from "./agentProfiles";
-import { getOutputById, getOutputsForSession } from "./visibleOutputs";
+import { getOutputById, getOutputsForSession, hasRealVisualPreview, buildVisualPreview, type OutputVisualPreview } from "./visibleOutputs";
 import { getSession } from "./autopilotStore";
 import { loadReviewReport } from "./deliverableReview";
 
@@ -59,14 +59,18 @@ export interface ApprovalPreview {
     score?: number;
     status: string;
     preview?: string;         // First 500 chars of file content
+    imageUrl?: string;
+    mimeType?: string;
   }[];
   outputs?: {                 // Populated for logo/design/output types
+    id: string;
     title: string;
     type: string;
     status: string;
     preview: string;
     visualKind?: "image" | "website" | "invoice" | "document" | "brand";
     colors?: string[];
+    visualPreview?: OutputVisualPreview | null;
   }[];
   mission?: {                 // Populated for mission type
     name: string;
@@ -159,7 +163,7 @@ export function collectPendingApprovals(): ApprovalItem[] {
               createdAt: out.createdAt ?? new Date().toISOString(),
               qualityScore: out.qualityScore,
               summary: out.preview ?? "Awaiting review",
-              hasPreviewContent: !!(out.preview || out.sourceFile || (out.sourceFiles?.length ?? 0) > 0),
+              hasPreviewContent: hasRealVisualPreview(out),
               previewType: "output_list",
             });
           }
@@ -286,6 +290,7 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
         const invoiceTypes = new Set(["invoice_preview", "estimate_preview", "taxes_summary"]);
         const brandTypes = new Set(["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "before_after"]);
         preview.outputs = [{
+          id: output.id,
           title: output.title,
           type: output.type,
           status: output.status,
@@ -295,7 +300,18 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
               : brandTypes.has(output.type) ? "brand"
                 : "document",
           colors: colorMatches.slice(0, 8),
+          visualPreview: output.visualPreview ?? buildVisualPreview(output),
         }];
+        const visual = output.visualPreview ?? buildVisualPreview(output);
+        if (visual?.kind === "image" && visual.imageUrl) {
+          preview.files = [{
+            name: visual.imageAlt ?? output.title,
+            path: visual.imageUrl,
+            status: "available",
+            imageUrl: visual.imageUrl,
+            mimeType: "image/*",
+          }];
+        }
         preview.content = output.preview || output.summary || item.summary;
       }
     }
@@ -363,6 +379,7 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
       const outputs = getOutputsForSession(item.sessionId);
       if (outputs.length > 0) {
         preview.outputs = outputs.map((o) => ({
+          id: o.id,
           title: o.title,
           type: o.type,
           status: o.status,
@@ -371,9 +388,36 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
             : ["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "before_after"].includes(o.type) ? "brand"
               : "document",
           colors: (o.preview ?? "").match(/#[0-9a-fA-F]{6}/g)?.slice(0, 8) ?? [],
+          visualPreview: o.visualPreview ?? buildVisualPreview(o),
         }));
       }
     } catch { /* ignore */ }
+  }
+
+  if (item.sessionId) {
+    try {
+      const outputs = getOutputsForSession(item.sessionId);
+      const imageFileIds = Array.from(new Set(outputs.flatMap((o) => o.sourceFiles ?? [])));
+      if (imageFileIds.length > 0) {
+        const { getFileById } = require("./ceoUploads") as typeof import("./ceoUploads");
+        const imageFiles = imageFileIds
+          .map((id) => getFileById(id))
+          .filter((file): file is NonNullable<ReturnType<typeof getFileById>> => !!file && file.category === "image");
+        if (imageFiles.length > 0) {
+          preview.files = [
+            ...(preview.files ?? []),
+            ...imageFiles.map((file) => ({
+              name: file.name,
+              path: file.storagePath,
+              status: "available",
+              preview: file.analysis?.summary,
+              imageUrl: `/api/ceo/files/${file.id}`,
+              mimeType: file.mimeType,
+            })),
+          ];
+        }
+      }
+    } catch { /* uploads optional */ }
   }
 
   if (item.type === "deliverable" && item.sessionId) {
@@ -419,7 +463,12 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
   }
 
   // Warnings
-  const hasRealPreview = !!(preview.invoice || preview.files?.length || preview.outputs?.length || preview.mission);
+  const hasRealPreview = !!(
+    preview.invoice ||
+    preview.mission ||
+    preview.files?.some((file) => !!file.imageUrl || !!file.preview) ||
+    preview.outputs?.some((output) => !!output.visualPreview)
+  );
   if (!hasRealPreview) {
     preview.warnings.push("Aucun aperçu disponible");
   }

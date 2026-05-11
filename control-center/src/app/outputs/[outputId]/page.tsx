@@ -9,6 +9,8 @@ import {
   RefreshCw, Rocket, ShieldCheck, XCircle,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, PageHeader, Panel, SectionHeader, StatusBadge } from "@/components/ui";
+import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
+import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
 type OutputStatus = "draft" | "in_progress" | "review" | "approved" | "delivered";
 
@@ -24,6 +26,7 @@ interface VisibleOutput {
   assignedAgent: string;
   sourceFile: string | null;
   sourceFiles: string[];
+  visualPreview?: OutputVisualPreview | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -209,7 +212,8 @@ export default function OutputDetailPage() {
               background: `${meta.color}04`, border: `1px solid ${meta.color}15`,
               borderRadius: 8, padding: 18, marginTop: 10,
             }}>
-              <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.7, margin: 0, whiteSpace: "pre-wrap" }}>
+              <VisualOutputPreview visualPreview={output.visualPreview} title={output.title} summary={output.summary} />
+              <p style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.7, margin: output.visualPreview ? "14px 0 0" : 0, whiteSpace: "pre-wrap" }}>
                 {output.preview || "No preview content available yet."}
               </p>
             </div>

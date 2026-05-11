@@ -16,6 +16,7 @@ interface MiniSession {
 const STATUS_COLORS: Record<string, string> = {
   running: "#34d399",
   paused: "#f59e0b",
+  waiting_approval: "#f59e0b",
   completed: "#38bdf8",
   failed: "#f43f5e",
   draft: "#8b97b2",
@@ -43,7 +44,7 @@ export default function AutopilotSessionBanner() {
         const payload = (await res.json()) as { sessions?: MiniSession[] };
         if (!mounted) return;
         const active = (payload.sessions ?? [])
-          .filter((s) => s.status === "running" || s.status === "paused")
+          .filter((s) => s.status === "running" || s.status === "paused" || s.status === "waiting_approval")
           .slice(0, 2);
         setSessions(active);
       } catch {

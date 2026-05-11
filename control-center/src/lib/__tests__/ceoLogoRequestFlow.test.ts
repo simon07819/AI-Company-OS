@@ -91,7 +91,8 @@ describe("CEO logo request execution flow", () => {
 
     const session = getSession(sessionId);
     expect(session).toBeTruthy();
-    expect(session!.status).toMatch(/running|completed|failed/);
+    expect(session!.status).toBe("waiting_approval");
+    expect(session!.businessStatus).toBe("review");
     expect(session!.progress).toBeGreaterThan(0);
 
     const outputs = getOutputsForSession(sessionId);
@@ -136,5 +137,39 @@ describe("CEO logo request execution flow", () => {
     const postPayload = await jsonFrom(postResponse);
     expect(postPayload.ok).toBe(true);
     expect((postPayload.response as { actions: Array<{ type: string }> }).actions.some((a) => a.type === "created_session")).toBe(true);
+  });
+
+  it("mission logo ne reste pas bloquee a 70 percent", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { getSession } = await import("@/lib/autopilotStore");
+
+    const { ceoMessage } = await sendMessage("Je veux un logo simple pour une compagnie de photo");
+    const session = getSession(ceoMessage.sessionId!);
+
+    expect(session?.progress).toBeGreaterThanOrEqual(70);
+    expect(session?.status).toBe("waiting_approval");
+    expect(session?.runtime.lastEvent).toContain("approval");
+    expect(session?.tasks.some((task) => task.status === "running")).toBe(false);
+  });
+
+  it("mission 70 percent plus sans output cree un fallback visible output", async () => {
+    const { createSession, runAll, updateSession } = await import("@/lib/autopilotStore");
+    const { getOutputsForSession } = await import("@/lib/visibleOutputs");
+
+    const session = createSession({ name: "Fallback Logo", missionType: "branding_pack" });
+    const completedTasks = session.tasks.map((task, index) => ({
+      ...task,
+      status: index < 5 ? "completed" as const : "queued" as const,
+      progress: index < 5 ? 100 : 0,
+    }));
+    updateSession(session.sessionId, { tasks: completedTasks, progress: 71, status: "running" });
+    fileStore["visible-outputs.json"] = '{"outputs":[]}';
+
+    const result = await runAll(session.sessionId, 0);
+    const outputs = getOutputsForSession(session.sessionId);
+
+    expect(result.session?.progress).toBeGreaterThanOrEqual(70);
+    expect(outputs.length).toBe(1);
+    expect(outputs[0].visualPreview).toBeTruthy();
   });
 });

@@ -22,7 +22,7 @@ export type AutopilotPhase =
   | "build"
   | "runtime";
 
-export type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
+export type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 export type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
 export type LogLevel = "info" | "success" | "warning" | "error";
 export type BusinessStatus = "idea" | "in_production" | "review" | "client_ready" | "delivered" | "recurring";
@@ -495,6 +495,37 @@ export function updateSession(sessionId: string, patch: Partial<AutopilotSession
   return sessions[index];
 }
 
+export function moveSessionToApproval(
+  sessionId: string,
+  message = "Mission reached review gate — visible output is ready for approval.",
+): AutopilotSession | null {
+  const session = getSession(sessionId);
+  if (!session) return null;
+  if (session.status === "completed" || session.status === "failed" || session.status === "waiting_approval") return session;
+
+  const updated = updateSession(sessionId, {
+    status: "waiting_approval",
+    businessStatus: "review",
+    runtime: {
+      ...session.runtime,
+      activeWorkers: 0,
+      lastEvent: message,
+    },
+  });
+
+  if (updated) {
+    appendLog(sessionId, {
+      timestamp: new Date().toISOString(),
+      level: "success",
+      agent: "autopilot",
+      message,
+      source: "approval",
+    });
+  }
+
+  return updated;
+}
+
 export function appendLog(sessionId: string, log: Omit<AutopilotLog, "id">): AutopilotSession | null {
   const sessions = readSessionsFile();
   const index = sessions.findIndex((s) => s.sessionId === sessionId);
@@ -536,14 +567,14 @@ export function continueSession(sessionId: string): AutopilotSession | null {
   const session = getSession(sessionId);
   if (!session) return null;
 
-  if (session.status === "paused") {
+  if (session.status === "paused" || session.status === "waiting_approval") {
     const updated = updateSession(sessionId, { status: "running" });
     if (updated) {
       appendLog(sessionId, {
         timestamp: new Date().toISOString(),
         level: "info",
         agent: "autopilot",
-        message: "Autopilot resumed",
+        message: session.status === "waiting_approval" ? "Approval gate resumed for continued execution" : "Autopilot resumed",
         source: "control",
       });
     }
@@ -1018,10 +1049,10 @@ export async function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): P
   for (let i = 0; i < maxSteps; i++) {
     // Re-read session to get latest state
     session = getSession(sessionId);
-    if (!session || (session.status !== "running" && session.status !== "paused")) break;
+    if (!session || (session.status !== "running" && session.status !== "paused" && session.status !== "waiting_approval")) break;
 
     // Resume if paused
-    if (session.status === "paused") {
+    if (session.status === "paused" || session.status === "waiting_approval") {
       updateSession(sessionId, { status: "running" });
       appendLog(sessionId, {
         timestamp: new Date().toISOString(),
@@ -1072,6 +1103,10 @@ export async function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): P
     session = getSession(sessionId);
   }
 
+  if (session && session.progress >= 70 && session.status === "running" && getOutputCountForSession(sessionId) > 0) {
+    session = moveSessionToApproval(sessionId) ?? getSession(sessionId);
+  }
+
   // Auto-generate project scaffold at 50% progress
   if (session && session.progress >= 50 && !projectScaffoldExists(sessionId)) {
     const scaffoldPaths = generateProjectScaffold(session);
@@ -1116,6 +1151,7 @@ export async function startMissionAutopilot(
   projectIdea?: string,
   existingSessionId?: string,
   projectId?: string | null,
+  sourceFiles: string[] = [],
 ): Promise<MissionAutopilotResult> {
   const emptyResult: MissionAutopilotResult = {
     ok: false, sessionId: "", projectName, missionType,
@@ -1203,14 +1239,14 @@ export async function startMissionAutopilot(
     const { generateVisibleOutputs, getOutputCountForSession, ensureFallbackVisibleOutput } = await import("./visibleOutputs");
     const existing = getOutputCountForSession(session.sessionId);
     if (existing === 0) {
-      const outputs = generateVisibleOutputs(session.sessionId, missionType, projectId ?? null);
+      const outputs = generateVisibleOutputs(session.sessionId, missionType, projectId ?? null, sourceFiles);
       outputsGenerated = outputs.length;
     } else {
       outputsGenerated = existing;
     }
     const latest = getSession(session.sessionId);
     if ((latest?.progress ?? 0) >= 70 && getOutputCountForSession(session.sessionId) === 0) {
-      ensureFallbackVisibleOutput(session.sessionId, missionType, projectId ?? null);
+      ensureFallbackVisibleOutput(session.sessionId, missionType, projectId ?? null, sourceFiles);
       outputsGenerated = 1;
       appendLog(session.sessionId, {
         timestamp: new Date().toISOString(),
@@ -1232,6 +1268,10 @@ export async function startMissionAutopilot(
       } else if (outputProgress < completedRatio) {
         updateOutputStatus(outs[i].id, "in_progress");
       }
+    }
+    const afterOutputs = getSession(session.sessionId);
+    if ((afterOutputs?.progress ?? 0) >= 70 && getOutputCountForSession(session.sessionId) > 0 && afterOutputs?.status === "running") {
+      moveSessionToApproval(session.sessionId);
     }
   } catch { /* outputs generation is best-effort */ }
 

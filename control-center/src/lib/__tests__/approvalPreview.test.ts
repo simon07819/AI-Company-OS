@@ -114,6 +114,97 @@ describe("Approval Preview System", () => {
     expect(preview!.warnings).toEqual([]);
   });
 
+  it("preview affiche image uploadee si disponible", async () => {
+    fileStore["ceo-files.json"] = JSON.stringify({
+      files: [{
+        id: "file-photo-logo",
+        name: "logo-photo.png",
+        size: 100,
+        mimeType: "image/png",
+        category: "image",
+        storagePath: "/tmp/logo-photo.png",
+        uploadedAt: new Date().toISOString(),
+        analysis: { summary: "Image logo", delegateTo: "cmo", delegationMessage: "", taskType: "visual_review", analyzedAt: new Date().toISOString() },
+      }],
+    });
+    fileStore["visible-outputs.json"] = JSON.stringify({
+      outputs: [{
+        id: "vo-image-logo",
+        sessionId: "session-image-logo",
+        projectId: null,
+        title: "Logo Concept",
+        type: "logo_direction",
+        summary: "Premium logo",
+        preview: "Logo Concept",
+        status: "review",
+        assignedAgent: "cmo",
+        sourceFile: null,
+        sourceFiles: ["file-photo-logo"],
+        visualPreview: { kind: "image", imageUrl: "/api/ceo/files/file-photo-logo", imageAlt: "logo-photo.png", colors: [] },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }],
+    });
+
+    const { getApprovalPreview } = await import("@/lib/approvalPreview");
+    const preview = getApprovalPreview("output-vo-image-logo");
+
+    expect(preview?.files?.[0].imageUrl).toBe("/api/ceo/files/file-photo-logo");
+    expect(preview?.outputs?.[0].visualPreview?.kind).toBe("image");
+    expect(preview?.warnings).toEqual([]);
+  });
+
+  it("preview affiche visual card si pas d'image", async () => {
+    fileStore["visible-outputs.json"] = JSON.stringify({
+      outputs: [{
+        id: "vo-card-logo",
+        sessionId: "session-card-logo",
+        projectId: null,
+        title: "Logo Concept",
+        type: "logo_direction",
+        summary: "Premium logo",
+        preview: "Logo Concept with Color Palette #0F172A #38BDF8 and typography.",
+        status: "review",
+        assignedAgent: "cmo",
+        sourceFile: null,
+        sourceFiles: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }],
+    });
+
+    const { getApprovalPreview } = await import("@/lib/approvalPreview");
+    const preview = getApprovalPreview("output-vo-card-logo");
+
+    expect(preview?.outputs?.[0].visualPreview?.kind).toBe("brand_card");
+    expect(preview?.warnings).toEqual([]);
+  });
+
+  it("approve disabled without real preview", async () => {
+    fileStore["approvals.json"] = JSON.stringify({
+      approvals: [{
+        id: "manual-no-preview",
+        title: "No Preview",
+        type: "logo",
+        status: "pending",
+        agentId: "cmo",
+        agentName: "Sophie",
+        createdAt: new Date().toISOString(),
+        summary: "",
+        hasPreviewContent: false,
+        previewType: "none",
+      }],
+    });
+    fileStore["visible-outputs.json"] = JSON.stringify({ outputs: [] });
+
+    const { getApprovalPreview } = await import("@/lib/approvalPreview");
+    const preview = getApprovalPreview("manual-no-preview");
+    const canApprove = preview ? preview.warnings.length === 0 : false;
+
+    expect(canApprove).toBe(false);
+    expect(preview?.warnings).toContain("Aucun aperçu disponible");
+  });
+
   it("approve disabled without preview content", () => {
     const item = {
       id: "test-2",

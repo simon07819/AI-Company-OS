@@ -503,6 +503,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         projectName,
         session.sessionId,
         project.id,
+        linkedFileIds,
       );
 
       // 4. Update project progress from autopilot result

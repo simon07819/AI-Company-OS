@@ -30,7 +30,7 @@ import {
   ErrorBanner,
 } from "@/components/ui";
 
-type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
+type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 
 interface AutopilotSession {
   sessionId: string;
@@ -50,6 +50,7 @@ interface AutopilotSession {
 const STATUS_CONFIG: Record<SessionStatus, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
   running:   { label: "RUNNING",   color: "#34d399", bg: "rgba(16,185,129,0.12)",  icon: <Rocket size={12} /> },
   paused:    { label: "PAUSED",    color: "#f59e0b", bg: "rgba(245,158,11,0.12)",  icon: <Clock3 size={12} /> },
+  waiting_approval: { label: "APPROVAL", color: "#f59e0b", bg: "rgba(245,158,11,0.12)", icon: <Clock3 size={12} /> },
   completed: { label: "COMPLETED", color: "#38bdf8", bg: "rgba(59,130,246,0.12)",  icon: <CheckCircle2 size={12} /> },
   failed:    { label: "FAILED",    color: "#f43f5e", bg: "rgba(244,63,94,0.12)",   icon: <AlertTriangle size={12} /> },
   draft:     { label: "DRAFT",     color: "#8b97b2", bg: "rgba(139,151,178,0.1)",  icon: <Clock3 size={12} /> },

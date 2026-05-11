@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addOutputRevision, archiveOutput, getOutputById, restoreOutput, softDeleteOutput, updateOutputMetadata } from "@/lib/visibleOutputs";
+import { addOutputRevision, archiveOutput, generateVisualPreviewForOutput, getOutputById, restoreOutput, softDeleteOutput, updateOutputMetadata } from "@/lib/visibleOutputs";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ou
   const output = action === "archive" ? archiveOutput(outputId)
     : action === "restore" ? restoreOutput(outputId)
       : action === "favorite" ? updateOutputMetadata(outputId, { favorite: !!body.favorite })
+        : action === "generate_visual_preview" ? generateVisualPreviewForOutput(outputId)
         : action === "revision" ? addOutputRevision(outputId, body.note ?? "Revision requested")
           : updateOutputMetadata(outputId, body);
   if (!output) return NextResponse.json({ ok: false, message: "Output not found" }, { status: 404 });

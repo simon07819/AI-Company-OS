@@ -8,6 +8,8 @@ import {
   Archive, GitCompare, Heart, Pencil, RefreshCw, Rocket, Search, ShieldCheck, Trash2, XCircle,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, GhostButton, PageHeader, Panel, SectionHeader, StatusBadge } from "@/components/ui";
+import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
+import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
 type OutputType = "creative_brief" | "logo_direction" | "style_direction" | "color_palette" | "typography" | "moodboard" | "concept_card" | "architecture_doc" | "api_spec" | "sitemap" | "wireframe" | "copywriting" | "marketing_plan" | "financial_projection" | "task_list" | "progress_report" | "validation_report" | "before_after" | "estimate_preview" | "invoice_preview" | "taxes_summary" | "profit_summary" | "hero_section" | "ux_recommendation" | "page_preview" | "uploaded_file_analysis";
 type OutputStatus = "draft" | "in_progress" | "review" | "approved" | "delivered";
@@ -24,6 +26,7 @@ interface VisibleOutput {
   assignedAgent: string;
   sourceFile: string | null;
   sourceFiles: string[];
+  visualPreview?: OutputVisualPreview | null;
   archivedAt?: string | null;
   favorite?: boolean;
   versionHistory?: { version: number; title: string; preview: string; updatedAt: string }[];
@@ -234,9 +237,11 @@ export default function OutputsPage() {
                         <StatusBadge label={statusMeta.label} color={statusMeta.color} size="xs" />
                       </div>
 
+                      <VisualOutputPreview visualPreview={output.visualPreview} title={output.title} summary={output.summary} compact />
+
                       {/* Preview text */}
                       <p style={{
-                        fontSize: 10, color: "var(--text-2)", lineHeight: 1.5, margin: 0,
+                        fontSize: 10, color: "var(--text-2)", lineHeight: 1.5, margin: output.visualPreview ? "10px 0 0" : 0,
                         display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
                       }}>
                         {output.preview || output.summary}

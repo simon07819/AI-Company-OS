@@ -30,9 +30,11 @@ import {
 } from "lucide-react";
 import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge, TypingBubble, ExpertiseBadge } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
+import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
+import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
-type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
+type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
 type LogLevel = "info" | "success" | "warning" | "error";
 
@@ -81,10 +83,22 @@ interface WorkspaceFile {
   size: number;
 }
 
+interface MissionVisibleOutput {
+  id: string;
+  title: string;
+  type: string;
+  preview: string;
+  status: string;
+  assignedAgent: string;
+  summary?: string;
+  visualPreview?: OutputVisualPreview | null;
+}
+
 const STATUS: Record<SessionStatus, { label: string; color: string; bg: string }> = {
   draft: { label: "Draft", color: "#8b97b2", bg: "rgba(139,151,178,0.1)" },
   running: { label: "Running", color: "#34d399", bg: "rgba(16,185,129,0.12)" },
   paused: { label: "Paused", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
+  waiting_approval: { label: "Waiting Approval", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
   completed: { label: "Completed", color: "#38bdf8", bg: "rgba(59,130,246,0.12)" },
   failed: { label: "Failed", color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
 };
@@ -221,7 +235,7 @@ export default function MissionRoomPage() {
   const [missionApprovals, setMissionApprovals] = useState<ApprovalItem[]>([]);
   const [approvalPreview, setApprovalPreview] = useState<ApprovalPreview | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
-  const [visibleOutputs, setVisibleOutputs] = useState<{ id: string; title: string; type: string; preview: string; status: string; assignedAgent: string }[]>([]);
+  const [visibleOutputs, setVisibleOutputs] = useState<MissionVisibleOutput[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -472,7 +486,10 @@ export default function MissionRoomPage() {
                   )}
                 </div>
                 {latestVisibleOutput && (
-                  <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, marginTop: 5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{latestVisibleOutput.preview}</div>
+                  <div style={{ marginTop: 8 }}>
+                    <VisualOutputPreview visualPreview={latestVisibleOutput.visualPreview} title={latestVisibleOutput.title} summary={latestVisibleOutput.summary ?? latestVisibleOutput.preview} compact />
+                    <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, marginTop: latestVisibleOutput.visualPreview ? 7 : 0, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{latestVisibleOutput.preview}</div>
+                  </div>
                 )}
               </div>
               <div style={{ padding: "8px 10px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
@@ -747,7 +764,8 @@ export default function MissionRoomPage() {
                             <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{vo.status}</span>
                           </div>
                         </div>
-                        <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{vo.preview}</div>
+                        <VisualOutputPreview visualPreview={vo.visualPreview} title={vo.title} summary={vo.summary ?? vo.preview} compact />
+                        <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", marginTop: vo.visualPreview ? 8 : 0 }}>{vo.preview}</div>
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
                           <span style={{ fontSize: 9, color: "#8b5cf6" }}>→ {vo.assignedAgent}</span>
                           <span style={{ fontSize: 8, color: "var(--text-3)" }}>View details →</span>

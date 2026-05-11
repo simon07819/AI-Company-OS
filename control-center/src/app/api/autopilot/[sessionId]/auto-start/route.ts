@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runStep, getSession, updateSession } from "@/lib/autopilotStore";
+import { runStep, getSession, updateSession, moveSessionToApproval } from "@/lib/autopilotStore";
 import { generateVisibleOutputs, getOutputsForSession } from "@/lib/visibleOutputs";
 import { getCeoProjectBySession, updateProjectProgress } from "@/lib/ceoProjectStore";
 
@@ -64,12 +64,15 @@ export async function POST(
   }
 
   const updatedSession = getSession(sessionId);
+  if ((updatedSession?.progress ?? 0) >= 70 && updatedSession?.status === "running" && getOutputsForSession(sessionId).length > 0) {
+    moveSessionToApproval(sessionId);
+  }
 
   return NextResponse.json({
     ok: true,
     stepsExecuted: stepResults.filter((s) => s.ok).length,
     steps: stepResults,
-    session: updatedSession,
+    session: getSession(sessionId),
     outputsCount: getOutputsForSession(sessionId).length,
   });
 }

@@ -53,6 +53,7 @@ export interface VisibleOutput {
   assignedAgent: AgentId;
   sourceFile: string | null;
   sourceFiles: string[];
+  visualPreview?: OutputVisualPreview | null;
   createdAt: string;
   updatedAt: string;
   archivedAt?: string | null;
@@ -60,6 +61,17 @@ export interface VisibleOutput {
   favorite?: boolean;
   versionHistory?: { version: number; title: string; preview: string; updatedAt: string }[];
   revisions?: { id: string; note: string; createdAt: string }[];
+}
+
+export interface OutputVisualPreview {
+  kind: "image" | "brand_card" | "website_card" | "document_card";
+  imageUrl?: string;
+  imageAlt?: string;
+  logoText?: string;
+  tagline?: string;
+  colors: string[];
+  typography?: { heading: string; body: string };
+  mockup?: { title: string; subtitle: string; blocks: string[] };
 }
 
 interface OutputsData {
@@ -163,20 +175,109 @@ const OUTPUT_TEMPLATES: Record<string, Omit<VisibleOutput, "id" | "sessionId" | 
   saas_project: WEBSITE_OUTPUTS,
 };
 
+const BRAND_TYPES = new Set<OutputType>(["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "concept_card", "before_after"]);
+const WEBSITE_TYPES = new Set<OutputType>(["architecture_doc", "api_spec", "sitemap", "wireframe", "hero_section", "ux_recommendation", "page_preview"]);
+
+function extractColors(text: string): string[] {
+  const matches = text.match(/#[0-9a-fA-F]{6}/g) ?? [];
+  return Array.from(new Set(matches)).slice(0, 6);
+}
+
+function firstImageSource(sourceFiles: string[]): { id: string; name: string } | null {
+  try {
+    const { getFileById } = require("./ceoUploads") as typeof import("./ceoUploads");
+    for (const sourceId of sourceFiles) {
+      const file = getFileById(sourceId);
+      if (file?.category === "image") return { id: file.id, name: file.name };
+    }
+  } catch { /* uploads are optional */ }
+  return null;
+}
+
+export function buildVisualPreview(
+  output: Pick<VisibleOutput, "title" | "type" | "preview" | "summary" | "sourceFiles">,
+): OutputVisualPreview | null {
+  const image = firstImageSource(output.sourceFiles ?? []);
+  if (image) {
+    return {
+      kind: "image",
+      imageUrl: `/api/ceo/files/${image.id}`,
+      imageAlt: image.name,
+      colors: extractColors(`${output.preview} ${output.summary}`),
+    };
+  }
+
+  const colors = extractColors(`${output.preview} ${output.summary}`);
+  if (BRAND_TYPES.has(output.type)) {
+    const palette = colors.length > 0 ? colors : ["#0F172A", "#38BDF8", "#F8FAFC", "#22C55E"];
+    return {
+      kind: "brand_card",
+      logoText: output.type === "logo_direction" ? "PHOTO" : "Aa",
+      tagline: output.title,
+      colors: palette,
+      typography: { heading: "Inter Bold", body: "Inter Regular" },
+      mockup: {
+        title: "Logo concept",
+        subtitle: "Simple visual identity preview",
+        blocks: ["Primary mark", "Color system", "Typography", "Usage mockup"],
+      },
+    };
+  }
+
+  if (WEBSITE_TYPES.has(output.type)) {
+    return {
+      kind: "website_card",
+      colors: colors.length > 0 ? colors : ["#0F172A", "#38BDF8", "#E2E8F0"],
+      mockup: {
+        title: output.title,
+        subtitle: "Page structure preview",
+        blocks: ["Hero", "Feature grid", "CTA"],
+      },
+    };
+  }
+
+  if ((output.preview || output.summary).trim().length > 0) {
+    return {
+      kind: "document_card",
+      colors: colors.length > 0 ? colors : ["#334155", "#94A3B8"],
+      mockup: {
+        title: output.title,
+        subtitle: output.summary,
+        blocks: ["Summary", "Details", "Next action"],
+      },
+    };
+  }
+
+  return null;
+}
+
+export function hasRealVisualPreview(output: Pick<VisibleOutput, "visualPreview" | "sourceFiles" | "type" | "preview" | "summary" | "title">): boolean {
+  return !!(output.visualPreview ?? buildVisualPreview({
+    title: output.title,
+    type: output.type,
+    preview: output.preview,
+    summary: output.summary,
+    sourceFiles: output.sourceFiles,
+  }));
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────
 
 export function generateVisibleOutputs(sessionId: string, missionType: string, projectId: string | null = null, sourceFiles: string[] = []): VisibleOutput[] {
   const templates = OUTPUT_TEMPLATES[missionType] ?? GENERIC_OUTPUTS;
   const now = new Date().toISOString();
-  const outputs: VisibleOutput[] = templates.map((t) => ({
-    ...t,
-    id: nextId(),
-    sessionId,
-    projectId,
-    sourceFiles: sourceFiles.length > 0 ? sourceFiles : t.sourceFiles,
-    createdAt: now,
-    updatedAt: now,
-  }));
+  const outputs: VisibleOutput[] = templates.map((t) => {
+    const output = {
+      ...t,
+      id: nextId(),
+      sessionId,
+      projectId,
+      sourceFiles: sourceFiles.length > 0 ? sourceFiles : t.sourceFiles,
+      createdAt: now,
+      updatedAt: now,
+    };
+    return { ...output, visualPreview: buildVisualPreview(output) };
+  });
 
   const data = readData();
   data.outputs.push(...outputs);
@@ -184,7 +285,7 @@ export function generateVisibleOutputs(sessionId: string, missionType: string, p
   return outputs;
 }
 
-export function ensureFallbackVisibleOutput(sessionId: string, missionType: string, projectId: string | null = null): VisibleOutput {
+export function ensureFallbackVisibleOutput(sessionId: string, missionType: string, projectId: string | null = null, sourceFiles: string[] = []): VisibleOutput {
   const existing = getOutputsForSession(sessionId);
   if (existing.length > 0) return existing[0];
 
@@ -206,15 +307,26 @@ export function ensureFallbackVisibleOutput(sessionId: string, missionType: stri
     status: "review",
     assignedAgent: missionType === "branding_pack" || missionType === "flyer" ? "cmo" : "frontend_agent",
     sourceFile: null,
-    sourceFiles: [],
+    sourceFiles,
     createdAt: now,
     updatedAt: now,
   };
+  output.visualPreview = buildVisualPreview(output);
 
   const data = readData();
   data.outputs.push(output);
   writeData(data);
   return output;
+}
+
+export function generateVisualPreviewForOutput(outputId: string): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  data.outputs[idx].visualPreview = buildVisualPreview(data.outputs[idx]);
+  data.outputs[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return data.outputs[idx];
 }
 
 export function getOutputsForSession(sessionId: string): VisibleOutput[] {
