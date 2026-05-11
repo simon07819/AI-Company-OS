@@ -744,46 +744,57 @@ function FilePreviewChip({
     ? `${(file.size / 1024).toFixed(1)} KB`
     : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
 
+  const isPdf = file.type === "application/pdf";
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 4, scale: 0.95 }}
+      initial={{ opacity: 0, y: 6, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -4, scale: 0.95 }}
+      exit={{ opacity: 0, y: -4, scale: 0.96 }}
       style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: "6px 8px",
-        background: "rgba(139,92,246,0.08)",
-        border: "1px solid rgba(139,92,246,0.3)",
-        borderRadius: 8,
-        marginBottom: 6,
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "8px 10px",
+        background: "rgba(139,92,246,0.07)",
+        border: "1.5px solid rgba(139,92,246,0.28)",
+        borderRadius: 10,
+        marginBottom: 7,
       }}
     >
       {isImage && previewUrl ? (
         <img
           src={previewUrl}
           alt={file.name}
-          style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 5, flexShrink: 0 }}
+          style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 7, flexShrink: 0, border: "1px solid rgba(139,92,246,0.2)" }}
         />
       ) : (
         <div style={{
-          width: 36, height: 36, borderRadius: 5, flexShrink: 0,
-          background: "rgba(139,92,246,0.12)",
-          display: "flex", alignItems: "center", justifyContent: "center",
+          width: 44, height: 44, borderRadius: 7, flexShrink: 0,
+          background: isPdf ? "rgba(239,68,68,0.1)" : "rgba(139,92,246,0.12)",
+          border: `1px solid ${isPdf ? "rgba(239,68,68,0.25)" : "rgba(139,92,246,0.2)"}`,
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1,
         }}>
-          <FileText size={16} style={{ color: "#8b5cf6" }} />
+          <FileText size={17} style={{ color: isPdf ? "#ef4444" : "#8b5cf6" }} />
+          {isPdf && (
+            <span style={{ fontSize: 7, fontWeight: 800, color: "#ef4444", letterSpacing: "0.5px" }}>PDF</span>
+          )}
         </div>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
           {file.name}
         </div>
-        <div style={{ fontSize: 9, color: "var(--text-3)" }}>{sizeLabel}</div>
+        <div style={{ fontSize: 9, color: "var(--text-3)", display: "flex", alignItems: "center", gap: 4 }}>
+          <Paperclip size={8} style={{ color: "#8b5cf6" }} />
+          <span>{sizeLabel} · Ready to send</span>
+        </div>
       </div>
       <button
         onClick={onRemove}
+        title="Remove attachment"
         style={{
-          background: "none", border: "none", padding: 2, cursor: "pointer",
-          color: "var(--text-3)", display: "flex", alignItems: "center",
+          background: "rgba(107,114,128,0.12)", border: "none", padding: 5,
+          cursor: "pointer", color: "var(--text-3)", display: "flex", alignItems: "center",
+          borderRadius: 6,
         }}
       >
         <X size={12} />
@@ -973,6 +984,8 @@ export default function CeoPage() {
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<ClientFile[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [clipHovered, setClipHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
@@ -1092,7 +1105,8 @@ export default function CeoPage() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({ message: "Upload failed" }));
-        setError(err.message ?? "Upload failed");
+        setUploadError(err.message ?? "Upload failed");
+        setTimeout(() => setUploadError(null), 5000);
         return;
       }
 
@@ -1104,7 +1118,8 @@ export default function CeoPage() {
       clearPendingFile();
       await loadData();
     } catch {
-      setError("Upload failed — check your connection.");
+      setUploadError("Upload failed — check your connection.");
+      setTimeout(() => setUploadError(null), 5000);
     } finally {
       setCeoTyping(false);
       setTimeout(() => setUploadProgress(null), 800);
@@ -1250,27 +1265,6 @@ export default function CeoPage() {
                 CEO Direct Line
               </span>
               <div style={{ flex: 1 }} />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={sending || !!uploadProgress}
-                title="Attach file (image, PDF, TXT, MD, JSON)"
-                style={{
-                  display: "flex", alignItems: "center", gap: 3,
-                  padding: "2px 6px", fontSize: 9, fontWeight: 600,
-                  background: "rgba(139,92,246,0.08)",
-                  border: "1px solid rgba(139,92,246,0.3)",
-                  borderRadius: 99, color: "#8b5cf6", cursor: "pointer",
-                }}
-              >
-                <Paperclip size={9} /> Attach
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*,.pdf,.txt,.md,.json"
-                style={{ display: "none" }}
-                onChange={handleFileInputChange}
-              />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
               {QUICK_SUGGESTIONS.map((s) => (
@@ -1336,6 +1330,35 @@ export default function CeoPage() {
           </div>
 
           <div style={{ flexShrink: 0 }}>
+
+            {/* Upload error toast */}
+            <AnimatePresence>
+              {uploadError && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.97 }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 7,
+                    padding: "8px 10px", marginBottom: 8,
+                    background: "rgba(239,68,68,0.09)",
+                    border: "1px solid rgba(239,68,68,0.35)",
+                    borderRadius: 9,
+                  }}
+                >
+                  <XCircle size={13} style={{ color: "#ef4444", flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: "#ef4444", flex: 1, lineHeight: 1.4 }}>{uploadError}</span>
+                  <button
+                    onClick={() => setUploadError(null)}
+                    style={{ background: "none", border: "none", padding: 2, cursor: "pointer", color: "#ef4444", display: "flex", alignItems: "center" }}
+                  >
+                    <X size={11} />
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* File preview chip */}
             <AnimatePresence>
               {pendingFile && (
                 <FilePreviewChip
@@ -1348,27 +1371,102 @@ export default function CeoPage() {
                 <UploadProgressBar progress={uploadProgress} />
               )}
             </AnimatePresence>
-            <div style={{ display: "flex", gap: 6 }}>
+
+            {/* ChatGPT-style input bar */}
+            <div style={{
+              display: "flex", alignItems: "center",
+              background: "var(--bg-2)",
+              border: `1.5px solid ${clipHovered ? "rgba(139,92,246,0.55)" : "var(--border)"}`,
+              borderRadius: 12,
+              transition: "border-color 0.18s",
+              overflow: "hidden",
+            }}>
+              {/* Paperclip — inside the bar */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending || !!uploadProgress}
+                title="Attach file (image, PDF, TXT, MD, JSON)"
+                onMouseEnter={() => setClipHovered(true)}
+                onMouseLeave={() => setClipHovered(false)}
+                style={{
+                  padding: "0 11px",
+                  alignSelf: "stretch",
+                  background: "none",
+                  border: "none",
+                  borderRight: "1px solid var(--border)",
+                  cursor: sending || !!uploadProgress ? "not-allowed" : "pointer",
+                  color: clipHovered && !(sending || !!uploadProgress) ? "#8b5cf6" : "var(--text-3)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "color 0.15s",
+                  flexShrink: 0,
+                }}
+              >
+                <Paperclip size={14} />
+              </button>
+
+              {/* Text input */}
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingFile ? `Send "${pendingFile.name}" to CEO…` : "Talk to the CEO…"}
+                placeholder={pendingFile ? `Send "${pendingFile.name}" to CEO…` : "Message CEO…"}
                 disabled={sending || !!uploadProgress}
                 style={{
-                  flex: 1, padding: "8px 12px", fontSize: 12,
-                  background: "var(--bg-2)", border: "1px solid var(--border)",
-                  borderRadius: 8, color: "var(--text)", outline: "none",
+                  flex: 1,
+                  padding: "10px 10px",
+                  fontSize: 12,
+                  background: "none",
+                  border: "none",
+                  color: "var(--text)",
+                  outline: "none",
                 }}
               />
-              <PrimaryButton
-                onClick={handleSendWithFile}
-                disabled={sending || !!uploadProgress || (!input.trim() && !pendingFile)}
-                color={pendingFile ? "#8b5cf6" : "#f59e0b"}
-              >
-                {pendingFile ? <Upload size={11} /> : <Send size={11} />}
-              </PrimaryButton>
+
+              {/* Send button */}
+              <div style={{ padding: "5px 5px 5px 0", flexShrink: 0 }}>
+                <button
+                  onClick={handleSendWithFile}
+                  disabled={sending || !!uploadProgress || (!input.trim() && !pendingFile)}
+                  style={{
+                    padding: "5px 10px",
+                    minHeight: 30,
+                    minWidth: 34,
+                    background: (sending || !!uploadProgress || (!input.trim() && !pendingFile))
+                      ? "rgba(107,114,128,0.2)"
+                      : pendingFile ? "#8b5cf6" : "#f59e0b",
+                    border: "none",
+                    borderRadius: 8,
+                    cursor: (sending || !!uploadProgress || (!input.trim() && !pendingFile)) ? "not-allowed" : "pointer",
+                    color: "white",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background 0.15s",
+                  }}
+                >
+                  {sending ? (
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                      style={{ display: "flex" }}
+                    >
+                      <RefreshCw size={12} />
+                    </motion.div>
+                  ) : pendingFile ? (
+                    <Upload size={12} />
+                  ) : (
+                    <Send size={12} />
+                  )}
+                </button>
+              </div>
             </div>
+
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf,.txt,.md,.json"
+              style={{ display: "none" }}
+              onChange={handleFileInputChange}
+            />
           </div>
         </Panel>
         </div>
