@@ -1339,7 +1339,7 @@ export default function CeoPage() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>CEO Cockpit</div>
-            <div style={{ fontSize: 10, color: "var(--text-3)" }}>Executive Team · {runtimeMode === "nvidia" ? "NVIDIA LIVE" : "Local mode"}</div>
+            <div style={{ fontSize: 10, color: "var(--text-3)" }}>Executive Team · {runtimeMode === "nvidia" ? "NVIDIA Connected" : "Local mode"}</div>
           </div>
           <LocalBadge />
           {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}

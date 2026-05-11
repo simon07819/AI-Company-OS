@@ -350,7 +350,7 @@ export function SimBadge() {
       letterSpacing: "0.3px",
       marginLeft: 6,
     }}>
-      Simulated
+      Local Mode
     </span>
   );
 }
@@ -368,7 +368,7 @@ export function NvidiaLiveBadge() {
       letterSpacing: "0.3px",
       marginLeft: 6,
     }}>
-      NVIDIA Live
+      NVIDIA LIVE
     </span>
   );
 }

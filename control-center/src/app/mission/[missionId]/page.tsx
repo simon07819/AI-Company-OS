@@ -257,7 +257,7 @@ export default function MissionRoomPage() {
         setMissionApprovals(all.filter((a: ApprovalItem) => a.sessionId === missionId));
       }
     }).catch(() => {});
-    const timer = window.setInterval(() => void loadMission(), 4000);
+    const timer = window.setInterval(() => void loadMission(), 2000);
     return () => window.clearInterval(timer);
   }, [loadMission]);
 
@@ -333,9 +333,16 @@ export default function MissionRoomPage() {
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           <LocalBadge />
           {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
-          <PrimaryButton onClick={() => runMissionAction("run-step")} disabled={!!actionLoading || session.status === "completed"} color="#34d399">
-            <Play size={13} /> {actionLoading === "run-step" ? "Running..." : "Resume Mission"}
-          </PrimaryButton>
+          {session.status === "running" && (
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#34d399", background: "rgba(52,211,153,0.1)", padding: "3px 8px", borderRadius: 6, border: "1px solid rgba(52,211,153,0.3)" }}>
+              Auto-exécution en cours
+            </span>
+          )}
+          {session.status !== "running" && session.status !== "completed" && (
+            <PrimaryButton onClick={() => runMissionAction("run-step")} disabled={!!actionLoading} color="#34d399">
+              <Play size={13} /> {actionLoading === "run-step" ? "Running..." : "Resume"}
+            </PrimaryButton>
+          )}
           <GhostButton onClick={loadMission}>
             <RefreshCw size={13} /> Refresh
           </GhostButton>
@@ -420,10 +427,16 @@ export default function MissionRoomPage() {
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
-                <button onClick={() => recordDecision("approve")} style={decisionButton("#22c55e")}>
+                {/* Show preview section before allow approve/reject */}
+                {visibleOutputs.length > 0 && (
+                  <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)", fontSize: 10, color: "var(--text-2)" }}>
+                    Review the Visual Deliverables section below before making a decision.
+                  </div>
+                )}
+                <button onClick={() => recordDecision("approve")} style={decisionButton("#22c55e")} disabled={visibleOutputs.length === 0 && session.progress < 20}>
                   <ThumbsUp size={13} /> Approve
                 </button>
-                <button onClick={() => recordDecision("reject")} style={decisionButton("#ef4444")}>
+                <button onClick={() => recordDecision("reject")} style={decisionButton("#ef4444")} disabled={visibleOutputs.length === 0 && session.progress < 20}>
                   <ThumbsDown size={13} /> Reject
                 </button>
                 <button onClick={() => recordDecision("revision")} style={decisionButton("#f59e0b")}>
@@ -438,14 +451,14 @@ export default function MissionRoomPage() {
         </section>
 
         <section style={{ display: "grid", gap: 12 }}>
-          {/* What is happening now */}
+          {/* What is happening now? */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="What is happening now?" icon={<Activity size={12} style={{ color: "#3b82f6" }} />} />
             {session.status === "running" && (() => {
               const runningTask = session.tasks.find((t: { status: string }) => t.status === "running");
+              const nextTask = session.tasks.find((t: { status: string }) => t.status === "queued");
               const activeAgent = session.assignedAgents.find((a: { status: string }) => a.status === "active");
               const completedCount = session.tasks.filter((t: { status: string }) => t.status === "completed").length;
-              // Get agent color from profile
               const agentColorMap: Record<string, string> = {
                 ceo: "#f59e0b", cfo: "#22c55e", cmo: "#8b5cf6", cto: "#06b6d4", coo: "#3b82f6",
                 frontend_agent: "#ec4899", backend_agent: "#f97316", qa_agent: "#ef4444",
@@ -453,19 +466,66 @@ export default function MissionRoomPage() {
                 support: "#ec4899", product_agent: "#3b82f6", architect_agent: "#6366f1",
                 ecommerce_operator: "#14b8a6",
               };
+              const agentNameMap: Record<string, string> = {
+                ceo: "CEO Alexandra", cfo: "CFO Diana", cmo: "CMO Sophie", cto: "CTO Raj", coo: "COO Marcus",
+                frontend_agent: "Designer Léa", backend_agent: "Olivier API", qa_agent: "QA Naomi",
+                devops_agent: "DevOps Kenji", logistics: "Emma Logistics", sales: "Rachel Sales", hr: "James HR",
+                support: "Carlos Support", product_agent: "Mia Product", architect_agent: "Architecte",
+              };
               const activeColor = activeAgent ? (agentColorMap[activeAgent.agentId] ?? "#3b82f6") : "#3b82f6";
+
+              // Build delegation timeline from logs
+              const delegationLogs = session.logs.filter((l: { source: string; message: string }) =>
+                l.source === "control" && (l.message.includes("assignée") || l.message.includes("délégué") || l.message.includes("Délégation"))
+              ).slice(0, 3);
+
               return (
                 <div>
+                  {/* Active agent indicator */}
                   {activeAgent && (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "8px 10px", borderRadius: 7, background: `${activeColor}0a`, border: `1px solid ${activeColor}20` }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: activeColor }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: activeColor }}>{activeAgent.role ?? activeAgent.agentId}</span>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: activeColor, animation: "pulse 2s infinite" }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: activeColor }}>{agentNameMap[activeAgent.agentId] ?? activeAgent.agentId}</span>
                       <span style={{ fontSize: 10, color: "var(--text-3)" }}>travaille sur:</span>
                     </div>
                   )}
+                  {/* Current task */}
                   {runningTask && (
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 6 }}>
                       {runningTask.title}
+                    </div>
+                  )}
+                  {/* Next task preview */}
+                  {nextTask && (
+                    <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 6, padding: "4px 8px", background: "var(--bg-2)", borderRadius: 5, border: "1px solid var(--border)" }}>
+                      Prochaine tâche: {nextTask.title} ({agentNameMap[nextTask.agent] ?? nextTask.agent})
+                    </div>
+                  )}
+                  {/* Progress bar */}
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--text-3)", marginBottom: 3 }}>
+                      <span>Progression</span>
+                      <span>{completedCount}/{session.tasks.length} tâches</span>
+                    </div>
+                    <div style={{ height: 6, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${session.progress}%`, background: "linear-gradient(90deg, #3b82f6, #8b5cf6)", borderRadius: 99, transition: "width 0.5s ease" }} />
+                    </div>
+                  </div>
+                  {/* Delegation timeline events */}
+                  {delegationLogs.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 4 }}>Délégations</div>
+                      {delegationLogs.map((log: MissionLog) => (
+                        <div key={log.id} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "var(--text-2)", marginBottom: 3 }}>
+                          <span style={{ color: "#f59e0b" }}>→</span> {log.message}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Phase info */}
+                  {runningTask && (
+                    <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4 }}>
+                      Phase: {runningTask.phase} · Auto-exécution en cours
                     </div>
                   )}
                   {!runningTask && !activeAgent && completedCount > 0 && (
@@ -473,11 +533,6 @@ export default function MissionRoomPage() {
                   )}
                   {completedCount === 0 && !runningTask && (
                     <div style={{ fontSize: 11, color: "var(--text-3)" }}>Démarrage de la mission...</div>
-                  )}
-                  {runningTask && (
-                    <div style={{ fontSize: 10, color: "var(--text-3)" }}>
-                      Phase: {runningTask.phase} · Progression: {completedCount}/{session.tasks.length} tâches complétées
-                    </div>
                   )}
                 </div>
               );
@@ -723,7 +778,7 @@ export default function MissionRoomPage() {
   );
 }
 
-function decisionButton(color: string): CSSProperties {
+function decisionButton(color: string, disabled = false): CSSProperties {
   return {
     display: "flex",
     alignItems: "center",
@@ -733,10 +788,11 @@ function decisionButton(color: string): CSSProperties {
     borderRadius: 8,
     border: `1px solid ${color}45`,
     background: `${color}14`,
-    color,
+    color: disabled ? "#64748b" : color,
     fontSize: 12,
     fontWeight: 800,
-    cursor: "pointer",
+    cursor: disabled ? "not-allowed" : "pointer",
+    opacity: disabled ? 0.5 : 1,
   };
 }
 

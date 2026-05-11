@@ -118,7 +118,7 @@ const INTENT_KEYWORDS: Record<CeoIntent, string[]> = {
   create_flyer:                 ["flyer", "dépliant", "affiche", "poster", "promotionnel"],
   create_website:               ["site web", "website", "site internet", "landing", "page web"],
   create_dropshipping_business: ["dropshipping", "e-commerce", "boutique", "ecommerce", "boutique en ligne", "magasin"],
-  review_business:              ["état", "status", "résumé", "bilan", "review", "vérifie", "check", "situation", "compagnie"],
+  review_business:              ["état", "status", "résumé", "bilan", "review", "vérifie", "check", "situation"],
   delegate_tasks:               ["délègue", "delegate", "assigne", "assign", "tâche", "task"],
   greeting:                     ["bonjour", "salut", "hello", "hi", "hey", "bonsoir"],
   status_check:                 ["comment", "how", "quoi de neuf", "what's up", "avance", "progress"],
@@ -195,15 +195,23 @@ function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
   const assumptions: Assumption[] = [];
   const lower = text.toLowerCase();
 
-  // Project name inference
+  // Smart project name inference (French-first, descriptive)
   let projectName = "";
-  if (lower.includes("logo")) projectName = "Logo redesign project";
-  else if (lower.includes("flyer") || lower.includes("affiche")) projectName = "Flyer project";
-  else if (lower.includes("site")) projectName = "Website project";
-  else if (lower.includes("branding") || lower.includes("identité")) projectName = "Branding project";
-  else if (lower.includes("dropshipping") || lower.includes("boutique")) projectName = "Dropshipping project";
+  if (lower.includes("refaire le logo") || lower.includes("redesign logo") || lower.includes("nouveau logo")) projectName = "Refonte logo";
+  else if (lower.includes("logo") && (lower.includes("sportif"))) projectName = "Logo sportif";
+  else if (lower.includes("logo") && (lower.includes("premium"))) projectName = "Logo premium";
+  else if (lower.includes("logo")) projectName = "Refonte logo";
+  else if (lower.includes("flyer") || lower.includes("affiche") || lower.includes("dépliant")) projectName = "Flyer promotionnel";
+  else if (lower.includes("site web") || lower.includes("website") || lower.includes("site internet")) {
+    const match = lower.match(/(?:site (?:web|internet)?\s*(?:pour|de|d'une?)\s+)(.+)/);
+    projectName = match ? `Site web ${match[1].slice(0, 25).trim()}` : "Site web";
+  }
+  else if (lower.includes("branding") || lower.includes("identité visuelle") || lower.includes("charte graphique")) projectName = "Identité visuelle";
+  else if (lower.includes("dropshipping")) projectName = "Boutique dropshipping";
+  else if (lower.includes("boutique") || lower.includes("e-commerce") || lower.includes("ecommerce")) projectName = "Boutique en ligne";
+  else if (lower.includes("facture") || lower.includes("invoice")) projectName = "Facture";
   else if (text.length > 5) projectName = text.slice(0, 40).trim();
-  else projectName = "New mission";
+  else projectName = "Nouvelle mission";
 
   assumptions.push({ field: "Project name", value: projectName, source: "inferred" });
 
@@ -465,6 +473,15 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
   if (actionableIntents.includes(intent)) {
     const missionTypeKey = missionTypeForIntent(intent);
     const projectName = assumptions.find((a) => a.field === "Project name")?.value ?? text.slice(0, 40).trim();
+
+    // Collect linked file IDs from CEO uploads
+    let linkedFileIds: string[] = [];
+    try {
+      const { getFileMemory } = require("./ceoUploads") as typeof import("./ceoUploads");
+      const fileMemory = getFileMemory();
+      linkedFileIds = fileMemory.files.slice(-5).map((f: { id: string }) => f.id);
+    } catch { /* no uploads */ }
+
     try {
       // 1. Create autopilot session
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
@@ -478,12 +495,13 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         session.sessionId,
       );
 
-      // 3. Create CEO project (visible in /projects)
+      // 3. Create CEO project (visible in /projects) with full context
       const project = createCeoProject({
         name: projectName,
         missionType: missionTypeKey ?? "saas_project",
         sessionId: session.sessionId,
         conversationId: "ceo-main-thread",
+        uploadedFileIds: linkedFileIds,
       });
 
       // 4. Update project progress from autopilot result
@@ -508,6 +526,16 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         label: `${autopilotResult.stepsExecuted} étapes exécutées automatiquement`,
         targetId: session.sessionId,
       });
+
+      // 5. Add delegation actions visible in CEO chat
+      for (const d of delegation) {
+        actions.push({
+          type: "delegated_task",
+          label: `${d.role}: ${d.task}`,
+          targetId: session.sessionId,
+          href: `/mission/${session.sessionId}`,
+        });
+      }
     } catch {
       actions.push({ type: "created_session", label: "Erreur lors de la création de session" });
     }

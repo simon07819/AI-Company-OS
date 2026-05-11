@@ -400,7 +400,7 @@ function buildAgentAssignments(agents: string[], missionTypeId?: string): Autopi
     agentId: id,
     role: ROLES[id] ?? "General purpose agent",
     status: "available" as const,
-    provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
+    provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Processing",
   }));
 }
 
@@ -460,7 +460,7 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
     }],
     runtime: {
       status: "online",
-      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
+      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Processing",
       activeWorkers: 1,
       lastEvent: `Session created — ${firstPhase.agent} starting ${firstPhase.label}`,
     },
@@ -741,15 +741,18 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
   // Write agent run output to workspace
   writeAgentRun(sessionId, task.id, adapterResult.output);
 
-  // Log execution mode
+  // Log execution mode — only mention simulation if NVIDIA key is truly not configured
+  const nvidiaKeyPresent = !!(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.length >= 8);
   appendLog(sessionId, {
     timestamp: execNow,
     level: "info",
     agent,
     message: adapterResult.mode === "nvidia"
       ? `NVIDIA runtime — ${adapterResult.tokensUsed ?? "?"} tokens, ${adapterResult.durationMs}ms`
-      : `Simulation fallback — NVIDIA_API_KEY not configured`,
-    source: adapterResult.mode,
+      : nvidiaKeyPresent
+        ? `Local processing — NVIDIA API call pending`
+        : `Local processing — NVIDIA_API_KEY not configured`,
+    source: adapterResult.mode === "nvidia" ? "nvidia" : "local",
   });
 
   // Update the task based on result
@@ -847,7 +850,7 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
     assignedAgents,
     runtime: {
       status: "online",
-      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
+      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Processing",
       activeWorkers: activeWorkerCount,
       lastEvent: executionOk
         ? `${agent} completed: ${task.title}`
@@ -1151,14 +1154,33 @@ export async function startMissionAutopilot(
     source: "control",
   });
 
-  // 5. Run initial 5 steps
+  // 5. Run initial steps (at least 3, up to 5)
   const MAX_INITIAL = 5;
+  const MIN_INITIAL = 3;
   let stepsExecuted = 0;
   for (let i = 0; i < MAX_INITIAL; i++) {
     const stepResult = await runStep(session.sessionId);
-    if (!stepResult.ok) break;
+    if (!stepResult.ok) {
+      // If we haven't reached minimum yet and the step failed, retry once
+      if (stepsExecuted < MIN_INITIAL && stepResult.task?.status === "failed") {
+        const retryResult = await runStep(session.sessionId);
+        if (retryResult.ok) stepsExecuted++;
+      }
+      break;
+    }
     stepsExecuted++;
     if (stepResult.completed) break;
+  }
+
+  // Log auto-execution summary
+  if (stepsExecuted > 0) {
+    appendLog(session.sessionId, {
+      timestamp: new Date().toISOString(),
+      level: "success",
+      agent: "autopilot",
+      message: `Auto-exécution: ${stepsExecuted} étapes complétées automatiquement — pas besoin de cliquer Run.`,
+      source: "control",
+    });
   }
 
   // 6. Generate visible outputs

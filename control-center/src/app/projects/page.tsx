@@ -29,36 +29,52 @@ export default function ProjectsPage() {
   const ceoProjects = listCeoProjects();
   const totalCount = projects.length + ceoProjects.length;
 
+  // Status label map for CEO projects
+  const statusLabel: Record<string, string> = {
+    starting: "Démarrage",
+    in_progress: "En cours",
+    review: "En révision",
+    delivered: "Livré",
+  };
+
+  // Mission type label map
+  const missionTypeLabel: Record<string, string> = {
+    branding_pack: "Branding",
+    website: "Site web",
+    flyer: "Flyer",
+    ecommerce_store: "E-commerce",
+    saas_project: "SaaS",
+    social_campaign: "Campagne sociale",
+    automation_workflow: "Automation",
+    business_card: "Carte d'affaires",
+  };
+
   return (
     <main className="page">
       <div className="page-header">
         <div>
           <h1 className="page-title">Projects</h1>
           <p className="page-subtitle">
-            {totalCount} project{totalCount !== 1 ? "s" : ""} in the factory
+            {totalCount} project{totalCount !== 1 ? "s" : ""} — créés par le CEO et l&apos;équipe AI
           </p>
         </div>
         <div className="page-actions">
-          <Link href="/actions" className="btn">
+          <Link href="/ceo" className="btn" style={{ background: "#f59e0b", color: "#fff", borderColor: "#f59e0b" }}>
             <svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
             </svg>
-            New Project
+            Parler au CEO
           </Link>
         </div>
       </div>
 
-      {projects.length === 0 ? (
+      {totalCount === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <div style={{ fontSize: 36, opacity: 0.2 }}>
-              <svg width="48" height="48" viewBox="0 0 20 20" fill="var(--text-3)">
-                <path d="M2 6a2 2 0 012-2h4l2 2h6a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/>
-              </svg>
-            </div>
-            <div className="empty-state-title">No projects yet</div>
-            <div className="empty-state-sub">Create your first product to get started.</div>
-            <Link href="/actions" className="btn" style={{ marginTop: 4 }}>Create Product</Link>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>👑</div>
+            <div className="empty-state-title">Aucun projet encore</div>
+            <div className="empty-state-sub">Parlez au CEO pour créer votre premier projet. Il comprendra votre demande et lancera l&apos;équipe automatiquement.</div>
+            <Link href="/ceo" className="btn" style={{ marginTop: 8, background: "#f59e0b", color: "#fff", borderColor: "#f59e0b" }}>Parler au CEO</Link>
           </div>
         </div>
       ) : (
@@ -69,6 +85,32 @@ export default function ProjectsPage() {
             gap: 14,
           }}
         >
+          {/* CEO-created projects — shown first */}
+          {ceoProjects.map((cp) => (
+            <Link key={cp.id} href={cp.sessionId ? `/mission/${cp.sessionId}` : `/projects/${cp.name}`} className="project-card-link">
+              <div className="project-card" style={{ borderLeft: "3px solid #8b5cf6" }}>
+                <div className="project-card-header">
+                  <span className="project-name">{cp.name}</span>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span className="badge" style={{ background: "rgba(139,92,246,0.15)", color: "#8b5cf6" }}>{missionTypeLabel[cp.missionType] ?? cp.missionType}</span>
+                    <span className={`badge ${statusClass(cp.status)}`}>{statusLabel[cp.status] ?? cp.status.replace("_", " ")}</span>
+                  </div>
+                </div>
+                <div className="project-progress-bar">
+                  <div className="project-progress-fill" style={{ width: `${cp.progress}%`, background: cp.progress >= 100 ? "var(--green)" : cp.progress >= 50 ? "linear-gradient(90deg, #3b82f6, #8b5cf6)" : "var(--blue)" }} />
+                </div>
+                <div className="project-stats">
+                  <div className="project-stat"><span className="project-stat-value" style={{ color: "#8b5cf6" }}>{cp.outputsCount}</span><span className="project-stat-label">Outputs</span></div>
+                  <div className="project-stat"><span className="project-stat-value" style={{ color: cp.progress >= 80 ? "var(--green)" : "var(--text-3)" }}>{cp.progress}%</span><span className="project-stat-label">Progress</span></div>
+                  {cp.sessionId && (
+                    <div className="project-stat"><span className="project-stat-value" style={{ color: "#3b82f6", fontSize: 10 }}>Mission Room</span><span className="project-stat-label">Voir</span></div>
+                  )}
+                  <div className="project-stat" style={{ marginLeft: "auto" }}><span className="project-stat-value" style={{ color: "var(--text-3)", fontSize: 10 }}>{new Date(cp.lastActivity).toLocaleDateString()}</span><span className="project-stat-label">Activité</span></div>
+                </div>
+              </div>
+            </Link>
+          ))}
+
           {projects.map((p) => {
             const done = p.tasks.filter(
               (t) => t.status === "completed_real" || t.status === "completed"
@@ -104,29 +146,6 @@ export default function ProjectsPage() {
               </Link>
             );
           })}
-
-          {/* CEO-created projects */}
-          {ceoProjects.map((cp) => (
-            <Link key={cp.id} href={cp.sessionId ? `/mission/${cp.sessionId}` : `/projects/${cp.name}`} className="project-card-link">
-              <div className="project-card">
-                <div className="project-card-header">
-                  <span className="project-name">{cp.name}</span>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    <span className="badge" style={{ background: "rgba(139,92,246,0.15)", color: "#8b5cf6" }}>{cp.missionType}</span>
-                    <span className={`badge ${statusClass(cp.status)}`}>{cp.status.replace("_", " ")}</span>
-                  </div>
-                </div>
-                <div className="project-progress-bar">
-                  <div className="project-progress-fill" style={{ width: `${cp.progress}%`, background: cp.progress >= 100 ? "var(--green)" : cp.progress >= 50 ? "linear-gradient(90deg, #3b82f6, #8b5cf6)" : "var(--blue)" }} />
-                </div>
-                <div className="project-stats">
-                  <div className="project-stat"><span className="project-stat-value" style={{ color: "#8b5cf6" }}>{cp.outputsCount}</span><span className="project-stat-label">Outputs</span></div>
-                  <div className="project-stat"><span className="project-stat-value" style={{ color: cp.progress >= 80 ? "var(--green)" : "var(--text-3)" }}>{cp.progress}%</span><span className="project-stat-label">Progress</span></div>
-                  <div className="project-stat" style={{ marginLeft: "auto" }}><span className="project-stat-value" style={{ color: "var(--text-3)", fontSize: 10 }}>{new Date(cp.lastActivity).toLocaleDateString()}</span><span className="project-stat-label">Activity</span></div>
-                </div>
-              </div>
-            </Link>
-          ))}
         </div>
       )}
     </main>

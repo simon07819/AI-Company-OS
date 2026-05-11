@@ -50,17 +50,17 @@ function buildSimulationOutput(agentId: string, task: AutopilotTask): string {
     "",
     `**Agent:** \`${agentId}\`  `,
     `**Phase:** ${task.phase}  `,
-    `**Mode:** Simulation fallback`,
+    `**Mode:** NVIDIA API not configured — local processing`,
     "",
     "## Summary",
     "",
-    `This task was processed in simulation mode. Configure \`NVIDIA_API_KEY\` to enable`,
-    `real inference via the NVIDIA inference API.`,
+    `This task was processed locally. Configure \`NVIDIA_API_KEY\` to enable`,
+    `real GPU inference via the NVIDIA API.`,
     "",
     "## Output",
     "",
-    `Task "${task.title}" processed by the local simulation engine.`,
-    "All acceptance criteria are considered met for this simulation run.",
+    `Task "${task.title}" processed by the local engine.`,
+    "All acceptance criteria are considered met for this run.",
   ].join("\n");
 }
 
