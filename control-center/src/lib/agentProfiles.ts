@@ -17,10 +17,15 @@ export interface AgentProfile {
   firstName: string;
   lastName: string;
   displayName: string;
+  name: string;
   role: string;
   title: string;
+  department: string;
+  bio: string;
   avatarEmoji: string;
   avatarColor: string;
+  avatarUrl: string | null;
+  profilePhotoStyle: string;
   photoUrl: string | null;
   personality: string;
   expertise: string[];
@@ -38,6 +43,9 @@ export interface AgentProfile {
   online: boolean;
   currentlyWorkingOn: string | null;
   expertiseBadges: string[];
+  status: "available" | "busy" | "offline";
+  level: number;
+  xp: number;
 }
 
 export interface AgentMemory {
@@ -76,7 +84,25 @@ interface MemoryData {
 
 // ─── Default Agent Profiles ──────────────────────────────────────────────
 
-const DEFAULT_PROFILES: AgentProfile[] = [
+// Helper: complete a profile with defaults for new fields
+function completeProfile(p: Partial<AgentProfile> & { agentId: AgentId; firstName: string; lastName: string; displayName: string; role: string; title: string; avatarEmoji: string; avatarColor: string; personality: string; expertise: string[]; strengths: string[]; weaknesses: string[]; yearsExperience: number; reputationScore: number; specialization: string; visualStyle: CreativeStyle; tone: string; preferredWorkflows: string[]; systemPrompt: string; creativityLevel: number; communicationStyle: string; expertiseBadges: string[] }): AgentProfile {
+  return {
+    name: p.name ?? `${p.firstName} ${p.lastName}`,
+    department: p.department ?? "Executive",
+    bio: p.bio ?? `${p.firstName} ${p.lastName} est ${p.role === "CEO" ? "le CEO" : p.role === "CFO" ? "la CFO" : p.role === "CMO" ? "la CMO" : p.role === "CTO" ? "le CTO" : p.role === "COO" ? "le COO" : `le ${p.role}`} de l'agence. ${p.yearsExperience} ans d'expérience en ${p.specialization.toLowerCase()}.`,
+    avatarUrl: p.avatarUrl ?? null,
+    profilePhotoStyle: p.profilePhotoStyle ?? "gradient",
+    photoUrl: p.photoUrl ?? null,
+    online: p.online ?? true,
+    currentlyWorkingOn: p.currentlyWorkingOn ?? null,
+    status: p.status ?? "available",
+    level: p.level ?? Math.floor(p.yearsExperience * 100 / 500) + 1,
+    xp: p.xp ?? p.yearsExperience * 100,
+    ...p,
+  };
+}
+
+const DEFAULT_PROFILES_RAW = [
   {
     agentId: "ceo",
     firstName: "Alexandra",
@@ -482,7 +508,44 @@ const DEFAULT_PROFILES: AgentProfile[] = [
     currentlyWorkingOn: null,
     expertiseBadges: ["Architecture", "Systems", "Patterns"],
   },
+  {
+    agentId: "ecommerce_operator",
+    firstName: "Lina",
+    lastName: "Marchand",
+    displayName: "Lina",
+    name: "Lina Marchand",
+    role: "E-commerce Operator",
+    title: "E-commerce & Marketplace Director",
+    department: "Operations",
+    bio: "Lina Marchand dirige les opérations e-commerce et dropshipping. 8 ans d'expérience en marketplace management, product sourcing et revenue optimization. Ex-Shopify, ex-Amazon Marketplace.",
+    avatarEmoji: "🛒",
+    avatarColor: "#14b8a6",
+    avatarUrl: null,
+    profilePhotoStyle: "gradient",
+    photoUrl: null,
+    personality: "Data-driven, orientée conversion, obsédée par les margins et le customer LTV. Inspirée par Shopify, Amazon, Etsy seller tools.",
+    expertise: ["e-commerce", "dropshipping", "marketplace", "conversion", "product sourcing", "revenue optimization"],
+    strengths: ["conversion optimization", "supplier negotiation", "product curation", "margin analysis", "marketplace strategy"],
+    weaknesses: ["peut trop optimiser les margins au détriment du branding", "préfère la data à l'intuition créative"],
+    yearsExperience: 8,
+    reputationScore: 89,
+    specialization: "E-commerce & Dropshipping Revenue",
+    visualStyle: "corporate_clean",
+    tone: "Chiffré, axé conversion, data-first. Style Shopify analytics.",
+    preferredWorkflows: ["product_sourcing", "store_setup", "conversion_optimization"],
+    systemPrompt: "You are Lina Marchand, E-commerce Operator. Shopify-quality store management. Amazon-level product curation. Conversion-first. Never list a product without margin verification.",
+    creativityLevel: 45,
+    communicationStyle: "Data-driven, conversion-focused, margin-aware. Shopify analytics style.",
+    online: true,
+    currentlyWorkingOn: null,
+    expertiseBadges: ["E-commerce", "Dropshipping", "Conversion"],
+    status: "available",
+    level: 2,
+    xp: 800,
+  },
 ];
+
+const DEFAULT_PROFILES: AgentProfile[] = (DEFAULT_PROFILES_RAW as Partial<AgentProfile>[]).map((p) => completeProfile(p as Parameters<typeof completeProfile>[0])) as AgentProfile[];
 
 const DEFAULT_MEMORIES: AgentMemory[] = DEFAULT_PROFILES.map((p) => ({
   agentId: p.agentId,
@@ -687,6 +750,17 @@ export function profileFromExecutiveId(id: ExecutiveId): AgentProfile | null {
   };
   const agentId = map[id];
   return agentId ? getProfile(agentId) : null;
+}
+
+export function resetProfile(agentId: AgentId): AgentProfile | null {
+  const defaults = DEFAULT_PROFILES.find((p) => p.agentId === agentId);
+  if (!defaults) return null;
+  const data = readProfiles();
+  const idx = data.profiles.findIndex((p) => p.agentId === agentId);
+  if (idx === -1) return null;
+  data.profiles[idx] = defaults;
+  writeProfiles(data);
+  return defaults;
 }
 
 export function getCreativeStandardsForAgent(agentId: AgentId): CreativeStandard[] {

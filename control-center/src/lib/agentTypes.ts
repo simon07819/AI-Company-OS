@@ -1,6 +1,6 @@
 // ─── Agent Types & Constants (client-safe) ──────────────────────────────
 
-export type AgentId = "ceo" | "cfo" | "cmo" | "cto" | "coo" | "logistics" | "support" | "sales" | "hr" | "product_agent" | "architect_agent" | "frontend_agent" | "backend_agent" | "qa_agent" | "devops_agent";
+export type AgentId = "ceo" | "cfo" | "cmo" | "cto" | "coo" | "logistics" | "support" | "sales" | "hr" | "product_agent" | "architect_agent" | "frontend_agent" | "backend_agent" | "qa_agent" | "devops_agent" | "ecommerce_operator";
 
 export type CreativeStyle = "minimalist_premium" | "bold_athletic" | "elegant_luxury" | "playful_modern" | "corporate_clean" | "experimental_avant_garde";
 

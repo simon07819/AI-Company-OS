@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getProfile, updateProfile, getMemory, addXp, learnPreference, learnStylePreference, getCareer, addSpecialty } from "@/lib/agentProfiles";
+import { getProfile, updateProfile, resetProfile, getMemory, addXp, learnPreference, learnStylePreference, getCareer, addSpecialty } from "@/lib/agentProfiles";
 import { type AgentId } from "@/lib/agentTypes";
 
 export const dynamic = "force-dynamic";
@@ -25,11 +25,14 @@ export async function PATCH(
     const body = await req.json();
     const updates: Record<string, unknown> = {};
 
-    // Allowed updatable fields
     const allowedFields = [
       "systemPrompt", "creativityLevel", "tone", "visualStyle",
       "personality", "preferredWorkflows", "communicationStyle",
-      "currentlyWorkingOn", "online",
+      "currentlyWorkingOn", "online", "status",
+      "name", "firstName", "lastName", "displayName", "role", "title",
+      "department", "bio", "avatarColor", "avatarEmoji", "avatarUrl",
+      "profilePhotoStyle", "strengths", "weaknesses",
+      "expertise", "specialization", "expertiseBadges",
     ];
     for (const field of allowedFields) {
       if (body[field] !== undefined) updates[field] = body[field];
@@ -38,7 +41,6 @@ export async function PATCH(
     const profile = updateProfile(agentId as AgentId, updates);
     if (!profile) return NextResponse.json({ ok: false, message: "Agent not found" }, { status: 404 });
 
-    // Also handle memory learning
     if (body.learnPreference) {
       learnPreference(agentId as AgentId, body.learnPreference.key, body.learnPreference.value);
     }
@@ -59,4 +61,16 @@ export async function PATCH(
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ ok: false, message }, { status: 500 });
   }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ agentId: string }> }
+) {
+  const { agentId } = await params;
+  const profile = resetProfile(agentId as AgentId);
+  if (!profile) return NextResponse.json({ ok: false, message: "Agent not found" }, { status: 404 });
+  const memory = getMemory(agentId as AgentId);
+  const career = getCareer(agentId as AgentId);
+  return NextResponse.json({ ok: true, profile, memory, career, reset: true });
 }

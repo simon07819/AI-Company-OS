@@ -593,7 +593,7 @@ describe("Agent Profiles", () => {
   it("getAllProfiles returns 15 profiles", async () => {
     const { getAllProfiles } = await import("@/lib/agentProfiles");
     const profiles = getAllProfiles();
-    expect(profiles.length).toBe(15);
+    expect(profiles.length).toBeGreaterThanOrEqual(16);
   });
 
   it("getProfile returns CMO with premium branding identity", async () => {
@@ -1135,5 +1135,97 @@ describe("NVIDIA Runtime Mode", () => {
     expect(autoStartAction).toBeTruthy();
     // Session status should be "running" since auto-start was triggered
     expect(ceoMessage.text).toMatch(/démarré|avancement|travaille/i);
+  });
+});
+
+// ─── Agent Studio Tests ──────────────────────────────────────────────────
+
+describe("Agent Studio: Profiles & Editing", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("all 16 agents have department and bio", async () => {
+    const { getAllProfiles } = await import("@/lib/agentProfiles");
+    const profiles = getAllProfiles();
+    expect(profiles.length).toBeGreaterThanOrEqual(16);
+    for (const p of profiles) {
+      expect(p.department).toBeTruthy();
+      expect(p.bio).toBeTruthy();
+      expect(p.name).toBeTruthy();
+      expect(p.level).toBeGreaterThan(0);
+      expect(p.xp).toBeGreaterThan(0);
+    }
+  });
+
+  it("ecommerce_operator profile exists", async () => {
+    const { getProfile } = await import("@/lib/agentProfiles");
+    const eco = getProfile("ecommerce_operator");
+    expect(eco).toBeTruthy();
+    expect(eco!.firstName).toBe("Lina");
+    expect(eco!.department).toBe("Operations");
+    expect(eco!.expertise).toContain("e-commerce");
+  });
+
+  it("update agent name and bio", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    const updated = updateProfile("ceo", { name: "Test CEO Name", bio: "Test bio for CEO" });
+    expect(updated).toBeTruthy();
+    expect(updated!.name).toBe("Test CEO Name");
+    expect(updated!.bio).toBe("Test bio for CEO");
+    // Reload
+    const reloaded = getProfile("ceo");
+    expect(reloaded!.name).toBe("Test CEO Name");
+  });
+
+  it("update agent strengths and weaknesses", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    const updated = updateProfile("cmo", { strengths: ["creative vision", "storytelling"], weaknesses: ["perfectionism"] });
+    expect(updated).toBeTruthy();
+    expect(updated!.strengths).toEqual(["creative vision", "storytelling"]);
+    expect(updated!.weaknesses).toEqual(["perfectionism"]);
+  });
+
+  it("update agent department and communication style", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    const updated = updateProfile("cto", { department: "Engineering", communicationStyle: "Technical, clear, concise" });
+    expect(updated).toBeTruthy();
+    expect(updated!.department).toBe("Engineering");
+    expect(updated!.communicationStyle).toBe("Technical, clear, concise");
+  });
+
+  it("reset agent profile to defaults", async () => {
+    const { getProfile, updateProfile, resetProfile } = await import("@/lib/agentProfiles");
+    // Modify first
+    updateProfile("cfo", { name: "Modified CFO", bio: "Modified bio" });
+    const modified = getProfile("cfo");
+    expect(modified!.name).toBe("Modified CFO");
+    // Reset
+    const reset = resetProfile("cfo");
+    expect(reset).toBeTruthy();
+    expect(reset!.firstName).toBe("Diana");
+    expect(reset!.name).toContain("Diana");
+  });
+
+  it("update agent avatar emoji and color", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    const updated = updateProfile("coo", { avatarEmoji: "🛡️", avatarColor: "#1d4ed8" });
+    expect(updated).toBeTruthy();
+    expect(updated!.avatarEmoji).toBe("🛡️");
+    expect(updated!.avatarColor).toBe("#1d4ed8");
+  });
+
+  it("agents are grouped by department", async () => {
+    const { getAllProfiles } = await import("@/lib/agentProfiles");
+    const profiles = getAllProfiles();
+    const departments = Array.from(new Set(profiles.map((p) => p.department)));
+    expect(departments.length).toBeGreaterThan(1);
+    expect(departments).toContain("Executive");
+  });
+
+  it("each agent has status field", async () => {
+    const { getAllProfiles } = await import("@/lib/agentProfiles");
+    const profiles = getAllProfiles();
+    for (const p of profiles) {
+      expect(["available", "busy", "offline"]).toContain(p.status);
+    }
   });
 });

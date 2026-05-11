@@ -377,3 +377,6 @@ export function RuntimeBadge({ mode }: { mode: "nvidia" | "simulation" | "hybrid
   if (mode === "nvidia") return <NvidiaLiveBadge />;
   return <SimBadge />;
 }
+
+// Re-export agent components
+export { AgentAvatar, AgentCard, GlassPanel, LiveStatus } from "./AgentComponents";

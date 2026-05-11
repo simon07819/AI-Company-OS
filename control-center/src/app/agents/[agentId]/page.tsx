@@ -9,6 +9,7 @@ import {
   Brain,
   Edit3,
   Palette,
+  RotateCcw,
   Save,
   Settings,
   Shield,
@@ -85,6 +86,15 @@ export default function AgentProfilePage() {
   const [editVisualStyle, setEditVisualStyle] = useState<CreativeStyle>("minimalist_premium");
   const [editPersonality, setEditPersonality] = useState("");
   const [editWorkflows, setEditWorkflows] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [editDepartment, setEditDepartment] = useState("");
+  const [editStrengths, setEditStrengths] = useState("");
+  const [editWeaknesses, setEditWeaknesses] = useState("");
+  const [editCommunicationStyle, setEditCommunicationStyle] = useState("");
+  const [editAvatarEmoji, setEditAvatarEmoji] = useState("");
+  const [editAvatarColor, setEditAvatarColor] = useState("");
+  const [editSpecialization, setEditSpecialization] = useState("");
 
   useEffect(() => {
     // Extract agentId from URL path
@@ -110,6 +120,15 @@ export default function AgentProfilePage() {
           setEditVisualStyle(d.profile.visualStyle ?? "minimalist_premium");
           setEditPersonality(d.profile.personality ?? "");
           setEditWorkflows((d.profile.preferredWorkflows ?? []).join(", "));
+          setEditName(d.profile.name ?? `${d.profile.firstName} ${d.profile.lastName}`);
+          setEditBio(d.profile.bio ?? "");
+          setEditDepartment(d.profile.department ?? "");
+          setEditStrengths((d.profile.strengths ?? []).join(", "));
+          setEditWeaknesses((d.profile.weaknesses ?? []).join(", "));
+          setEditCommunicationStyle(d.profile.communicationStyle ?? "");
+          setEditAvatarEmoji(d.profile.avatarEmoji ?? "");
+          setEditAvatarColor(d.profile.avatarColor ?? "#6366f1");
+          setEditSpecialization(d.profile.specialization ?? "");
         }
         setError(null);
       } else {
@@ -134,6 +153,15 @@ export default function AgentProfilePage() {
           visualStyle: editVisualStyle,
           personality: editPersonality,
           preferredWorkflows: editWorkflows.split(",").map((w: string) => w.trim()).filter(Boolean),
+          name: editName,
+          bio: editBio,
+          department: editDepartment,
+          strengths: editStrengths.split(",").map((w: string) => w.trim()).filter(Boolean),
+          weaknesses: editWeaknesses.split(",").map((w: string) => w.trim()).filter(Boolean),
+          communicationStyle: editCommunicationStyle,
+          avatarEmoji: editAvatarEmoji,
+          avatarColor: editAvatarColor,
+          specialization: editSpecialization,
         }),
       });
       if (res.ok) {
@@ -174,7 +202,14 @@ export default function AgentProfilePage() {
           <LocalBadge />
           {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
           {!editing ? (
-            <GhostButton onClick={() => setEditing(true)}><Edit3 size={11} /> Edit</GhostButton>
+            <>
+              <GhostButton onClick={() => setEditing(true)}><Edit3 size={11} /> Edit</GhostButton>
+              <GhostButton onClick={async () => {
+                if (!agentId || !confirm("Reset agent to default profile?")) return;
+                const res = await fetch(`/api/agents/${agentId}`, { method: "DELETE" });
+                if (res.ok) { const d = await res.json(); setProfile(d.profile); setMemory(d.memory); setCareer(d.career); setEditSystemPrompt(d.profile.systemPrompt ?? ""); setEditCreativity(d.profile.creativityLevel ?? 50); setEditTone(d.profile.tone ?? ""); setEditVisualStyle(d.profile.visualStyle ?? "minimalist_premium"); setEditPersonality(d.profile.personality ?? ""); setEditWorkflows((d.profile.preferredWorkflows ?? []).join(", ")); setEditName(d.profile.name ?? ""); setEditBio(d.profile.bio ?? ""); setEditDepartment(d.profile.department ?? ""); setEditStrengths((d.profile.strengths ?? []).join(", ")); setEditWeaknesses((d.profile.weaknesses ?? []).join(", ")); setEditCommunicationStyle(d.profile.communicationStyle ?? ""); setEditAvatarEmoji(d.profile.avatarEmoji ?? ""); setEditAvatarColor(d.profile.avatarColor ?? "#6366f1"); setEditSpecialization(d.profile.specialization ?? ""); }
+              }}><RotateCcw size={11} /> Reset</GhostButton>
+            </>
           ) : (
             <>
               <GhostButton onClick={() => setEditing(false)}>Cancel</GhostButton>
@@ -235,6 +270,154 @@ export default function AgentProfilePage() {
           <Panel>
             <SectionHeader title="Agent Settings" icon={<Settings size={12} />} />
             <div style={{ display: "grid", gap: 12 }}>
+              {/* Name */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Full Name</label>
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Bio */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Bio</label>
+                <textarea
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "8px 10px", fontSize: 11, lineHeight: 1.5,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                    minHeight: 60, resize: "vertical",
+                  }}
+                />
+              </div>
+
+              {/* Department */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Department</label>
+                <input
+                  value={editDepartment}
+                  onChange={(e) => setEditDepartment(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Specialization */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Specialization</label>
+                <input
+                  value={editSpecialization}
+                  onChange={(e) => setEditSpecialization(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Communication Style */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Communication Style</label>
+                <input
+                  value={editCommunicationStyle}
+                  onChange={(e) => setEditCommunicationStyle(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Strengths */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Strengths (comma-separated)</label>
+                <input
+                  value={editStrengths}
+                  onChange={(e) => setEditStrengths(e.target.value)}
+                  disabled={!editing}
+                  placeholder="e.g. vision long terme, coordination"
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Weaknesses */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Weaknesses (comma-separated)</label>
+                <input
+                  value={editWeaknesses}
+                  onChange={(e) => setEditWeaknesses(e.target.value)}
+                  disabled={!editing}
+                  placeholder="e.g. détails techniques, impatience"
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Avatar Emoji */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Avatar Emoji</label>
+                <input
+                  value={editAvatarEmoji}
+                  onChange={(e) => setEditAvatarEmoji(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              {/* Avatar Color */}
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Avatar Color</label>
+                <input
+                  type="color"
+                  value={editAvatarColor}
+                  onChange={(e) => setEditAvatarColor(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", height: 32, padding: 2, fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none", cursor: editing ? "pointer" : "default",
+                  }}
+                />
+              </div>
+
               {/* System Prompt */}
               <div>
                 <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>System Prompt</label>
