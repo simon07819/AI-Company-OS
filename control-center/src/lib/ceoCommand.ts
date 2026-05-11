@@ -33,6 +33,9 @@ export type CeoIntent =
   | "delegate_tasks"
   | "greeting"
   | "status_check"
+  | "redesign_logo"
+  | "branding_pack"
+  | "design_review"
   | "unknown";
 
 export interface CeoMessage {
@@ -42,6 +45,8 @@ export interface CeoMessage {
   intent?: CeoIntent;
   sessionId?: string;
   actions?: CeoAction[];
+  assumptions?: Assumption[];
+  delegation?: Delegation[];
   discussionId?: string;
   thinkingState?: ThinkingState;
   timestamp: string;
@@ -114,16 +119,155 @@ const INTENT_KEYWORDS: Record<CeoIntent, string[]> = {
   delegate_tasks:               ["délègue", "delegate", "assigne", "assign", "tâche", "task"],
   greeting:                     ["bonjour", "salut", "hello", "hi", "hey", "bonsoir"],
   status_check:                 ["comment", "how", "quoi de neuf", "what's up", "avance", "progress"],
+  redesign_logo:                ["refaire le logo", "redesign logo", "logo plus", "changer le logo", "refaire logo", "nouveau logo", "logo redesign", "update logo", "modifier le logo", "refaire l'identité"],
+  branding_pack:                ["branding", "identité visuelle", "identité de marque", "charte graphique", "visual identity", "rebranding", "rebrand", "nouvelle identité", "style plus sportif", "style plus premium", "style plus moderne", "plus sportif", "plus premium", "plus moderne", "plus élégant", "plus professionnel", "look plus", "rendre plus"],
+  design_review:                ["design review", "review design", "évaluer le design", "vérifier le design", "tester le visuel", "valider le visuel", "feedback sur le design"],
   unknown:                      [],
 };
 
 function detectIntent(text: string): CeoIntent {
   const lower = text.toLowerCase();
+  // Find the best match: count matching keywords per intent, pick the one with most matches
+  // If tied, pick the one with the longest single keyword match (more specific)
+  let bestIntent: CeoIntent = "unknown";
+  let bestScore = 0;
   for (const [intent, keywords] of Object.entries(INTENT_KEYWORDS)) {
     if (intent === "unknown") continue;
-    if (keywords.some((kw) => lower.includes(kw))) return intent as CeoIntent;
+    let matches = 0;
+    let longestMatch = 0;
+    for (const kw of keywords) {
+      if (lower.includes(kw)) {
+        matches++;
+        if (kw.length > longestMatch) longestMatch = kw.length;
+      }
+    }
+    // Score = matches * 1000 + longest keyword length (favor more matches = more specific)
+    const score = matches * 1000 + longestMatch;
+    if (score > bestScore) {
+      bestIntent = intent as CeoIntent;
+      bestScore = score;
+    }
   }
+  if (bestIntent !== "unknown") return bestIntent;
+  // Proactive inference: short action requests are likely actionable
+  return inferActionableIntent(text);
+}
+
+// ─── Proactive Intent Inference ───────────────────────────────────────────
+
+interface Assumption {
+  field: string;
+  value: string;
+  source: "inferred" | "file" | "message" | "default";
+}
+
+interface Delegation {
+  agentId: string;
+  role: string;
+  task: string;
+}
+
+function inferActionableIntent(text: string): CeoIntent {
+  const lower = text.toLowerCase();
+
+  // Logo/visual requests (even without exact keyword match)
+  if (lower.includes("logo")) return "redesign_logo";
+  if (lower.includes("sportif") || lower.includes("moderne") || lower.includes("premium") ||
+      lower.includes("élégant") || lower.includes("professionnel")) return "branding_pack";
+
+  // Design/visual keywords
+  if (lower.includes("design") || lower.includes("visuel") || lower.includes("charte") ||
+      lower.includes("couleur") || lower.includes("style") || lower.includes("look")) return "branding_pack";
+
+  // If the message is a short imperative (>5 chars, no question mark), treat as launch_mission
+  if (text.length > 5 && !text.includes("?") && !lower.startsWith("comment") &&
+      !lower.startsWith("pourquoi") && !lower.startsWith("quand") && !lower.startsWith("c'est quoi")) {
+    return "launch_mission";
+  }
+
   return "unknown";
+}
+
+function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
+  const assumptions: Assumption[] = [];
+  const lower = text.toLowerCase();
+
+  // Project name inference
+  let projectName = "";
+  if (lower.includes("logo")) projectName = "Logo redesign project";
+  else if (lower.includes("flyer") || lower.includes("affiche")) projectName = "Flyer project";
+  else if (lower.includes("site")) projectName = "Website project";
+  else if (lower.includes("branding") || lower.includes("identité")) projectName = "Branding project";
+  else if (lower.includes("dropshipping") || lower.includes("boutique")) projectName = "Dropshipping project";
+  else if (text.length > 5) projectName = text.slice(0, 40).trim();
+  else projectName = "New mission";
+
+  assumptions.push({ field: "Project name", value: projectName, source: "inferred" });
+
+  // Objective inference
+  let objective = text;
+  if (lower.includes("plus sportif")) objective = "Style plus sportif et dynamique";
+  else if (lower.includes("plus premium")) objective = "Style plus premium et haut de gamme";
+  else if (lower.includes("plus moderne")) objective = "Style plus moderne et épuré";
+  else if (lower.includes("redesign") || lower.includes("refaire")) objective = `Refonte: ${text.slice(0, 60).trim()}`;
+  assumptions.push({ field: "Objective", value: objective, source: "message" });
+
+  // Style inference
+  if (lower.includes("sportif")) assumptions.push({ field: "Style", value: "Sportif / Dynamique", source: "inferred" });
+  else if (lower.includes("premium")) assumptions.push({ field: "Style", value: "Premium / Luxe", source: "inferred" });
+  else if (lower.includes("moderne")) assumptions.push({ field: "Style", value: "Moderne / Épuré", source: "inferred" });
+  else if (lower.includes("élégant")) assumptions.push({ field: "Style", value: "Élégant / Sophistiqué", source: "inferred" });
+
+  // Check for recent uploaded files
+  try {
+    const { getFileMemory } = require("./ceoUploads") as typeof import("./ceoUploads");
+    const files = getFileMemory().files;
+    const recent = files.slice(-3);
+    for (const f of recent) {
+      assumptions.push({ field: "Linked file", value: f.name, source: "file" });
+    }
+  } catch { /* uploads not available */ }
+
+  // Default client/workspace
+  assumptions.push({ field: "Client", value: "(auto — modifiable)", source: "default" });
+
+  return assumptions;
+}
+
+function buildDelegation(intent: CeoIntent): Delegation[] {
+  const delegationMap: Record<string, Delegation[]> = {
+    redesign_logo: [
+      { agentId: "cmo", role: "CMO — Direction créative", task: "Définir direction artistique et moodboard" },
+      { agentId: "frontend_agent", role: "Design — Propositions visuelles", task: "Créer propositions logo" },
+      { agentId: "qa_agent", role: "QA — Vérification lisibilité", task: "Valider lisibilité multi-supports" },
+    ],
+    branding_pack: [
+      { agentId: "cmo", role: "CMO — Direction créative", task: "Définir identité et charte graphique" },
+      { agentId: "frontend_agent", role: "Design — Propositions visuelles", task: "Créer déclinaisons branding" },
+      { agentId: "qa_agent", role: "QA — Validation cohérence", task: "Vérifier cohérence multi-canal" },
+    ],
+    design_review: [
+      { agentId: "cmo", role: "CMO — Review créatif", task: "Évaluer design actuel et recommander" },
+      { agentId: "qa_agent", role: "QA — Tests visuels", task: "Vérifier lisibilité et accessibilité" },
+    ],
+    create_website: [
+      { agentId: "cto", role: "CTO — Architecture", task: "Définir stack et architecture" },
+      { agentId: "frontend_agent", role: "Frontend — UI/UX", task: "Créer interface" },
+      { agentId: "backend_agent", role: "Backend — API", task: "Développer endpoints" },
+    ],
+    create_flyer: [
+      { agentId: "cmo", role: "CMO — Message et cible", task: "Définir message et audience" },
+      { agentId: "frontend_agent", role: "Design — Création visuelle", task: "Créer flyer" },
+    ],
+    create_dropshipping_business: [
+      { agentId: "logistics", role: "Logistics — Fournisseurs", task: "Rechercher et valider fournisseurs" },
+      { agentId: "cmo", role: "CMO — Marketing", task: "Analyser niche et créer campagne" },
+      { agentId: "cfo", role: "CFO — Budget", task: "Structurer budget et projections" },
+    ],
+  };
+  return delegationMap[intent] ?? [
+    { agentId: "coo", role: "COO — Coordination", task: "Structurer et coordonner la mission" },
+  ];
 }
 
 function missionTypeForIntent(intent: CeoIntent): string | null {
@@ -131,8 +275,96 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
     create_flyer: "flyer",
     create_website: "website",
     create_dropshipping_business: "ecommerce_store",
+    redesign_logo: "branding_pack",
+    branding_pack: "branding_pack",
+    design_review: "branding_pack",
   };
   return map[intent] ?? null;
+}
+
+// ─── Proactive Response Builder ──────────────────────────────────────────
+
+async function buildProactiveResponse(
+  intent: CeoIntent,
+  userText: string,
+  actions: CeoAction[],
+  assumptions: Assumption[],
+  delegation: Delegation[],
+): Promise<string> {
+  // For non-actionable intents, use the existing smart response system
+  const nonActionable: CeoIntent[] = ["greeting", "unknown"];
+  if (nonActionable.includes(intent) || intent === "review_business" || intent === "status_check") {
+    return buildCeoResponse(intent, userText, actions);
+  }
+
+  // For actionable intents, build proactive response
+  const projectName = assumptions.find((a) => a.field === "Project name")?.value ?? "New mission";
+  const objective = assumptions.find((a) => a.field === "Objective")?.value ?? userText;
+  const sessionCreated = actions.some((a) => a.type === "created_session");
+
+  // Build assumption lines
+  const assumptionLines = assumptions
+    .filter((a) => a.source !== "default")
+    .map((a) => `  • ${a.field}: ${a.value} (${a.source === "inferred" ? "inféré" : a.source === "file" ? "fichier" : "message"})`)
+    .join("\n");
+
+  // Build delegation lines
+  const delegationLines = delegation
+    .map((d) => `  • ${d.role}: ${d.task}`)
+    .join("\n");
+
+  // Construct response
+  const parts: string[] = [];
+
+  // Opening — direct action statement
+  if (intent === "redesign_logo" || intent === "branding_pack" || intent === "design_review") {
+    parts.push(`Parfait. Je pars avec l'objectif: ${objective}.`);
+    // Check for linked files
+    const linkedFiles = assumptions.filter((a) => a.field === "Linked file");
+    if (linkedFiles.length > 0) {
+      parts.push(`Fichier(s) lié(s): ${linkedFiles.map((f) => f.value).join(", ")} — je les utilise automatiquement.`);
+    }
+  } else if (intent === "create_invoice") {
+    parts.push("Facture créée. Diana s'en occupe — tu peux suivre dans Revenue.");
+  } else if (intent === "create_dropshipping_business") {
+    parts.push("Business dropshipping lancé. L'équipe est mobilisée.");
+  } else if (intent === "create_website") {
+    parts.push("Site web lancé. Raj sur l'architecture, l'équipe est briefée.");
+  } else if (intent === "create_flyer") {
+    parts.push("Flyer en cours. Sophie sur la direction créative.");
+  } else {
+    parts.push(`Mission lancée: ${projectName}.`);
+  }
+
+  // Mission creation confirmation
+  if (sessionCreated) {
+    parts.push(`Je crée une mission et je délègue:`);
+  } else {
+    parts.push(`Délégation:`);
+  }
+
+  // Add delegation
+  parts.push(delegationLines);
+
+  // Add assumptions section
+  if (assumptionLines) {
+    parts.push(`\nHypothèses (modifiables dans la Mission Room):`);
+    parts.push(assumptionLines);
+  }
+
+  // Closing
+  if (sessionCreated) {
+    parts.push(`\nTu peux modifier les infos dans la Mission Room. C'est parti.`);
+  } else {
+    parts.push(`\nTu peux affiner les détails quand tu veux.`);
+  }
+
+  // Only ask a question if truly necessary (financial/legal risk)
+  if (intent === "create_invoice" && !userText.includes("$") && !userText.includes("montant")) {
+    parts.push(`Montant et client à préciser — mais le brouillon est créé.`);
+  }
+
+  return parts.join("\n");
 }
 
 // ─── CEO Response Logic ───────────────────────────────────────────────────
@@ -202,23 +434,26 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
   };
   data.messages.push(userMsg);
 
-  // Detect intent and build actions
+  // Detect intent (proactive inference included)
   const intent = detectIntent(text);
   const actions: CeoAction[] = [];
+  const assumptions = buildAssumptions(text, intent);
+  const delegation = buildDelegation(intent);
 
   // Update conversation memory
   updateCeoMemory(intent, text);
 
   let sessionId: string | undefined;
 
-  if (
-    intent === "launch_mission" ||
-    intent === "create_flyer" ||
-    intent === "create_website" ||
-    intent === "create_dropshipping_business"
-  ) {
+  // ── Proactive mission creation for actionable intents ──
+  const actionableIntents: CeoIntent[] = [
+    "launch_mission", "create_flyer", "create_website",
+    "create_dropshipping_business", "redesign_logo", "branding_pack", "design_review",
+  ];
+
+  if (actionableIntents.includes(intent)) {
     const missionTypeKey = missionTypeForIntent(intent);
-    const projectName = text.length > 5 ? text.slice(0, 40).trim() : `Mission ${intent}`;
+    const projectName = assumptions.find((a) => a.field === "Project name")?.value ?? text.slice(0, 40).trim();
     try {
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
@@ -271,8 +506,8 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
   // Generate executive discussion
   const discussion = createDiscussion(text, intent);
 
-  // Build CEO response (smart + contextual)
-  const responseText = await buildCeoResponse(intent, text, actions);
+  // Build proactive CEO response
+  const responseText = await buildProactiveResponse(intent, text, actions, assumptions, delegation);
   const thinkingState = getThinkingState(intent);
 
   const ceoMsg: CeoMessage = {
@@ -282,6 +517,8 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
     intent,
     sessionId,
     actions,
+    assumptions,
+    delegation,
     discussionId: discussion.id,
     thinkingState,
     timestamp: new Date().toISOString(),

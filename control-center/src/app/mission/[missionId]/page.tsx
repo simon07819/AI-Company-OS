@@ -13,6 +13,7 @@ import {
   Clock3,
   FileText,
   Image as ImageIcon,
+  Info,
   Monitor,
   Play,
   Radio,
@@ -255,6 +256,29 @@ export default function MissionRoomPage() {
                 <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 5 }}>Current decision</div>
                 <div style={{ fontSize: 13, color: "var(--text)" }}>{runningTask ? runningTask.title : "Review generated results and approve the next direction."}</div>
               </div>
+            </div>
+          </div>
+
+          {/* Assumptions section */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+            <SectionHeader title="Assumptions" icon={<Info size={12} style={{ color: "#3b82f6" }} />} />
+            <div style={{ display: "grid", gap: 6 }}>
+              {[
+                { field: "Project name", value: session.projectName },
+                { field: "Mission type", value: session.missionType || "saas_project" },
+                { field: "Status", value: session.status },
+                { field: "Client", value: "(auto — modifiable)" },
+                { field: "Objective", value: session.tasks[0]?.title || session.projectName },
+              ].map((item) => (
+                <div key={item.field} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--bg-2)", borderRadius: 6, border: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-3)", minWidth: 90 }}>{item.field}</span>
+                  <span style={{ fontSize: 12, color: "var(--text)", flex: 1 }}>{item.value}</span>
+                  <span style={{ fontSize: 8, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600 }}>inferred</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-3)" }}>
+              These assumptions were auto-inferred from your CEO chat. You can modify them in the Mission Room settings.
             </div>
           </div>
 

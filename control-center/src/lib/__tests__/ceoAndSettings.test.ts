@@ -292,6 +292,88 @@ describe("ceoCommand", () => {
   });
 });
 
+describe("proactiveCEO", () => {
+  beforeAll(() => { resetStore(); });
+  afterEach(() => { resetStore(); });
+
+  it('"refaire le logo plus sportif" creates mission without blocking question', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("refaire le logo plus sportif");
+
+    expect(ceoMessage.intent).toBe("redesign_logo");
+    expect(ceoMessage.sessionId).toBeTruthy();
+    expect(ceoMessage.actions.some((a) => a.type === "created_session")).toBe(true);
+    // Must NOT ask for more context
+    expect(ceoMessage.text).not.toContain("J'ai besoin de");
+    expect(ceoMessage.text).not.toContain("plus de contexte");
+    // Must contain assumptions
+    expect(ceoMessage.assumptions).toBeDefined();
+    expect(ceoMessage.assumptions!.length).toBeGreaterThan(0);
+    // Must contain delegation
+    expect(ceoMessage.delegation).toBeDefined();
+    expect(ceoMessage.delegation!.length).toBeGreaterThan(0);
+    // Must mention delegation roles
+    expect(ceoMessage.text).toContain("CMO");
+  });
+
+  it('"style plus premium" creates branding_pack mission', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("style plus premium");
+
+    expect(ceoMessage.intent).toBe("branding_pack");
+    expect(ceoMessage.sessionId).toBeTruthy();
+    expect(ceoMessage.text).toContain("premium");
+  });
+
+  it('"moderne" creates branding_pack mission', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("rendre le design plus moderne");
+
+    expect(ceoMessage.intent).toBe("branding_pack");
+    expect(ceoMessage.sessionId).toBeTruthy();
+  });
+
+  it('CEO response contains assumptions with inferred source', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("refaire le logo plus sportif");
+
+    const inferred = ceoMessage.assumptions?.filter((a) => a.source === "inferred");
+    expect(inferred!.length).toBeGreaterThan(0);
+    // Project name should be auto-generated
+    const projectName = ceoMessage.assumptions?.find((a) => a.field === "Project name");
+    expect(projectName).toBeTruthy();
+    // Style should be inferred
+    const style = ceoMessage.assumptions?.find((a) => a.field === "Style");
+    expect(style).toBeTruthy();
+    expect(style!.value).toContain("Sportif");
+  });
+
+  it('CEO does NOT respond "j\'ai besoin de contexte" for actionable requests', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const actionableRequests = [
+      "changer le logo",
+      "branding pour ma compagnie",
+      "créer un site web",
+      "faire un flyer",
+    ];
+    for (const req of actionableRequests) {
+      const { ceoMessage } = await sendMessage(req);
+      expect(ceoMessage.text).not.toContain("J'ai besoin de");
+      expect(ceoMessage.text).not.toContain("plus de contexte");
+    }
+  });
+
+  it('delegation includes correct roles per intent', async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("redesign logo plus sportif");
+
+    const agentIds = ceoMessage.delegation!.map((d) => d.agentId);
+    expect(agentIds).toContain("cmo");
+    expect(agentIds).toContain("frontend_agent");
+    expect(agentIds).toContain("qa_agent");
+  });
+});
+
 describe("settingsStore", () => {
   beforeAll(() => { resetStore(); });
   afterEach(() => { resetStore(); });
