@@ -1079,3 +1079,132 @@ export async function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): P
     session,
   };
 }
+
+// ─── Mission Autopilot Starter ─────────────────────────────────────────────
+
+export interface MissionAutopilotResult {
+  ok: boolean;
+  sessionId: string;
+  projectName: string;
+  missionType: string;
+  stepsExecuted: number;
+  outputsGenerated: number;
+  delegation: string[];
+  status: string;
+  progress: number;
+}
+
+export async function startMissionAutopilot(
+  projectName: string,
+  missionType: string,
+  projectIdea?: string,
+  existingSessionId?: string,
+): Promise<MissionAutopilotResult> {
+  const emptyResult: MissionAutopilotResult = {
+    ok: false, sessionId: "", projectName, missionType,
+    stepsExecuted: 0, outputsGenerated: 0, delegation: [], status: "failed", progress: 0,
+  };
+
+  // 1. Use existing session or create new one
+  let session: AutopilotSession | null;
+  if (existingSessionId) {
+    session = getSession(existingSessionId);
+  } else {
+    session = createSession({
+      name: projectName,
+      idea: projectIdea ?? projectName,
+      missionType,
+    });
+  }
+  if (!session) return emptyResult;
+
+  // 2. Start it
+  updateSession(session.sessionId, { status: "running" });
+
+  // 3. Build delegation map
+  const delegationMap: Record<string, string[]> = {
+    redesign_logo: ["cmo", "frontend_agent", "qa_agent"],
+    branding_pack: ["cmo", "frontend_agent", "qa_agent"],
+    design_review: ["cmo", "qa_agent"],
+    create_website: ["cto", "frontend_agent", "backend_agent", "qa_agent"],
+    create_flyer: ["cmo", "frontend_agent"],
+    create_dropshipping_business: ["logistics", "cmo", "cfo"],
+    saas_project: ["cto", "frontend_agent", "backend_agent", "qa_agent", "devops_agent"],
+    launch_mission: ["coo", "product_agent"],
+    ecommerce_operator: ["logistics", "cfo", "cmo"],
+  };
+  const delegation = delegationMap[missionType] ?? ["coo"];
+
+  // 4. Log delegation
+  const agentNames: Record<string, string> = {
+    cmo: "CMO Sophie", cto: "CTO Raj", coo: "COO Marcus", cfo: "CFO Diana",
+    frontend_agent: "Léa Design", backend_agent: "Olivier API", qa_agent: "Naomi QA",
+    devops_agent: "Kenji DevOps", logistics: "Emma Logistics", product_agent: "Mia Product",
+    hr: "James HR", sales: "Rachel Sales", support: "Carlos Support",
+  };
+  const delegationLabels = delegation.map((id) => `${agentNames[id] ?? id} assigned`);
+  appendLog(session.sessionId, {
+    timestamp: new Date().toISOString(),
+    level: "info",
+    agent: "ceo",
+    message: `Équipe assignée: ${delegationLabels.join(", ")}`,
+    source: "control",
+  });
+
+  // 5. Run initial 5 steps
+  const MAX_INITIAL = 5;
+  let stepsExecuted = 0;
+  for (let i = 0; i < MAX_INITIAL; i++) {
+    const stepResult = await runStep(session.sessionId);
+    if (!stepResult.ok) break;
+    stepsExecuted++;
+    if (stepResult.completed) break;
+  }
+
+  // 6. Generate visible outputs
+  let outputsGenerated = 0;
+  try {
+    const { generateVisibleOutputs, getOutputCountForSession } = await import("./visibleOutputs");
+    const existing = getOutputCountForSession(session.sessionId);
+    if (existing === 0) {
+      const outputs = generateVisibleOutputs(session.sessionId, missionType);
+      outputsGenerated = outputs.length;
+    } else {
+      outputsGenerated = existing;
+    }
+    // Update output statuses based on steps completed
+    const { updateOutputStatus } = await import("./visibleOutputs");
+    const { getOutputsForSession } = await import("./visibleOutputs");
+    const outs = getOutputsForSession(session.sessionId);
+    const completedRatio = stepsExecuted / Math.max(session.tasks.length, 1);
+    for (let i = 0; i < outs.length; i++) {
+      const outputProgress = i / Math.max(outs.length, 1);
+      if (outputProgress < completedRatio * 0.7) {
+        updateOutputStatus(outs[i].id, "review");
+      } else if (outputProgress < completedRatio) {
+        updateOutputStatus(outs[i].id, "in_progress");
+      }
+    }
+  } catch { /* outputs generation is best-effort */ }
+
+  // 7. Update project progress
+  try {
+    const { updateProjectProgress } = await import("./ceoProjectStore");
+    const progressPct = Math.min(Math.round((stepsExecuted / Math.max(session.tasks.length, 1)) * 100), 100);
+    updateProjectProgress(session.sessionId, progressPct, outputsGenerated);
+  } catch { /* best-effort */ }
+
+  // 8. Get final state
+  const finalSession = getSession(session.sessionId);
+  return {
+    ok: true,
+    sessionId: session.sessionId,
+    projectName,
+    missionType,
+    stepsExecuted,
+    outputsGenerated,
+    delegation: delegationLabels,
+    status: finalSession?.status ?? "running",
+    progress: finalSession?.progress ?? 0,
+  };
+}

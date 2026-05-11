@@ -26,6 +26,7 @@ import {
   ThumbsUp,
   Users,
   XCircle,
+  Activity,
 } from "lucide-react";
 import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
@@ -437,6 +438,61 @@ export default function MissionRoomPage() {
         </section>
 
         <section style={{ display: "grid", gap: 12 }}>
+          {/* What is happening now */}
+          <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+            <SectionHeader title="What is happening now?" icon={<Activity size={12} style={{ color: "#3b82f6" }} />} />
+            {session.status === "running" && (() => {
+              const runningTask = session.tasks.find((t: { status: string }) => t.status === "running");
+              const activeAgent = session.assignedAgents.find((a: { status: string }) => a.status === "active");
+              const completedCount = session.tasks.filter((t: { status: string }) => t.status === "completed").length;
+              // Get agent color from profile
+              const agentColorMap: Record<string, string> = {
+                ceo: "#f59e0b", cfo: "#22c55e", cmo: "#8b5cf6", cto: "#06b6d4", coo: "#3b82f6",
+                frontend_agent: "#ec4899", backend_agent: "#f97316", qa_agent: "#ef4444",
+                devops_agent: "#6366f1", logistics: "#f97316", sales: "#ef4444", hr: "#a78bfa",
+                support: "#ec4899", product_agent: "#3b82f6", architect_agent: "#6366f1",
+                ecommerce_operator: "#14b8a6",
+              };
+              const activeColor = activeAgent ? (agentColorMap[activeAgent.agentId] ?? "#3b82f6") : "#3b82f6";
+              return (
+                <div>
+                  {activeAgent && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "8px 10px", borderRadius: 7, background: `${activeColor}0a`, border: `1px solid ${activeColor}20` }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: activeColor }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: activeColor }}>{activeAgent.role ?? activeAgent.agentId}</span>
+                      <span style={{ fontSize: 10, color: "var(--text-3)" }}>travaille sur:</span>
+                    </div>
+                  )}
+                  {runningTask && (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 8 }}>
+                      {runningTask.title}
+                    </div>
+                  )}
+                  {!runningTask && !activeAgent && completedCount > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--text-2)" }}>En attente de la prochaine tâche...</div>
+                  )}
+                  {completedCount === 0 && !runningTask && (
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>Démarrage de la mission...</div>
+                  )}
+                  {runningTask && (
+                    <div style={{ fontSize: 10, color: "var(--text-3)" }}>
+                      Phase: {runningTask.phase} · Progression: {completedCount}/{session.tasks.length} tâches complétées
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+            {session.status === "completed" && (
+              <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>Mission complétée — tous les livrables sont prêts.</div>
+            )}
+            {session.status === "paused" && (
+              <div style={{ fontSize: 11, color: "#f59e0b" }}>Mission en pause — clique Resume pour continuer.</div>
+            )}
+            {session.status === "draft" && (
+              <div style={{ fontSize: 11, color: "var(--text-3)" }}>Mission en préparation...</div>
+            )}
+          </div>
+
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="Live Timeline" icon={<Radio size={12} style={{ color: "#34d399" }} />} />
             <div style={{ display: "grid", gap: 12 }}>

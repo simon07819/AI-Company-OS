@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { listSessions, createSession, getSession, runStep, type AutopilotSession } from "./autopilotStore";
+import { listSessions, createSession, getSession, runStep, startMissionAutopilot, type AutopilotSession } from "./autopilotStore";
 import { createCeoProject, getCeoProjectBySession, updateProjectProgress, type CeoProject } from "./ceoProjectStore";
 import { generateVisibleOutputs, getOutputsForSession } from "./visibleOutputs";
 import { getAllAgentStates, type AgentRuntimeState } from "./agentRuntime";
@@ -470,7 +470,15 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
 
-      // 2. Create CEO project (visible in /projects)
+      // 2. Start mission autopilot (generates outputs, runs steps, links delegation)
+      const autopilotResult = await startMissionAutopilot(
+        projectName,
+        missionTypeKey ?? "saas_project",
+        projectName,
+        session.sessionId,
+      );
+
+      // 3. Create CEO project (visible in /projects)
       const project = createCeoProject({
         name: projectName,
         missionType: missionTypeKey ?? "saas_project",
@@ -478,23 +486,9 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         conversationId: "ceo-main-thread",
       });
 
-      // 3. Generate visible outputs based on mission type
-      generateVisibleOutputs(session.sessionId, missionTypeKey ?? "saas_project", project.id);
-
-      // 4. Auto-execute first 3 steps
-      let stepsExecuted = 0;
-      for (let i = 0; i < 3; i++) {
-        const stepResult = await runStep(session.sessionId);
-        if (stepResult.ok && !stepResult.completed) {
-          stepsExecuted++;
-        } else break;
-      }
-
-      // 5. Update project progress
-      const updatedSession = getSession(session.sessionId);
-      const outputs = getOutputsForSession(session.sessionId);
-      if (updatedSession) {
-        updateProjectProgress(project.id, updatedSession.progress, outputs.length);
+      // 4. Update project progress from autopilot result
+      if (autopilotResult.ok) {
+        updateProjectProgress(project.id, autopilotResult.progress, autopilotResult.outputsGenerated);
       }
 
       actions.push({
@@ -511,7 +505,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       });
       actions.push({
         type: "auto_started",
-        label: `${stepsExecuted} étapes exécutées automatiquement`,
+        label: `${autopilotResult.stepsExecuted} étapes exécutées automatiquement`,
         targetId: session.sessionId,
       });
     } catch {

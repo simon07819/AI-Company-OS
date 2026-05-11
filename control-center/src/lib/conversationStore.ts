@@ -112,8 +112,13 @@ function participantFromRole(role: ParticipantRole): ConversationParticipant {
   if (role === "custom_agent") {
     return { id: "custom_agent", name: "Custom Agent", avatar: "🤖", color: "#94a3b8" };
   }
-  const exec = EXECUTIVES[role];
-  return { id: role, name: exec.name, avatar: exec.avatar, color: exec.color };
+  // Prefer agentProfile data when available
+  const profile = getProfile(role as AgentId);
+  if (profile) {
+    return { id: role, name: profile.displayName, avatar: profile.avatarEmoji, color: profile.avatarColor };
+  }
+  const exec = EXECUTIVES[role as ExecutiveId];
+  return { id: role, name: exec?.name ?? role, avatar: exec?.avatar ?? "🤖", color: exec?.color ?? "#94a3b8" };
 }
 
 // ─── Real AI Response Engine ──────────────────────────────────────────────
