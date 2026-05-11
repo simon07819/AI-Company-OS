@@ -17,6 +17,7 @@ import {
   Monitor,
   Play,
   Radio,
+  HelpCircle,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -121,6 +122,88 @@ function generatedKind(file: WorkspaceFile) {
   if (lower.includes("invoice")) return { label: "Invoice", icon: <FileText size={13} /> };
   if (lower.includes("proposal")) return { label: "Proposal", icon: <FileText size={13} /> };
   return { label: "Strategy doc", icon: <FileText size={13} /> };
+}
+
+// ─── Mission Questions Component ──────────────────────────────────────────
+
+interface MQOption { id: string; label: string; }
+interface MQ { id: string; agentName: string; agentAvatar: string; agentColor: string; question: string; options: MQOption[]; status: string; answer: { optionId: string | null; freeText: string | null; answeredAt: string } | null; createdAt: string; }
+
+function MissionQuestions({ missionId }: { missionId: string }) {
+  const [questions, setQuestions] = useState<MQ[]>([]);
+  const [autreText, setAutreText] = useState<Record<string, string>>({});
+  const [showAutre, setShowAutre] = useState<Record<string, boolean>>({});
+
+  const loadQs = async () => {
+    try {
+      const res = await fetch(`/api/agent-questions?missionId=${missionId}`);
+      if (res.ok) { const d = await res.json(); setQuestions(d.questions ?? []); }
+    } catch { /* */ }
+  };
+
+  useEffect(() => { loadQs(); }, [missionId]);
+
+  const handleAnswer = async (qId: string, optId: string) => {
+    const freeText = optId === "autre" ? (autreText[qId] ?? "") : undefined;
+    try {
+      const res = await fetch(`/api/agent-questions/${qId}/answer`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ optionId: optId, freeText }),
+      });
+      if (res.ok) loadQs();
+    } catch { /* */ }
+  };
+
+  const pending = questions.filter((q) => q.status === "pending");
+  const answered = questions.filter((q) => q.status === "answered");
+  if (pending.length === 0 && answered.length === 0) return null;
+
+  return (
+    <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+      <SectionHeader title="Questions / Decisions Needed" icon={<HelpCircle size={12} style={{ color: "#8b5cf6" }} />} />
+      <div style={{ display: "grid", gap: 8 }}>
+        {pending.map((q) => (
+          <div key={q.id} style={{ padding: 10, borderRadius: 6, background: `${q.agentColor}08`, border: `1px solid ${q.agentColor}30` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+              <span style={{ fontSize: 12 }}>{q.agentAvatar}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: q.agentColor }}>{q.agentName}</span>
+              <span style={{ fontSize: 9, color: "var(--text-3)" }}>{new Date(q.createdAt).toLocaleTimeString()}</span>
+              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase" }}>Pending</span>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{q.question}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {q.options.map((opt) => (
+                <button key={opt.id} onClick={() => opt.id === "autre" ? setShowAutre((p) => ({ ...p, [q.id]: true })) : handleAnswer(q.id, opt.id)} style={{ padding: "5px 10px", fontSize: 10, fontWeight: 600, background: "var(--bg-2)", border: `1px solid ${q.agentColor}30`, borderRadius: 5, color: "var(--text)", cursor: "pointer" }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {showAutre[q.id] && (
+              <div style={{ display: "flex", gap: 4, marginTop: 6 }}>
+                <input value={autreText[q.id] ?? ""} onChange={(e) => setAutreText((p) => ({ ...p, [q.id]: e.target.value }))} placeholder="Votre réponse…" style={{ flex: 1, padding: "4px 8px", fontSize: 10, background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text)", outline: "none" }} onKeyDown={(e) => { if (e.key === "Enter" && autreText[q.id]?.trim()) handleAnswer(q.id, "autre"); }} />
+                <button onClick={() => handleAnswer(q.id, "autre")} disabled={!(autreText[q.id]?.trim())} style={{ padding: "4px 8px", fontSize: 10, fontWeight: 600, background: q.agentColor, color: "#fff", border: "none", borderRadius: 4, cursor: autreText[q.id]?.trim() ? "pointer" : "not-allowed", opacity: autreText[q.id]?.trim() ? 1 : 0.5 }}>OK</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {answered.map((q) => (
+          <div key={q.id} style={{ padding: 8, borderRadius: 6, background: "var(--bg-2)", border: "1px solid var(--border)", opacity: 0.7 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 10 }}>{q.agentAvatar}</span>
+              <span style={{ fontSize: 9, fontWeight: 600, color: q.agentColor }}>{q.agentName}</span>
+              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#22c55e", textTransform: "uppercase" }}>Answered</span>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>{q.question}</div>
+            {q.answer && (
+              <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text)", marginTop: 2 }}>
+                {q.answer.freeText ? q.answer.freeText : q.options.find((o) => o.id === q.answer?.optionId)?.label ?? "—"}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function MissionRoomPage() {
@@ -281,6 +364,9 @@ export default function MissionRoomPage() {
               These assumptions were auto-inferred from your CEO chat. You can modify them in the Mission Room settings.
             </div>
           </div>
+
+          {/* Agent Questions for this mission */}
+          <MissionQuestions missionId={session.sessionId} />
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="Decisions Required" icon={<AlertTriangle size={12} style={{ color: "#f59e0b" }} />} />

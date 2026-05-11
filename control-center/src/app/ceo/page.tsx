@@ -965,6 +965,73 @@ function DragOverlay({ active }: { active: boolean }) {
   );
 }
 
+// ─── Agent Questions Section ─────────────────────────────────────────────
+
+interface AgentQOption { id: string; label: string; }
+interface AgentQ { id: string; agentId: string; agentName: string; agentAvatar: string; agentColor: string; question: string; options: AgentQOption[]; status: string; answer: { optionId: string | null; freeText: string | null } | null; createdAt: string; }
+
+function AgentQuestionsSection() {
+  const [questions, setQuestions] = useState<AgentQ[]>([]);
+  const [autreText, setAutreText] = useState<Record<string, string>>({});
+  const [showAutre, setShowAutre] = useState<Record<string, boolean>>({});
+
+  const loadQuestions = async () => {
+    try {
+      const res = await fetch("/api/agent-questions");
+      if (res.ok) { const d = await res.json(); setQuestions((d.questions ?? []).filter((q: AgentQ) => q.status === "pending")); }
+    } catch { /* */ }
+  };
+
+  useEffect(() => { loadQuestions(); const t = setInterval(loadQuestions, 15000); return () => clearInterval(t); }, []);
+
+  const handleAnswer = async (questionId: string, optionId: string) => {
+    const freeText = optionId === "autre" ? (autreText[questionId] ?? "") : undefined;
+    try {
+      const res = await fetch(`/api/agent-questions/${questionId}/answer`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ optionId, freeText }),
+      });
+      if (res.ok) loadQuestions();
+    } catch { /* */ }
+  };
+
+  if (questions.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>
+        Agent Questions
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {questions.slice(0, 4).map((q) => (
+          <div key={q.id} style={{ padding: "8px 10px", borderRadius: 6, background: `${q.agentColor}08`, border: `1px solid ${q.agentColor}30` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+              <span style={{ fontSize: 10 }}>{q.agentAvatar}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: q.agentColor }}>{q.agentName}</span>
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", marginBottom: 6 }}>{q.question}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+              {q.options.map((opt) => (
+                <button key={opt.id} onClick={() => opt.id === "autre" ? setShowAutre((p) => ({ ...p, [q.id]: true })) : handleAnswer(q.id, opt.id)} style={{ padding: "3px 8px", fontSize: 9, fontWeight: 600, background: "var(--bg-2)", border: `1px solid ${q.agentColor}30`, borderRadius: 4, color: "var(--text)", cursor: "pointer" }}>
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {showAutre[q.id] && (
+              <div style={{ display: "flex", gap: 4, marginTop: 4 }}>
+                <input value={autreText[q.id] ?? ""} onChange={(e) => setAutreText((p) => ({ ...p, [q.id]: e.target.value }))} placeholder="Votre réponse…" style={{ flex: 1, padding: "4px 8px", fontSize: 9, background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 4, color: "var(--text)", outline: "none" }} onKeyDown={(e) => { if (e.key === "Enter" && autreText[q.id]?.trim()) handleAnswer(q.id, "autre"); }} />
+                <button onClick={() => handleAnswer(q.id, "autre")} disabled={!(autreText[q.id]?.trim())} style={{ padding: "4px 8px", fontSize: 9, fontWeight: 600, background: q.agentColor, color: "#fff", border: "none", borderRadius: 4, cursor: autreText[q.id]?.trim() ? "pointer" : "not-allowed", opacity: autreText[q.id]?.trim() ? 1 : 0.5 }}>
+                  OK
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function CeoPage() {
@@ -1595,6 +1662,9 @@ export default function CeoPage() {
             <SectionHeader title="Supervision" icon={<AlertTriangle size={11} style={{ color: "#f59e0b" }} />} />
             <SupervisionPanel overview={overview} onDecision={handleDecision} />
           </Panel>
+
+          {/* Agent Questions */}
+          <AgentQuestionsSection />
 
         </div>
       </div>

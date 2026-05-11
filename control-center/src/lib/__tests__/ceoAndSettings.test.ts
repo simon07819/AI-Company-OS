@@ -584,3 +584,276 @@ describe("dropshippingStore", () => {
     expect(overview.profit).toBe(overview.revenue - overview.cost);
   });
 });
+
+// ─── Agent Profiles Tests ────────────────────────────────────────────────
+
+describe("Agent Profiles", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("getAllProfiles returns 15 profiles", async () => {
+    const { getAllProfiles } = await import("@/lib/agentProfiles");
+    const profiles = getAllProfiles();
+    expect(profiles.length).toBe(15);
+  });
+
+  it("getProfile returns CMO with premium branding identity", async () => {
+    const { getProfile } = await import("@/lib/agentProfiles");
+    const cmo = getProfile("cmo");
+    expect(cmo).toBeTruthy();
+    expect(cmo!.firstName).toBe("Sophie");
+    expect(cmo!.lastName).toBe("Laurent");
+    expect(cmo!.displayName).toBe("Sophie");
+    expect(cmo!.role).toBe("CMO");
+    expect(cmo!.visualStyle).toBe("minimalist_premium");
+    expect(cmo!.creativityLevel).toBeGreaterThan(80);
+    expect(cmo!.expertise).toContain("branding");
+  });
+
+  it("updateProfile changes creativityLevel and persists", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    updateProfile("cmo", { creativityLevel: 80 });
+    const updated = getProfile("cmo");
+    expect(updated!.creativityLevel).toBe(80);
+  });
+
+  it("setAgentOnline updates online status and currentlyWorkingOn", async () => {
+    const { getProfile, setAgentOnline } = await import("@/lib/agentProfiles");
+    setAgentOnline("cto", true, "Architecture review");
+    const cto = getProfile("cto");
+    expect(cto!.online).toBe(true);
+    expect(cto!.currentlyWorkingOn).toBe("Architecture review");
+  });
+
+  it("getCreativeStandardsForAgent returns standards for CMO", async () => {
+    const { getCreativeStandardsForAgent } = await import("@/lib/agentProfiles");
+    const standards = getCreativeStandardsForAgent("cmo");
+    expect(standards.length).toBeGreaterThan(0);
+    const labels = standards.map((s) => s.label);
+    expect(labels).toContain("Apple-Level Design");
+  });
+
+  it("getLevelTitle returns correct titles", async () => {
+    const { getLevelTitle } = await import("@/lib/agentProfiles");
+    expect(getLevelTitle(1)).toBe("Junior");
+    expect(getLevelTitle(5)).toBe("Senior");
+    expect(getLevelTitle(10)).toBe("Expert");
+    expect(getLevelTitle(20)).toBe("Legendary");
+  });
+
+  it("getXpToNextLevel calculates progress", async () => {
+    const { getXpToNextLevel } = await import("@/lib/agentProfiles");
+    const { current, needed, progress } = getXpToNextLevel(750);
+    expect(current).toBe(250);
+    expect(needed).toBe(500);
+    expect(progress).toBe(0.5);
+  });
+});
+
+// ─── Agent Memory & Evolution Tests ─────────────────────────────────────
+
+describe("Agent Memory & Evolution", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("getMemory returns default memory for CEO", async () => {
+    const { getMemory } = await import("@/lib/agentProfiles");
+    const mem = getMemory("ceo");
+    expect(mem).toBeTruthy();
+    expect(mem!.xp).toBeGreaterThan(0);
+    expect(mem!.level).toBeGreaterThan(0);
+  });
+
+  it("addXp increases XP and level", async () => {
+    const { getMemory, addXp } = await import("@/lib/agentProfiles");
+    const before = getMemory("ceo")!;
+    const beforeXp = before.xp;
+    const updated = addXp("ceo", 500)!;
+    expect(updated.xp).toBe(beforeXp + 500);
+    expect(updated.level).toBe(Math.floor(updated.xp / 500) + 1);
+  });
+
+  it("learnPreference saves and persists", async () => {
+    const { getMemory, learnPreference } = await import("@/lib/agentProfiles");
+    learnPreference("cmo", "color_scheme", "dark_premium");
+    const mem = getMemory("cmo")!;
+    expect(mem.learnedPreferences.color_scheme).toBe("dark_premium");
+  });
+
+  it("learnBranding adds knowledge without duplicates", async () => {
+    const { getMemory, learnBranding } = await import("@/lib/agentProfiles");
+    learnBranding("cmo", "Apple minimalist style");
+    learnBranding("cmo", "Apple minimalist style");
+    const mem = getMemory("cmo")!;
+    const count = mem.brandingKnowledge.filter((k) => k === "Apple minimalist style").length;
+    expect(count).toBe(1);
+  });
+
+  it("learnStylePreference adds style without duplicates", async () => {
+    const { getMemory, learnStylePreference } = await import("@/lib/agentProfiles");
+    learnStylePreference("frontend_agent", "dark_mode");
+    learnStylePreference("frontend_agent", "dark_mode");
+    const mem = getMemory("frontend_agent")!;
+    const count = mem.stylePreferences.filter((s) => s === "dark_mode").length;
+    expect(count).toBe(1);
+  });
+
+  it("recordDecision keeps last 50 decisions", async () => {
+    const { getMemory, recordDecision } = await import("@/lib/agentProfiles");
+    for (let i = 0; i < 55; i++) {
+      recordDecision("qa_agent", `Decision ${i}`, i % 2 === 0 ? "positive" : "negative");
+    }
+    const mem = getMemory("qa_agent")!;
+    expect(mem.decisionHistory.length).toBe(50);
+  });
+
+  it("recordMissionResult updates career stats", async () => {
+    const { getCareer, recordMissionResult } = await import("@/lib/agentProfiles");
+    const before = getCareer("cfo")!;
+    const beforeCompleted = before.completedMissions;
+    recordMissionResult("cfo", "mission-test-1", true, 0.95);
+    const after = getCareer("cfo")!;
+    expect(after.completedMissions).toBe(beforeCompleted + 1);
+  });
+
+  it("addSpecialty adds or updates specialty", async () => {
+    const { getCareer, addSpecialty } = await import("@/lib/agentProfiles");
+    addSpecialty("cto", "microservices", 4);
+    const career = getCareer("cto")!;
+    const spec = career.specialties.find((s) => s.name === "microservices");
+    expect(spec).toBeTruthy();
+    expect(spec!.level).toBe(4);
+  });
+
+  it("profileFromExecutiveId maps CEO correctly", async () => {
+    const { profileFromExecutiveId } = await import("@/lib/agentProfiles");
+    const p = profileFromExecutiveId("ceo");
+    expect(p).toBeTruthy();
+    expect(p!.firstName).toBe("Alexandra");
+  });
+});
+
+// ─── Agent Questions Tests ───────────────────────────────────────────────
+
+describe("Agent Questions", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("createAgentQuestion creates question with options + Autre…", async () => {
+    const { createAgentQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "cmo",
+      agentName: "Sophie",
+      agentAvatar: "📣",
+      agentColor: "#8b5cf6",
+      question: "Quelle direction visuelle pour le logo?",
+      options: ["Sportif / énergique", "Premium / minimaliste", "Luxe / noir et or"],
+      missionId: "mission-1",
+    });
+    expect(q.options.length).toBe(4); // 3 + Autre…
+    expect(q.options[q.options.length - 1].label).toBe("Autre…");
+    expect(q.options[q.options.length - 1].id).toBe("autre");
+  });
+
+  it("question always has Autre… even if not provided", async () => {
+    const { createAgentQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "cto",
+      agentName: "Raj",
+      agentAvatar: "🔧",
+      agentColor: "#06b6d4",
+      question: "Which stack?",
+      options: ["Next.js", "Nuxt"],
+    });
+    expect(q.options.some((o) => o.id === "autre")).toBe(true);
+  });
+
+  it("max 5 options + Autre…", async () => {
+    const { createAgentQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "cfo",
+      agentName: "Diana",
+      agentAvatar: "💰",
+      agentColor: "#22c55e",
+      question: "Budget allocation?",
+      options: ["A", "B", "C", "D", "E", "F", "G"],  // 7 provided
+    });
+    expect(q.options.length).toBe(6); // max 5 + Autre…
+  });
+
+  it("answerQuestion saves answer for regular option", async () => {
+    const { createAgentQuestion, answerQuestion, getQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "cmo",
+      agentName: "Sophie",
+      agentAvatar: "📣",
+      agentColor: "#8b5cf6",
+      question: "Style?",
+      options: ["Modern", "Classic"],
+    });
+    const optId = q.options[0].id;
+    const answered = answerQuestion(q.id, optId)!;
+    expect(answered.status).toBe("answered");
+    expect(answered.answer!.optionId).toBe(optId);
+    expect(answered.answer!.freeText).toBeNull();
+  });
+
+  it("answerQuestion for Autre… accepts freeText", async () => {
+    const { createAgentQuestion, answerQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "cmo",
+      agentName: "Sophie",
+      agentAvatar: "📣",
+      agentColor: "#8b5cf6",
+      question: "Direction?",
+      options: ["Bold", "Subtle"],
+    });
+    const answered = answerQuestion(q.id, "autre", "Rétro-futuriste")!;
+    expect(answered.answer!.optionId).toBeNull();
+    expect(answered.answer!.freeText).toBe("Rétro-futuriste");
+  });
+
+  it("listOpenQuestions filters by missionId", async () => {
+    const { createAgentQuestion, listOpenQuestions } = await import("@/lib/agentQuestions");
+    createAgentQuestion({
+      agentId: "cmo", agentName: "Sophie", agentAvatar: "📣", agentColor: "#8b5cf6",
+      question: "Q1", options: ["A", "B"], missionId: "m-alpha",
+    });
+    createAgentQuestion({
+      agentId: "cto", agentName: "Raj", agentAvatar: "🔧", agentColor: "#06b6d4",
+      question: "Q2", options: ["C", "D"], missionId: "m-beta",
+    });
+    const alpha = listOpenQuestions({ missionId: "m-alpha" });
+    expect(alpha.length).toBe(1);
+    expect(alpha[0].question).toBe("Q1");
+  });
+
+  it("getQuestionsForThread filters correctly", async () => {
+    const { createAgentQuestion, getQuestionsForThread } = await import("@/lib/agentQuestions");
+    createAgentQuestion({
+      agentId: "ceo", agentName: "Alexandra", agentAvatar: "👑", agentColor: "#f59e0b",
+      question: "Thread Q?", options: ["Yes", "No"], threadId: "thread-99",
+    });
+    const qs = getQuestionsForThread("thread-99");
+    expect(qs.length).toBeGreaterThanOrEqual(1);
+    expect(qs[0].threadId).toBe("thread-99");
+  });
+
+  it("closeQuestion marks question as closed", async () => {
+    const { createAgentQuestion, closeQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "qa_agent", agentName: "Naomi", agentAvatar: "🔍", agentColor: "#ef4444",
+      question: "Close me?", options: ["OK"],
+    });
+    const closed = closeQuestion(q.id)!;
+    expect(closed.status).toBe("closed");
+  });
+
+  it("cannot answer already answered question", async () => {
+    const { createAgentQuestion, answerQuestion } = await import("@/lib/agentQuestions");
+    const q = createAgentQuestion({
+      agentId: "ceo", agentName: "Alexandra", agentAvatar: "👑", agentColor: "#f59e0b",
+      question: "Answer once?", options: ["Yes"],
+    });
+    answerQuestion(q.id, q.options[0].id);
+    const second = answerQuestion(q.id, q.options[0].id);
+    expect(second).toBeNull();
+  });
+});

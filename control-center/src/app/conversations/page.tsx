@@ -36,6 +36,9 @@ interface ConvMessage { id: string; role: "user" | ParticipantRole; text: string
 interface ConvThread { id: string; title: string; folderId: string | null; participants: ConvParticipant[]; messages: ConvMessage[]; linkedMissionId: string | null; pinned: boolean; archived: boolean; createdAt: string; updatedAt: string; }
 interface ConvFolder { id: string; name: string; color: string; order: number; }
 
+interface AgentQOption { id: string; label: string; }
+interface AgentQ { id: string; agentId: string; agentName: string; agentAvatar: string; agentColor: string; question: string; options: AgentQOption[]; missionId: string | null; threadId: string | null; status: string; answer: { optionId: string | null; freeText: string | null; answeredAt: string } | null; context: string; createdAt: string; }
+
 const PARTICIPANT_OPTIONS: { id: ParticipantRole; label: string; avatar: string; color: string }[] = [
   { id: "ceo", label: "CEO", avatar: "👑", color: "#f59e0b" },
   { id: "cfo", label: "CFO", avatar: "💰", color: "#22c55e" },
@@ -64,16 +67,21 @@ export default function ConversationsPage() {
   const [newFolderColor, setNewFolderColor] = useState("#3b82f6");
   const [error, setError] = useState<string | null>(null);
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [agentQuestions, setAgentQuestions] = useState<AgentQ[]>([]);
+  const [autreText, setAutreText] = useState<Record<string, string>>({});
+  const [showAutre, setShowAutre] = useState<Record<string, boolean>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const loadData = async () => {
     try {
-      const [fRes, tRes] = await Promise.all([
+      const [fRes, tRes, qRes] = await Promise.all([
         fetch("/api/conversations/folders"),
         fetch(`/api/conversations/threads${selectedFolder ? `?folderId=${selectedFolder}` : ""}`),
+        fetch("/api/agent-questions"),
       ]);
       if (fRes.ok) { const d = await fRes.json(); setFolders(d.folders ?? []); }
       if (tRes.ok) { const d = await tRes.json(); setThreads(d.threads ?? []); }
+      if (qRes.ok) { const d = await qRes.json(); setAgentQuestions(d.questions ?? []); }
       setError(null);
     } catch { setError("Failed to load conversations"); }
   };
@@ -187,6 +195,23 @@ export default function ConversationsPage() {
       loadData();
     } catch { /* */ }
   };
+
+  const handleAnswerQuestion = async (questionId: string, optionId: string) => {
+    try {
+      const freeText = optionId === "autre" ? (autreText[questionId] ?? "") : undefined;
+      const res = await fetch(`/api/agent-questions/${questionId}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ optionId, freeText }),
+      });
+      if (res.ok) loadData();
+    } catch { /* */ }
+  };
+
+  // Get open questions relevant to current thread
+  const threadQuestions = activeThread
+    ? agentQuestions.filter((q) => q.status === "pending" && (!q.threadId || q.threadId === activeThread.id))
+    : agentQuestions.filter((q) => q.status === "pending");
 
   const pinned = threads.filter((t) => t.pinned);
   const unpinned = threads.filter((t) => !t.pinned);
@@ -317,6 +342,73 @@ export default function ConversationsPage() {
                     );
                   })}
                 </AnimatePresence>
+
+                {/* Agent Question Cards */}
+                {threadQuestions.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                    {threadQuestions.map((q) => (
+                      <div key={q.id} style={{
+                        padding: 12, borderRadius: 10,
+                        background: `${q.agentColor}08`,
+                        border: `1px solid ${q.agentColor}30`,
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                          <span style={{ fontSize: 14 }}>{q.agentAvatar}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: q.agentColor }}>{q.agentName}</span>
+                          <span style={{ fontSize: 9, color: "var(--text-3)", marginLeft: 4 }}>{new Date(q.createdAt).toLocaleTimeString()}</span>
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{q.question}</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {q.options.map((opt) => (
+                            <button
+                              key={opt.id}
+                              onClick={() => {
+                                if (opt.id === "autre") {
+                                  setShowAutre((prev) => ({ ...prev, [q.id]: true }));
+                                } else {
+                                  handleAnswerQuestion(q.id, opt.id);
+                                }
+                              }}
+                              style={{
+                                padding: "6px 12px", fontSize: 11, fontWeight: 600,
+                                background: "var(--bg-2)", border: `1px solid ${q.agentColor}40`,
+                                borderRadius: 6, color: "var(--text)", cursor: "pointer",
+                                transition: "all 0.15s",
+                              }}
+                              onMouseEnter={(e) => { e.currentTarget.style.background = `${q.agentColor}22`; e.currentTarget.style.borderColor = q.agentColor; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--bg-2)"; e.currentTarget.style.borderColor = `${q.agentColor}40`; }}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {showAutre[q.id] && (
+                          <div style={{ display: "flex", gap: 4, marginTop: 8 }}>
+                            <input
+                              value={autreText[q.id] ?? ""}
+                              onChange={(e) => setAutreText((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                              placeholder="Votre réponse…"
+                              style={{ flex: 1, padding: "6px 10px", fontSize: 11, background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text)", outline: "none" }}
+                              onKeyDown={(e) => { if (e.key === "Enter" && (autreText[q.id]?.trim())) handleAnswerQuestion(q.id, "autre"); }}
+                            />
+                            <button
+                              onClick={() => handleAnswerQuestion(q.id, "autre")}
+                              disabled={!(autreText[q.id]?.trim())}
+                              style={{
+                                padding: "6px 10px", fontSize: 11, fontWeight: 600,
+                                background: q.agentColor, color: "#fff", border: "none", borderRadius: 6,
+                                cursor: autreText[q.id]?.trim() ? "pointer" : "not-allowed", opacity: autreText[q.id]?.trim() ? 1 : 0.5,
+                              }}
+                            >
+                              Envoyer
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div ref={chatEndRef} />
               </div>
 
