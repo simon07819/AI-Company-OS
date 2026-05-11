@@ -9,6 +9,7 @@ export type MissionTypeId =
   | "flyer"
   | "business_card"
   | "ecommerce_store"
+  | "ecommerce_operator"
   | "social_campaign"
   | "automation_workflow";
 
@@ -28,7 +29,7 @@ export interface MissionType {
   id: MissionTypeId;
   label: string;
   description: string;
-  category: "software" | "design" | "marketing" | "automation";
+  category: "software" | "design" | "marketing" | "automation" | "business";
   recommendedAgents: string[];
   defaultPhases: MissionPhase[];
   expectedDeliverables: MissionDeliverable[];
@@ -158,6 +159,27 @@ export const MISSION_TYPES: MissionType[] = [
       { name: "API Plan", description: "Cart, orders, payments endpoints", path: "backend/api-plan.md" },
     ],
     workspaceFolders: ["product", "architecture", "frontend", "backend", "qa", "devops", "project"],
+  },
+  {
+    id: "ecommerce_operator",
+    label: "Dropshipping Business",
+    description: "E-commerce operator with product research, supplier management, order monitoring and customer updates",
+    category: "business",
+    recommendedAgents: ["product_agent", "backend_agent", "qa_agent", "devops_agent"],
+    defaultPhases: [
+      { id: "idea", label: "Niche & Product Research", agent: "product_agent" },
+      { id: "planning", label: "Supplier Sourcing", agent: "product_agent" },
+      { id: "architecture", label: "Store Setup Plan", agent: "architect_agent" },
+      { id: "backend", label: "Order Management System", agent: "backend_agent" },
+      { id: "validation", label: "Supplier Verification", agent: "qa_agent" },
+      { id: "build", label: "Store Launch & Monitoring", agent: "devops_agent" },
+    ],
+    expectedDeliverables: [
+      { name: "Product Research Report", description: "Niche analysis and product recommendations", path: "product/research.md" },
+      { name: "Supplier List", description: "Verified suppliers with ratings", path: "product/suppliers.md" },
+      { name: "Order Dashboard", description: "Order tracking and monitoring system", path: "project/" },
+    ],
+    workspaceFolders: ["product", "backend", "qa", "devops", "project"],
   },
   {
     id: "social_campaign",

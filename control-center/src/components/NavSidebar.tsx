@@ -9,6 +9,7 @@ import {
   Boxes,
   Building2,
   Cpu,
+  Crown,
   FileText,
   FolderKanban,
   Gauge,
@@ -33,6 +34,12 @@ export type NavItem = {
 };
 
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "CEO Cockpit",
+    items: [
+      { href: "/ceo", label: "CEO Cockpit", description: "AI CEO chat, missions, decisions", icon: <Crown size={16} /> },
+    ],
+  },
   {
     label: "Command",
     items: [

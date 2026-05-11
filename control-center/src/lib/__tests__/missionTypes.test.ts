@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MISSION_TYPES, getMissionType, getDefaultMissionType, isSoftwareMission } from "@/lib/missionTypes";
 
 describe("missionTypes", () => {
-  it("contains all 8 mission types", () => {
+  it("contains all 9 mission types", () => {
     const ids = MISSION_TYPES.map((m) => m.id);
     expect(ids).toContain("saas_project");
     expect(ids).toContain("website");
@@ -10,9 +10,10 @@ describe("missionTypes", () => {
     expect(ids).toContain("flyer");
     expect(ids).toContain("business_card");
     expect(ids).toContain("ecommerce_store");
+    expect(ids).toContain("ecommerce_operator");
     expect(ids).toContain("social_campaign");
     expect(ids).toContain("automation_workflow");
-    expect(MISSION_TYPES.length).toBe(8);
+    expect(MISSION_TYPES.length).toBe(9);
   });
 
   it("each mission type has required fields", () => {
@@ -20,7 +21,7 @@ describe("missionTypes", () => {
       expect(mt.id).toBeTruthy();
       expect(mt.label).toBeTruthy();
       expect(mt.description).toBeTruthy();
-      expect(["software", "design", "marketing", "automation"]).toContain(mt.category);
+      expect(["software", "design", "marketing", "automation", "business"]).toContain(mt.category);
       expect(mt.recommendedAgents.length).toBeGreaterThan(0);
       expect(mt.defaultPhases.length).toBeGreaterThan(0);
       expect(mt.expectedDeliverables.length).toBeGreaterThan(0);

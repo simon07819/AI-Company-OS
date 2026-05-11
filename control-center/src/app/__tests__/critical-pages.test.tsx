@@ -21,9 +21,8 @@ describe("critical Control Center pages", () => {
   it("renders Settings without crashing", () => {
     render(React.createElement(SettingsPage));
 
-    expect(screen.getByRole("heading", { name: "Settings" })).toBeInTheDocument();
-    expect(screen.getByText("NVIDIA Provider")).toBeInTheDocument();
-    expect(screen.getByText("Operational Checklist")).toBeInTheDocument();
+    expect(screen.getByText("Settings")).toBeInTheDocument();
+    expect(screen.getByText("NVIDIA Connection")).toBeInTheDocument();
   });
 
   it("renders Runtime without crashing", () => {

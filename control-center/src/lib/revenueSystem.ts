@@ -12,6 +12,7 @@ const REVENUE_PATH = path.join(DATA_DIR, "revenue-system.json");
 
 export type ProposalStatus = "draft" | "sent" | "viewed" | "accepted" | "rejected";
 export type InvoiceStatus = "pending" | "paid" | "overdue" | "cancelled";
+export type Currency = "USD" | "CAD" | "EUR";
 export type EstimateComplexity = "low" | "medium" | "high" | "enterprise";
 
 export interface PricingEstimate {
@@ -37,7 +38,7 @@ export interface Proposal {
   status: ProposalStatus;
   estimate: PricingEstimate;
   amount: number;
-  currency: "USD";
+  currency: Currency;
   validUntil: string;
   createdAt: string;
   updatedAt: string;
@@ -52,7 +53,7 @@ export interface Invoice {
   missionId: string | null;
   status: InvoiceStatus;
   amount: number;
-  currency: "USD";
+  currency: Currency;
   dueDate: string;
   paidAt: string | null;
   createdAt: string;
@@ -66,7 +67,7 @@ export interface RevenueRecord {
   clientId: string | null;
   missionId: string | null;
   amount: number;
-  currency: "USD";
+  currency: Currency;
   recordedAt: string;
 }
 
@@ -423,4 +424,235 @@ export function getRevenueOverview(): RevenueOverview {
     proposalsByStatus,
     invoicesByStatus,
   };
+}
+
+// ─── Enhanced Invoice with Line Items + TPS/TVQ ──────────────────────────
+
+export interface LineItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface ClientBillingInfo {
+  name: string;
+  email?: string;
+  address?: string;
+  phone?: string;
+}
+
+export interface Expense {
+  expenseId: string;
+  missionId: string | null;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+}
+
+export interface EnhancedInvoice extends Invoice {
+  invoiceNumber: string;
+  clientBilling: ClientBillingInfo | null;
+  lineItems: LineItem[];
+  subtotal: number;
+  tpsRate: number;
+  tpsAmount: number;
+  tvqRate: number;
+  tvqAmount: number;
+  total: number;
+  expenses: Expense[];
+  profit: number;
+}
+
+interface EnhancedRevenueData extends RevenueData {
+  enhancedInvoices: EnhancedInvoice[];
+  expenses: Expense[];
+}
+
+function readEnhanced(): EnhancedRevenueData {
+  ensureDataDir();
+  if (!fs.existsSync(REVENUE_PATH)) return { ...emptyData(), enhancedInvoices: [], expenses: [] };
+  try {
+    const raw = fs.readFileSync(REVENUE_PATH, "utf-8");
+    const parsed = JSON.parse(raw) as Partial<EnhancedRevenueData>;
+    return {
+      proposals: parsed.proposals ?? [],
+      invoices: parsed.invoices ?? [],
+      records: parsed.records ?? [],
+      enhancedInvoices: parsed.enhancedInvoices ?? [],
+      expenses: parsed.expenses ?? [],
+    };
+  } catch {
+    return { ...emptyData(), enhancedInvoices: [], expenses: [] };
+  }
+}
+
+function writeEnhanced(data: EnhancedRevenueData) {
+  ensureDataDir();
+  fs.writeFileSync(REVENUE_PATH, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+function readSettingsRates(): { tpsRate: number; tvqRate: number; currency: string; invoicePrefix: string; companyName: string } {
+  const settingsPath = path.join(DATA_DIR, "settings.json");
+  if (!fs.existsSync(settingsPath)) return { tpsRate: 5, tvqRate: 9.975, currency: "CAD", invoicePrefix: "INV", companyName: "" };
+  try {
+    const s = JSON.parse(fs.readFileSync(settingsPath, "utf-8")) as Record<string, unknown>;
+    return {
+      tpsRate: typeof s.tpsRate === "number" ? s.tpsRate : 5,
+      tvqRate: typeof s.tvqRate === "number" ? s.tvqRate : 9.975,
+      currency: typeof s.currency === "string" ? s.currency : "CAD",
+      invoicePrefix: typeof s.invoicePrefix === "string" ? s.invoicePrefix : "INV",
+      companyName: typeof s.companyName === "string" ? s.companyName : "",
+    };
+  } catch {
+    return { tpsRate: 5, tvqRate: 9.975, currency: "CAD", invoicePrefix: "INV", companyName: "" };
+  }
+}
+
+export function createEnhancedInvoice(input: {
+  clientId?: string | null;
+  missionId?: string | null;
+  clientBilling?: ClientBillingInfo | null;
+  lineItems?: LineItem[];
+  tpsRate?: number;
+  tvqRate?: number;
+  dueDate?: string;
+  invoiceNumber?: string;
+}): EnhancedInvoice {
+  const data = readEnhanced();
+  const settings = readSettingsRates();
+
+  const lineItems = input.lineItems ?? [];
+  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const tpsRate = input.tpsRate ?? settings.tpsRate;
+  const tvqRate = input.tvqRate ?? settings.tvqRate;
+  const tpsAmount = Math.round(subtotal * (tpsRate / 100) * 100) / 100;
+  const tvqAmount = Math.round(subtotal * (tvqRate / 100) * 100) / 100;
+  const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+
+  const invCount = data.enhancedInvoices.length + 1;
+  const invoiceNumber = input.invoiceNumber ?? `${settings.invoicePrefix}-${String(invCount).padStart(4, "0")}`;
+
+  const now = new Date().toISOString();
+  const enhanced: EnhancedInvoice = {
+    invoiceId: nextId("einv"),
+    invoiceNumber,
+    proposalId: null,
+    clientId: input.clientId ?? null,
+    missionId: input.missionId ?? null,
+    clientBilling: input.clientBilling ?? null,
+    status: "pending",
+    lineItems,
+    subtotal,
+    tpsRate,
+    tpsAmount,
+    tvqRate,
+    tvqAmount,
+    total,
+    amount: total,
+    currency: settings.currency as Currency,
+    dueDate: input.dueDate ?? addDays(new Date(), 30),
+    paidAt: null,
+    expenses: [],
+    profit: total,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  data.enhancedInvoices.push(enhanced);
+  writeEnhanced(data);
+  return enhanced;
+}
+
+export function listEnhancedInvoices(): EnhancedInvoice[] {
+  const data = readEnhanced();
+  return data.enhancedInvoices.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function getEnhancedInvoice(invoiceId: string): EnhancedInvoice | null {
+  return readEnhanced().enhancedInvoices.find((inv) => inv.invoiceId === invoiceId) ?? null;
+}
+
+export function addExpense(input: { missionId?: string | null; description: string; amount: number; category?: string }): Expense {
+  const data = readEnhanced();
+  const expense: Expense = {
+    expenseId: nextId("exp"),
+    missionId: input.missionId ?? null,
+    description: input.description,
+    amount: input.amount,
+    category: input.category ?? "operations",
+    date: new Date().toISOString(),
+  };
+  data.expenses.push(expense);
+
+  // Recalculate profit on affected invoices
+  for (const inv of data.enhancedInvoices) {
+    if (inv.missionId && inv.missionId === expense.missionId) {
+      const missionExpenses = data.expenses.filter((e) => e.missionId === inv.missionId);
+      const totalExpenses = missionExpenses.reduce((sum, e) => sum + e.amount, 0);
+      inv.expenses = missionExpenses;
+      inv.profit = Math.round((inv.total - totalExpenses) * 100) / 100;
+    }
+  }
+
+  writeEnhanced(data);
+  return expense;
+}
+
+export function exportInvoiceMarkdown(invoiceId: string): string | null {
+  const data = readEnhanced();
+  const inv = data.enhancedInvoices.find((i) => i.invoiceId === invoiceId);
+  if (!inv) return null;
+
+  const settings = readSettingsRates();
+  const cur = settings.currency;
+
+  const lines = [
+    `# ${inv.invoiceNumber}`,
+    ``,
+    `**From:** ${settings.companyName || "AI Company OS"}`,
+    `**Date:** ${new Date(inv.createdAt).toLocaleDateString()}`,
+    `**Due:** ${new Date(inv.dueDate).toLocaleDateString()}`,
+    `**Status:** ${inv.status.toUpperCase()}`,
+    ``,
+  ];
+
+  if (inv.clientBilling) {
+    lines.push(`**Bill To:**`);
+    lines.push(`${inv.clientBilling.name}`);
+    if (inv.clientBilling.email) lines.push(`${inv.clientBilling.email}`);
+    if (inv.clientBilling.address) lines.push(`${inv.clientBilling.address}`);
+    lines.push(``);
+  }
+
+  lines.push(`| Description | Qty | Unit Price | Total |`);
+  lines.push(`|---|---|---|---|`);
+  for (const item of inv.lineItems) {
+    lines.push(`| ${item.description} | ${item.quantity} | ${item.unitPrice.toFixed(2)} ${cur} | ${item.total.toFixed(2)} ${cur} |`);
+  }
+  lines.push(``);
+  lines.push(`**Subtotal:** ${inv.subtotal.toFixed(2)} ${cur}`);
+  if (inv.tpsRate > 0) lines.push(`**TPS/GST (${inv.tpsRate}%):** ${inv.tpsAmount.toFixed(2)} ${cur}`);
+  if (inv.tvqRate > 0) lines.push(`**TVQ/QST (${inv.tvqRate}%):** ${inv.tvqAmount.toFixed(2)} ${cur}`);
+  lines.push(`**Total:** ${inv.total.toFixed(2)} ${cur}`);
+
+  if (inv.expenses.length > 0) {
+    lines.push(``);
+    lines.push(`## Expenses`);
+    for (const exp of inv.expenses) {
+      lines.push(`- ${exp.description}: ${exp.amount.toFixed(2)} ${cur} (${exp.category})`);
+    }
+    lines.push(``);
+    lines.push(`**Profit:** ${inv.profit.toFixed(2)} ${cur}`);
+  }
+
+  const md = lines.join("\n");
+
+  // Write to data/invoices/
+  const invoicesDir = path.join(DATA_DIR, "invoices");
+  fs.mkdirSync(invoicesDir, { recursive: true });
+  fs.writeFileSync(path.join(invoicesDir, `${inv.invoiceNumber}.md`), md + "\n", "utf-8");
+
+  return md;
 }

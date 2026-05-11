@@ -9,14 +9,14 @@ interface StatusBadgeProps {
   color: string;
   bg?: string;
   icon?: ReactNode;
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
 }
 
 export function StatusBadge({ label, color, bg, icon, size = "sm" }: StatusBadgeProps) {
   const background = bg ?? `${color}1a`;
-  const fs = size === "md" ? 11 : 9;
-  const py = size === "md" ? 4 : 2;
-  const px = size === "md" ? 10 : 7;
+  const fs = size === "md" ? 11 : size === "xs" ? 7 : 9;
+  const py = size === "md" ? 4 : size === "xs" ? 1 : 2;
+  const px = size === "md" ? 10 : size === "xs" ? 5 : 7;
 
   return (
     <span style={{
