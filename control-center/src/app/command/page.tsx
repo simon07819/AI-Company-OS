@@ -10,13 +10,18 @@ import {
   Bot,
   Building2,
   CheckCircle2,
+  Clock,
   DollarSign,
+  Eye,
+  FileText,
   Layers3,
   Megaphone,
+  Palette,
   RefreshCw,
   ShieldCheck,
   Sparkles,
   Users,
+  XCircle,
   Zap,
 } from "lucide-react";
 import {
@@ -67,6 +72,36 @@ interface OnboardingSummary {
   currentStep: string;
 }
 
+interface PendingApproval {
+  id: string;
+  title: string;
+  type: string;
+  agentName: string;
+  qualityScore?: number;
+  summary: string;
+  createdAt: string;
+}
+
+interface RecentOutput {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  assignedAgent: string;
+  preview: string;
+  updatedAt: string;
+}
+
+interface ActiveRevision {
+  id: string;
+  outputId: string;
+  comment: string;
+  direction: string;
+  agentId: string;
+  status: string;
+  createdAt: string;
+}
+
 const HEALTH_COLOR = {
   excellent: "#22c55e",
   stable: "#3b82f6",
@@ -85,14 +120,20 @@ export default function CommandPage() {
   const [onboarding, setOnboarding] = useState<OnboardingSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingApprovals, setPendingApprovals] = useState<PendingApproval[]>([]);
+  const [recentOutputs, setRecentOutputs] = useState<RecentOutput[]>([]);
+  const [activeRevisions, setActiveRevisions] = useState<ActiveRevision[]>([]);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [res, onboardingRes] = await Promise.all([
+      const [res, onboardingRes, approvalsRes, outputsRes, revisionsRes] = await Promise.all([
         fetch("/api/command/overview"),
         fetch("/api/onboarding"),
+        fetch("/api/approvals"),
+        fetch("/api/visible-outputs"),
+        fetch("/api/revisions?pending=true"),
       ]);
       if (res.ok) {
         const data = await res.json();
@@ -101,6 +142,18 @@ export default function CommandPage() {
       if (onboardingRes.ok) {
         const data = await onboardingRes.json();
         setOnboarding(data.onboarding.state);
+      }
+      if (approvalsRes.ok) {
+        const data = await approvalsRes.json();
+        setPendingApprovals((data.pending ?? []).slice(0, 5));
+      }
+      if (outputsRes.ok) {
+        const data = await outputsRes.json();
+        setRecentOutputs((data.outputs ?? []).slice(0, 5));
+      }
+      if (revisionsRes.ok) {
+        const data = await revisionsRes.json();
+        setActiveRevisions((data.revisions ?? []).slice(0, 5));
       }
       if (!res.ok) {
         setError("Failed to load command overview. Check that the local API is running.");
@@ -288,6 +341,100 @@ export default function CommandPage() {
                   ))}
                 </Panel>
               </section>
+
+              {/* Pending Approvals */}
+              {pendingApprovals.length > 0 && (
+                <section style={{ marginBottom: 32 }}>
+                  <SectionHeader icon={<CheckCircle2 size={12} style={{ color: "#f59e0b" }} />} title="Pending Approvals" />
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                    <Panel style={{ marginBottom: 0 }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {pendingApprovals.map((approval) => {
+                          const typeColor: Record<string, string> = { invoice: "#22c55e", logo: "#8b5cf6", flyer: "#ec4899", website: "#06b6d4", strategy: "#f59e0b", mission: "#3b82f6", deliverable: "#3b82f6", document: "#94a3b8", file: "#94a3b8" };
+                          const color = typeColor[approval.type] ?? "#64748b";
+                          return (
+                            <Link key={approval.id} href={`/ceo`} style={{ textDecoration: "none" }}>
+                              <div style={{
+                                padding: "10px 12px", borderRadius: 8, border: `1px solid ${color}20`,
+                                borderLeft: `3px solid ${color}`, background: `${color}04`,
+                              }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{approval.title}</span>
+                                  <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: `${color}12`, color, fontWeight: 600 }}>{approval.type}</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span style={{ fontSize: 10, color: "var(--text-3)" }}>{approval.agentName}</span>
+                                  {approval.qualityScore != null && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: approval.qualityScore >= 80 ? "#22c55e" : "#f59e0b" }}>{approval.qualityScore}/100</span>
+                                  )}
+                                </div>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </Panel>
+
+                    {/* Active Revisions */}
+                    <Panel style={{ marginBottom: 0 }}>
+                      <SectionHeader icon={<RefreshCw size={12} style={{ color: "#f59e0b" }} />} title="Active Revisions" />
+                      {activeRevisions.length === 0 ? (
+                        <div style={{ fontSize: 11, color: "var(--text-3)", padding: "10px 0" }}>No active revisions</div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {activeRevisions.map((rev) => (
+                            <Link key={rev.id} href={`/outputs/${rev.outputId}`} style={{ textDecoration: "none" }}>
+                              <div style={{
+                                padding: "10px 12px", borderRadius: 8,
+                                border: "1px solid rgba(245,158,11,0.2)", background: "rgba(245,158,11,0.04)",
+                              }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{rev.comment}</div>
+                                {rev.direction && <div style={{ fontSize: 9, color: "#f59e0b", marginBottom: 2 }}>Direction: {rev.direction}</div>}
+                                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                  <span style={{ fontSize: 9, color: "var(--text-3)" }}>{rev.agentId.replace(/_/g, " ")}</span>
+                                  <span style={{ fontSize: 9, color: "var(--text-3)" }}>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </Panel>
+                  </div>
+                </section>
+              )}
+
+              {/* Recent Outputs */}
+              {recentOutputs.length > 0 && (
+                <section style={{ marginBottom: 32 }}>
+                  <SectionHeader icon={<Eye size={12} style={{ color: "#a78bfa" }} />} title="Latest Generated Outputs" />
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+                    {recentOutputs.map((output) => {
+                      const typeColor: Record<string, string> = { creative_brief: "#a78bfa", logo_direction: "#8b5cf6", color_palette: "#f472b6", architecture_doc: "#38bdf8", invoice_preview: "#22c55e", hero_section: "#818cf8" };
+                      const color = typeColor[output.type] ?? "#64748b";
+                      return (
+                        <Link key={output.id} href={`/outputs/${output.id}`} style={{ textDecoration: "none" }}>
+                          <div style={{
+                            padding: "10px 12px", borderRadius: 8,
+                            border: `1px solid ${color}20`, borderLeft: `3px solid ${color}`, background: `${color}04`,
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text)" }}>{output.title}</span>
+                            </div>
+                            <p style={{ fontSize: 9, color: "var(--text-3)", margin: 0, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                              {output.preview || output.status}
+                            </p>
+                            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                              <span style={{ fontSize: 8, padding: "1px 5px", borderRadius: 3, background: `${color}12`, color, fontWeight: 600 }}>{output.type.replace(/_/g, " ")}</span>
+                              <span style={{ fontSize: 9, color: "var(--text-3)" }}>{new Date(output.updatedAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
             </>
           )}
         </motion.div>

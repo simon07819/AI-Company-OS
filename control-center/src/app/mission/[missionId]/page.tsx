@@ -705,20 +705,29 @@ export default function MissionRoomPage() {
                     progress_report: "Rapport",
                     validation_report: "Validation",
                     before_after: "Avant/Après",
+                    hero_section: "Hero Section",
+                    page_preview: "Page Preview",
+                    ux_recommendation: "UX Notes",
                   };
                   const statusColors: Record<string, string> = { draft: "#94a3b8", in_progress: "#3b82f6", review: "#f59e0b", approved: "#22c55e", delivered: "#8b5cf6" };
+                  const statusColor = statusColors[vo.status] ?? "#94a3b8";
                   return (
-                    <div key={vo.id} style={{ padding: 10, borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{vo.title}</div>
-                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-                          <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColors[vo.status] ?? "#94a3b8"}22`, color: statusColors[vo.status] ?? "#94a3b8", fontWeight: 600 }}>{typeLabel[vo.type] ?? vo.type}</span>
-                          <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColors[vo.status] ?? "#94a3b8"}22`, color: statusColors[vo.status] ?? "#94a3b8", fontWeight: 600 }}>{vo.status}</span>
+                    <Link key={vo.id} href={`/outputs/${vo.id}`} style={{ textDecoration: "none" }}>
+                      <div style={{ padding: 10, borderRadius: 8, background: "var(--bg-2)", border: `1px solid ${statusColor}20`, borderLeft: `3px solid ${statusColor}`, cursor: "pointer" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{vo.title}</div>
+                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                            <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{typeLabel[vo.type] ?? vo.type}</span>
+                            <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{vo.status}</span>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{vo.preview}</div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
+                          <span style={{ fontSize: 9, color: "#8b5cf6" }}>→ {vo.assignedAgent}</span>
+                          <span style={{ fontSize: 8, color: "var(--text-3)" }}>View details →</span>
                         </div>
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{vo.preview}</div>
-                      <div style={{ fontSize: 9, color: "#8b5cf6", marginTop: 4 }}>→ {vo.assignedAgent}</div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>

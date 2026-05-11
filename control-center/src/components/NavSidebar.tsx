@@ -10,6 +10,7 @@ import {
   Building2,
   Cpu,
   Crown,
+  Eye,
   FileText,
   FolderKanban,
   Gauge,
@@ -71,6 +72,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "Operations",
     items: [
       { href: "/operations/live", label: "Live Ops", description: "Realtime operations", icon: <Activity size={16} /> },
+      { href: "/outputs", label: "Output Gallery", description: "Visual outputs and previews", icon: <Eye size={16} /> },
       { href: "/factory", label: "Factory", description: "Autonomous build floor", icon: <Boxes size={16} /> },
       { href: "/tasks/graph", label: "Tasks Graph", description: "Dependency graph", icon: <GitBranch size={16} /> },
       { href: "/actions", label: "Actions", description: "Run factory commands", icon: <Zap size={16} /> },

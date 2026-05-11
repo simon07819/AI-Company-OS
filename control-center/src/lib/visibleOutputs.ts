@@ -198,3 +198,11 @@ export function updateOutputStatus(outputId: string, status: OutputStatus): Visi
 export function getOutputCountForSession(sessionId: string): number {
   return readData().outputs.filter((o) => o.sessionId === sessionId).length;
 }
+
+export function getAllOutputs(): VisibleOutput[] {
+  return readData().outputs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function getOutputById(outputId: string): VisibleOutput | null {
+  return readData().outputs.find((o) => o.id === outputId) ?? null;
+}
