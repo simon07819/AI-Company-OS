@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { listSessions } from "./autopilotStore";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,11 @@ export interface PricingEstimate {
   createdAt: string;
 }
 
+export interface TaxSettings {
+  tpsRate: number;
+  tvqRate: number;
+}
+
 export interface Proposal {
   proposalId: string;
   title: string;
@@ -44,6 +50,8 @@ export interface Proposal {
   updatedAt: string;
   acceptedAt: string | null;
   rejectedAt: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface Invoice {
@@ -58,6 +66,15 @@ export interface Invoice {
   paidAt: string | null;
   createdAt: string;
   updatedAt: string;
+  lineItems?: LineItem[];
+  subtotal?: number;
+  tpsRate?: number;
+  tpsAmount?: number;
+  tvqRate?: number;
+  tvqAmount?: number;
+  total?: number;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface RevenueRecord {
@@ -297,9 +314,12 @@ export function createProposal(input: CreateProposalInput): Proposal {
   return proposal;
 }
 
-export function listProposals(): Proposal[] {
+export function listProposals(options?: { includeArchived?: boolean; includeDeleted?: boolean }): Proposal[] {
   const data = readRevenue();
-  return data.proposals.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return data.proposals
+    .filter((proposal) => options?.includeDeleted || !proposal.deletedAt)
+    .filter((proposal) => options?.includeArchived || !proposal.archivedAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function acceptProposal(proposalId: string): Proposal | null {
@@ -348,11 +368,14 @@ export function createInvoice(input: CreateInvoiceInput): Invoice | null {
   return invoice;
 }
 
-export function listInvoices(): Invoice[] {
+export function listInvoices(options?: { includeArchived?: boolean; includeDeleted?: boolean }): Invoice[] {
   const data = readRevenue();
   syncDeliveredMissionInvoices(data);
   writeRevenue(data);
-  return data.invoices.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return data.invoices
+    .filter((invoice) => options?.includeDeleted || !invoice.deletedAt)
+    .filter((invoice) => options?.includeArchived || !invoice.archivedAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function markInvoicePaid(invoiceId: string): Invoice | null {
@@ -366,6 +389,114 @@ export function markInvoicePaid(invoiceId: string): Invoice | null {
   }
   writeRevenue(data);
   return data.invoices[idx];
+}
+
+export function markInvoiceUnpaid(invoiceId: string): Invoice | null {
+  const data = readRevenue();
+  const idx = data.invoices.findIndex((invoice) => invoice.invoiceId === invoiceId);
+  if (idx === -1) return null;
+  data.invoices[idx] = { ...data.invoices[idx], status: "pending", paidAt: null, updatedAt: new Date().toISOString() };
+  data.records = data.records.filter((record) => record.invoiceId !== invoiceId);
+  writeRevenue(data);
+  return data.invoices[idx];
+}
+
+export function calculateInvoiceTotals(lineItems: LineItem[], taxes: Partial<TaxSettings> = {}) {
+  const subtotal = Math.round(lineItems.reduce((sum, item) => sum + (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0), 0) * 100) / 100;
+  const tpsRate = taxes.tpsRate ?? 5;
+  const tvqRate = taxes.tvqRate ?? 9.975;
+  const tpsAmount = Math.round(subtotal * (tpsRate / 100) * 100) / 100;
+  const tvqAmount = Math.round(subtotal * (tvqRate / 100) * 100) / 100;
+  const total = Math.round((subtotal + tpsAmount + tvqAmount) * 100) / 100;
+  return { subtotal, tpsRate, tpsAmount, tvqRate, tvqAmount, total };
+}
+
+export function updateProposal(proposalId: string, patch: Partial<Proposal>): Proposal | null {
+  const data = readRevenue();
+  const idx = data.proposals.findIndex((proposal) => proposal.proposalId === proposalId);
+  if (idx === -1) return null;
+  data.proposals[idx] = { ...data.proposals[idx], ...patch, proposalId, updatedAt: new Date().toISOString() };
+  writeRevenue(data);
+  return data.proposals[idx];
+}
+
+export function updateInvoice(invoiceId: string, patch: Partial<Invoice>): Invoice | null {
+  const data = readRevenue();
+  const idx = data.invoices.findIndex((invoice) => invoice.invoiceId === invoiceId);
+  if (idx === -1) return null;
+  const lineItems = patch.lineItems ?? data.invoices[idx].lineItems;
+  const totals = lineItems ? calculateInvoiceTotals(lineItems, { tpsRate: patch.tpsRate ?? data.invoices[idx].tpsRate, tvqRate: patch.tvqRate ?? data.invoices[idx].tvqRate }) : {};
+  data.invoices[idx] = {
+    ...data.invoices[idx],
+    ...patch,
+    ...totals,
+    amount: (totals as { total?: number }).total ?? patch.amount ?? data.invoices[idx].amount,
+    invoiceId,
+    updatedAt: new Date().toISOString(),
+  };
+  writeRevenue(data);
+  return data.invoices[idx];
+}
+
+export function duplicateProposal(proposalId: string): Proposal | null {
+  const proposal = readRevenue().proposals.find((item) => item.proposalId === proposalId);
+  if (!proposal) return null;
+  return createProposal({
+    title: `${proposal.title} Copy`,
+    leadId: proposal.leadId,
+    clientId: proposal.clientId,
+    missionId: proposal.missionId,
+    missionType: proposal.missionType,
+    amount: proposal.amount,
+    status: "draft",
+  });
+}
+
+export function duplicateInvoice(invoiceId: string): Invoice | null {
+  const source = readRevenue().invoices.find((item) => item.invoiceId === invoiceId);
+  if (!source) return null;
+  const created = createInvoice({
+    proposalId: source.proposalId,
+    clientId: source.clientId,
+    missionId: source.missionId,
+    amount: source.amount,
+    dueDate: source.dueDate,
+  });
+  if (!created) return null;
+  return updateInvoice(created.invoiceId, {
+    lineItems: source.lineItems,
+    subtotal: source.subtotal,
+    tpsRate: source.tpsRate,
+    tpsAmount: source.tpsAmount,
+    tvqRate: source.tvqRate,
+    tvqAmount: source.tvqAmount,
+    total: source.total,
+  });
+}
+
+export function archiveRevenue(kind: "proposal" | "invoice", id: string) {
+  const item = kind === "proposal"
+    ? updateProposal(id, { archivedAt: new Date().toISOString() })
+    : updateInvoice(id, { archivedAt: new Date().toISOString() });
+  if (item) archiveEntity({ entityType: "revenues", entityId: id, snapshot: item, label: kind === "proposal" ? (item as Proposal).title : id });
+  return item;
+}
+
+export function restoreRevenue(kind: "proposal" | "invoice", id: string) {
+  const item = kind === "proposal"
+    ? updateProposal(id, { archivedAt: null, deletedAt: null })
+    : updateInvoice(id, { archivedAt: null, deletedAt: null });
+  if (item) restoreEntity("revenues", id);
+  return item;
+}
+
+export function softDeleteRevenue(kind: "proposal" | "invoice", id: string) {
+  const now = new Date().toISOString();
+  const item = kind === "proposal"
+    ? updateProposal(id, { archivedAt: now, deletedAt: now })
+    : updateInvoice(id, { archivedAt: now, deletedAt: now });
+  if (item) softDeleteEntity({ entityType: "revenues", entityId: id, snapshot: item, label: kind === "proposal" ? (item as Proposal).title : id });
+  return item;
 }
 
 export function listRevenueRecords(): RevenueRecord[] {

@@ -68,6 +68,21 @@ describe("clientCrm", () => {
     expect(fetched!.status).toBe("contacted");
   });
 
+  it("edits clients and archives leads", async () => {
+    const { archiveLead, createClient, createLead, listLeads, updateClient } = await import("@/lib/clientCrm");
+
+    const client = createClient({ name: "Editable Client", email: "edit@test.com" });
+    const updated = updateClient(client.clientId, { notes: "Priority account", tags: ["vip", "retainer"], status: "paused" });
+    expect(updated?.notes).toBe("Priority account");
+    expect(updated?.tags).toContain("vip");
+    expect(updated?.status).toBe("paused");
+
+    const lead = createLead({ name: "Archive Lead", email: "lead@test.com" });
+    archiveLead(lead.leadId);
+    expect(listLeads().find((item) => item.leadId === lead.leadId)).toBeUndefined();
+    expect(listLeads({ includeArchived: true }).find((item) => item.leadId === lead.leadId)).toBeTruthy();
+  });
+
   it("convertLeadToClient creates client and updates lead", async () => {
     const { createLead, convertLeadToClient, listClients, getLead } = await import("@/lib/clientCrm");
 

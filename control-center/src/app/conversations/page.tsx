@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Archive,
   ChevronRight,
+  Edit3,
   FolderPlus,
   Hash,
   MessageSquare,
@@ -14,6 +15,7 @@ import {
   Search,
   Send,
   Star,
+  Trash2,
   X,
 } from "lucide-react";
 import {
@@ -83,6 +85,9 @@ export default function ConversationsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ConvThread[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
+  const [renameThreadId, setRenameThreadId] = useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -90,7 +95,7 @@ export default function ConversationsPage() {
     try {
       const [fRes, tRes, qRes] = await Promise.all([
         fetch("/api/conversations/folders"),
-        fetch(`/api/conversations/threads${selectedFolder ? `?folderId=${selectedFolder}` : ""}`),
+        fetch(`/api/conversations/threads${selectedFolder ? `?folderId=${selectedFolder}&` : "?"}includeArchived=${showArchived}`),
         fetch("/api/agent-questions"),
       ]);
       if (fRes.ok) { const d = await fRes.json(); setFolders(d.folders ?? []); }
@@ -98,7 +103,7 @@ export default function ConversationsPage() {
       if (qRes.ok) { const d = await qRes.json(); setAgentQuestions(d.questions ?? []); }
       setError(null);
     } catch { setError("Failed to load conversations"); }
-  }, [selectedFolder]);
+  }, [selectedFolder, showArchived]);
 
   useEffect(() => { loadData(); fetch("/api/runtime-mode").then((r) => r.json()).then((d) => { if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation"); }).catch(() => {}); }, [loadData]);
 
@@ -206,6 +211,34 @@ export default function ConversationsPage() {
       });
       if (res.ok) { if (activeThread?.id === threadId && archive) setActiveThread(null); loadData(); }
     } catch { /* */ }
+  };
+
+  const handleDelete = async (threadId: string) => {
+    if (!confirm("Delete this conversation? It will be soft deleted and visible in Archive.")) return;
+    await fetch(`/api/conversations/threads/${threadId}`, { method: "DELETE" });
+    if (activeThread?.id === threadId) setActiveThread(null);
+    loadData();
+  };
+
+  const handleRename = async () => {
+    if (!renameThreadId || !renameTitle.trim()) return;
+    await fetch(`/api/conversations/threads/${renameThreadId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: renameTitle }),
+    });
+    setRenameThreadId(null);
+    setRenameTitle("");
+    loadData();
+  };
+
+  const handleMove = async (threadId: string, folderId: string | null) => {
+    await fetch(`/api/conversations/threads/${threadId}/move`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ folderId }),
+    });
+    loadData();
   };
 
   const handlePin = async (threadId: string, pin = true) => {
@@ -321,6 +354,7 @@ export default function ConversationsPage() {
           {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
+          <GhostButton onClick={() => setShowArchived((value) => !value)}><Archive size={11} /> {showArchived ? "Active" : "Archived"}</GhostButton>
           <GhostButton onClick={() => setShowNewFolder(true)}><FolderPlus size={11} /> Folder</GhostButton>
           <GhostButton onClick={() => setShowNewThread(true)}><PlusCircle size={11} /> New Chat</GhostButton>
           <GhostButton onClick={loadData}><RefreshCw size={11} /></GhostButton>
@@ -432,6 +466,12 @@ export default function ConversationsPage() {
                   </GhostButton>
                   <GhostButton onClick={() => handleArchive(activeThread.id)}>
                     <Archive size={10} />
+                  </GhostButton>
+                  <GhostButton onClick={() => { setRenameThreadId(activeThread.id); setRenameTitle(activeThread.title); }}>
+                    <Edit3 size={10} />
+                  </GhostButton>
+                  <GhostButton onClick={() => handleDelete(activeThread.id)}>
+                    <Trash2 size={10} />
                   </GhostButton>
                 </div>
               </div>
@@ -638,6 +678,14 @@ export default function ConversationsPage() {
                 </div>
               )}
 
+              <div style={{ padding: 12, borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Conversation Management</div>
+                <select value={activeThread.folderId ?? ""} onChange={(e) => handleMove(activeThread.id, e.target.value || null)} style={inputStyle}>
+                  <option value="">No folder</option>
+                  {folders.map((folder) => <option key={folder.id} value={folder.id}>{folder.name}</option>)}
+                </select>
+              </div>
+
               {/* Direct Chat with other agents */}
               <div style={{ padding: 12, borderBottom: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Direct Chat</div>
@@ -694,6 +742,22 @@ export default function ConversationsPage() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
               <GhostButton onClick={() => setShowNewThread(false)}>Cancel</GhostButton>
               <PrimaryButton onClick={handleCreateThread} color="#3b82f6"><PlusCircle size={11} /> Create</PrimaryButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {renameThreadId && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, width: 360 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>Rename Conversation</span>
+              <button onClick={() => setRenameThreadId(null)} style={{ background: "none", border: "none", color: "var(--text-3)", cursor: "pointer" }}><X size={16} /></button>
+            </div>
+            <input style={inputStyle} value={renameTitle} onChange={(e) => setRenameTitle(e.target.value)} placeholder="Conversation title" />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+              <GhostButton onClick={() => setRenameThreadId(null)}>Cancel</GhostButton>
+              <PrimaryButton onClick={handleRename} color="#3b82f6"><Edit3 size={11} /> Rename</PrimaryButton>
             </div>
           </div>
         </div>

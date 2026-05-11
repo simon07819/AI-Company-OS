@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  Archive,
   BarChart3,
   Bot,
   Boxes,
@@ -76,6 +77,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/factory", label: "Factory", description: "Autonomous build floor", icon: <Boxes size={16} /> },
       { href: "/tasks/graph", label: "Tasks Graph", description: "Dependency graph", icon: <GitBranch size={16} /> },
       { href: "/actions", label: "Actions", description: "Run factory commands", icon: <Zap size={16} /> },
+      { href: "/archive", label: "Archive", description: "Restore and permanently remove archived records", icon: <Archive size={16} /> },
     ],
   },
   {

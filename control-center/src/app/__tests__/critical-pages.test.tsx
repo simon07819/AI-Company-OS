@@ -8,6 +8,7 @@ import LogsPage from "@/app/logs/page";
 import RuntimePage from "@/app/runtime/page";
 import SettingsPage from "@/app/settings/page";
 import CeoPage from "@/app/ceo/page";
+import ArchivePage from "@/app/archive/page";
 
 // Mock components that fetch data
 vi.mock("@/components/AutopilotPanel", () => ({
@@ -71,6 +72,13 @@ describe("critical Control Center pages", () => {
     expect(await screen.findByText("New Chat")).toBeInTheDocument();
     expect(screen.getByText("Archive Chat")).toBeInTheDocument();
     expect(screen.getByText("Open Conversations")).toBeInTheDocument();
+  });
+
+  it("renders global archive page", async () => {
+    render(React.createElement(ArchivePage));
+
+    expect(screen.getByText("Global Archive")).toBeInTheDocument();
+    expect(await screen.findByText("Archived Project")).toBeInTheDocument();
   });
 
   it("clicking an agent opens direct conversation header", async () => {

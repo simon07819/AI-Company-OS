@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Search, Users, Sparkles, Building2, Edit3, MessageSquare, ChevronRight } from "lucide-react";
+import { Search, Users, Sparkles, Building2, Edit3, MessageSquare, ChevronRight, Power } from "lucide-react";
 import { AgentCard, AgentAvatar, GlassPanel, LiveStatus, NvidiaLiveBadge, SimBadge, LocalBadge } from "@/components/ui";
 
 interface TeamProfile {
@@ -43,7 +43,7 @@ export default function TeamPage() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
 
-  useEffect(() => {
+  const loadTeam = () => {
     Promise.all([
       fetch("/api/agents/profiles").then((r) => r.json()),
       fetch("/api/runtime-mode").then((r) => r.json()),
@@ -55,7 +55,18 @@ export default function TeamPage() {
       if (runtimeData.ok) setRuntimeMode(runtimeData.mode === "nvidia" ? "nvidia" : "simulation");
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => { loadTeam(); }, []);
+
+  const toggleAgent = async (profile: TeamProfile) => {
+    await fetch(`/api/agents/${profile.agentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ online: !profile.online, status: profile.online ? "offline" : "available" }),
+    });
+    loadTeam();
+  };
 
   const filtered = profiles.filter((p) => {
     if (selectedDept && p.department !== selectedDept) return false;
@@ -218,6 +229,19 @@ export default function TeamPage() {
                   <MessageSquare size={9} />
                   Chat
                 </Link>
+                <button
+                  onClick={() => toggleAgent(profile)}
+                  style={{
+                    padding: "4px 8px", borderRadius: 6,
+                    background: profile.online ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.12)",
+                    border: `1px solid ${profile.online ? "rgba(239,68,68,0.35)" : "rgba(34,197,94,0.35)"}`,
+                    color: profile.online ? "#ef4444" : "#22c55e", fontSize: 9, fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: 3, cursor: "pointer",
+                  }}
+                >
+                  <Power size={9} />
+                  {profile.online ? "Deactivate" : "Activate"}
+                </button>
               </div>
             </div>
           ))}

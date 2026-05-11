@@ -9,6 +9,7 @@ import {
   Brain,
   Edit3,
   Palette,
+  Power,
   RotateCcw,
   Save,
   Settings,
@@ -95,6 +96,10 @@ export default function AgentProfilePage() {
   const [editAvatarEmoji, setEditAvatarEmoji] = useState("");
   const [editAvatarColor, setEditAvatarColor] = useState("");
   const [editSpecialization, setEditSpecialization] = useState("");
+  const [editOnline, setEditOnline] = useState(true);
+  const [editStatus, setEditStatus] = useState<"available" | "busy" | "offline">("available");
+  const [editWorkingOn, setEditWorkingOn] = useState("");
+  const [editExpertiseBadges, setEditExpertiseBadges] = useState("");
 
   useEffect(() => {
     // Extract agentId from URL path
@@ -129,6 +134,10 @@ export default function AgentProfilePage() {
           setEditAvatarEmoji(d.profile.avatarEmoji ?? "");
           setEditAvatarColor(d.profile.avatarColor ?? "#6366f1");
           setEditSpecialization(d.profile.specialization ?? "");
+          setEditOnline(d.profile.online ?? true);
+          setEditStatus(d.profile.status ?? "available");
+          setEditWorkingOn(d.profile.currentlyWorkingOn ?? "");
+          setEditExpertiseBadges((d.profile.expertiseBadges ?? []).join(", "));
         }
         setError(null);
       } else {
@@ -162,6 +171,10 @@ export default function AgentProfilePage() {
           avatarEmoji: editAvatarEmoji,
           avatarColor: editAvatarColor,
           specialization: editSpecialization,
+          online: editOnline,
+          status: editStatus,
+          currentlyWorkingOn: editWorkingOn || null,
+          expertiseBadges: editExpertiseBadges.split(",").map((w: string) => w.trim()).filter(Boolean),
         }),
       });
       if (res.ok) {
@@ -205,9 +218,18 @@ export default function AgentProfilePage() {
             <>
               <GhostButton onClick={() => setEditing(true)}><Edit3 size={11} /> Edit</GhostButton>
               <GhostButton onClick={async () => {
+                if (!agentId) return;
+                const res = await fetch(`/api/agents/${agentId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ online: !profile.online, status: profile.online ? "offline" : "available" }),
+                });
+                if (res.ok) { const d = await res.json(); setProfile(d.profile); setMemory(d.memory); setCareer(d.career); }
+              }}><Power size={11} /> {profile.online ? "Deactivate" : "Activate"}</GhostButton>
+              <GhostButton onClick={async () => {
                 if (!agentId || !confirm("Reset agent to default profile?")) return;
                 const res = await fetch(`/api/agents/${agentId}`, { method: "DELETE" });
-                if (res.ok) { const d = await res.json(); setProfile(d.profile); setMemory(d.memory); setCareer(d.career); setEditSystemPrompt(d.profile.systemPrompt ?? ""); setEditCreativity(d.profile.creativityLevel ?? 50); setEditTone(d.profile.tone ?? ""); setEditVisualStyle(d.profile.visualStyle ?? "minimalist_premium"); setEditPersonality(d.profile.personality ?? ""); setEditWorkflows((d.profile.preferredWorkflows ?? []).join(", ")); setEditName(d.profile.name ?? ""); setEditBio(d.profile.bio ?? ""); setEditDepartment(d.profile.department ?? ""); setEditStrengths((d.profile.strengths ?? []).join(", ")); setEditWeaknesses((d.profile.weaknesses ?? []).join(", ")); setEditCommunicationStyle(d.profile.communicationStyle ?? ""); setEditAvatarEmoji(d.profile.avatarEmoji ?? ""); setEditAvatarColor(d.profile.avatarColor ?? "#6366f1"); setEditSpecialization(d.profile.specialization ?? ""); }
+                if (res.ok) { const d = await res.json(); setProfile(d.profile); setMemory(d.memory); setCareer(d.career); setEditSystemPrompt(d.profile.systemPrompt ?? ""); setEditCreativity(d.profile.creativityLevel ?? 50); setEditTone(d.profile.tone ?? ""); setEditVisualStyle(d.profile.visualStyle ?? "minimalist_premium"); setEditPersonality(d.profile.personality ?? ""); setEditWorkflows((d.profile.preferredWorkflows ?? []).join(", ")); setEditName(d.profile.name ?? ""); setEditBio(d.profile.bio ?? ""); setEditDepartment(d.profile.department ?? ""); setEditStrengths((d.profile.strengths ?? []).join(", ")); setEditWeaknesses((d.profile.weaknesses ?? []).join(", ")); setEditCommunicationStyle(d.profile.communicationStyle ?? ""); setEditAvatarEmoji(d.profile.avatarEmoji ?? ""); setEditAvatarColor(d.profile.avatarColor ?? "#6366f1"); setEditSpecialization(d.profile.specialization ?? ""); setEditOnline(d.profile.online ?? true); setEditStatus(d.profile.status ?? "available"); setEditWorkingOn(d.profile.currentlyWorkingOn ?? ""); setEditExpertiseBadges((d.profile.expertiseBadges ?? []).join(", ")); }
               }}><RotateCcw size={11} /> Reset</GhostButton>
             </>
           ) : (
@@ -392,6 +414,52 @@ export default function AgentProfilePage() {
                   value={editAvatarEmoji}
                   onChange={(e) => setEditAvatarEmoji(e.target.value)}
                   disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Activation</label>
+                <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 8 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text)" }}>
+                    <input type="checkbox" checked={editOnline} onChange={(e) => setEditOnline(e.target.checked)} disabled={!editing} />
+                    Active
+                  </label>
+                  <select value={editStatus} onChange={(e) => setEditStatus(e.target.value as typeof editStatus)} disabled={!editing} style={{ width: "100%", padding: "6px 10px", fontSize: 11, background: editing ? "var(--bg-2)" : "transparent", border: editing ? "1px solid var(--border)" : "1px solid transparent", borderRadius: 6, color: "var(--text)", outline: "none" }}>
+                    <option value="available">Available</option>
+                    <option value="busy">Busy</option>
+                    <option value="offline">Offline</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Currently Working On</label>
+                <input
+                  value={editWorkingOn}
+                  onChange={(e) => setEditWorkingOn(e.target.value)}
+                  disabled={!editing}
+                  style={{
+                    width: "100%", padding: "6px 10px", fontSize: 11,
+                    background: editing ? "var(--bg-2)" : "transparent",
+                    border: editing ? "1px solid var(--border)" : "1px solid transparent",
+                    borderRadius: 6, color: "var(--text)", outline: "none",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", display: "block", marginBottom: 3 }}>Expertise Badges</label>
+                <input
+                  value={editExpertiseBadges}
+                  onChange={(e) => setEditExpertiseBadges(e.target.value)}
+                  disabled={!editing}
+                  placeholder="Design, QA, Operations"
                   style={{
                     width: "100%", padding: "6px 10px", fontSize: 11,
                     background: editing ? "var(--bg-2)" : "transparent",

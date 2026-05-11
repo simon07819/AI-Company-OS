@@ -7,6 +7,7 @@ import {
   updateCeoMemory,
   type ConversationIntent,
 } from "./ceoConversation";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ export interface ConversationThread {
   favorite: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface ConversationFolder {
@@ -410,7 +412,7 @@ export function findOrCreateDirectThread(participant: ParticipantRole): Conversa
   return createDirectThread(participant);
 }
 
-export function listThreads(options?: { folderId?: string | null; includeArchived?: boolean }): ConversationThread[] {
+export function listThreads(options?: { folderId?: string | null; includeArchived?: boolean; includeDeleted?: boolean }): ConversationThread[] {
   const data = readData();
   let threads = data.threads.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
@@ -419,6 +421,9 @@ export function listThreads(options?: { folderId?: string | null; includeArchive
   }
   if (!options?.includeArchived) {
     threads = threads.filter((t) => !t.archived);
+  }
+  if (!options?.includeDeleted) {
+    threads = threads.filter((t) => !t.deletedAt);
   }
   return threads;
 }
@@ -494,6 +499,20 @@ export function archiveThread(threadId: string, archived = true): ConversationTh
   data.threads[idx].archived = archived;
   data.threads[idx].updatedAt = new Date().toISOString();
   writeData(data);
+  if (archived) archiveEntity({ entityType: "conversations", entityId: threadId, snapshot: data.threads[idx], label: data.threads[idx].title });
+  else restoreEntity("conversations", threadId);
+  return data.threads[idx];
+}
+
+export function softDeleteThread(threadId: string): ConversationThread | null {
+  const data = readData();
+  const idx = data.threads.findIndex((t) => t.id === threadId);
+  if (idx === -1) return null;
+  data.threads[idx].archived = true;
+  data.threads[idx].deletedAt = new Date().toISOString();
+  data.threads[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  softDeleteEntity({ entityType: "conversations", entityId: threadId, snapshot: data.threads[idx], label: data.threads[idx].title });
   return data.threads[idx];
 }
 

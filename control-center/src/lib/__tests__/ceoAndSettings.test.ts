@@ -996,6 +996,25 @@ describe("CEO Auto-Start & Projects", () => {
     expect(done.status).toBe("delivered");
   });
 
+  it("archives, restores, duplicates and soft deletes CEO projects", async () => {
+    const { archiveCeoProject, createCeoProject, duplicateCeoProject, listCeoProjects, restoreCeoProject, softDeleteCeoProject } = await import("@/lib/ceoProjectStore");
+
+    const project = createCeoProject({ name: "Operational Project", missionType: "branding_pack" });
+    const duplicate = duplicateCeoProject(project.id);
+    expect(duplicate?.name).toContain("Copy");
+
+    archiveCeoProject(project.id);
+    expect(listCeoProjects().find((item) => item.id === project.id)).toBeUndefined();
+    expect(listCeoProjects({ includeArchived: true }).find((item) => item.id === project.id)).toBeTruthy();
+
+    restoreCeoProject(project.id);
+    expect(listCeoProjects().find((item) => item.id === project.id)).toBeTruthy();
+
+    softDeleteCeoProject(project.id);
+    expect(listCeoProjects({ includeArchived: true }).find((item) => item.id === project.id)).toBeUndefined();
+    expect(listCeoProjects({ includeArchived: true, includeDeleted: true }).find((item) => item.id === project.id)).toBeTruthy();
+  });
+
   it("visible outputs generated for logo mission", async () => {
     const { generateVisibleOutputs, getOutputsForSession } = await import("@/lib/visibleOutputs");
     const outputs = generateVisibleOutputs("session-logo", "redesign_logo");

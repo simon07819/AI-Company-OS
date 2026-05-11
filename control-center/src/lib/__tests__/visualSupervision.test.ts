@@ -174,6 +174,27 @@ describe("Visible Outputs — gallery queries", () => {
     expect(output).toBeNull();
   });
 
+  it("archives, favorites, revises and soft deletes outputs", async () => {
+    const { addOutputRevision, archiveOutput, generateVisibleOutputs, getAllOutputs, restoreOutput, softDeleteOutput, updateOutputMetadata } = await import("@/lib/visibleOutputs");
+
+    const [output] = generateVisibleOutputs("session-manage-output", "branding_pack");
+    const favorite = updateOutputMetadata(output.id, { favorite: true, title: "Favorite output" });
+    expect(favorite?.favorite).toBe(true);
+    expect(favorite?.title).toBe("Favorite output");
+
+    const revised = addOutputRevision(output.id, "Make it more premium");
+    expect(revised?.revisions?.[0].note).toBe("Make it more premium");
+
+    archiveOutput(output.id);
+    expect(getAllOutputs().find((item) => item.id === output.id)).toBeUndefined();
+
+    restoreOutput(output.id);
+    expect(getAllOutputs().find((item) => item.id === output.id)).toBeTruthy();
+
+    softDeleteOutput(output.id);
+    expect(getAllOutputs().find((item) => item.id === output.id)).toBeUndefined();
+  });
+
   it("generateVisibleOutputs creates outputs for session", async () => {
     const { generateVisibleOutputs, getOutputsForSession } = await import("@/lib/visibleOutputs");
     const outputs = generateVisibleOutputs("session-test-1", "branding_pack");

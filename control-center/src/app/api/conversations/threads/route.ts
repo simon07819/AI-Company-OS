@@ -7,9 +7,11 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const folderId = url.searchParams.get("folderId");
   const includeArchived = url.searchParams.get("includeArchived") === "true";
+  const includeDeleted = url.searchParams.get("includeDeleted") === "true";
   const threads = listThreads({
     folderId: folderId === "null" ? null : folderId ?? undefined,
     includeArchived,
+    includeDeleted,
   });
   return NextResponse.json({ ok: true, threads });
 }

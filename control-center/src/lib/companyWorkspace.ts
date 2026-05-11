@@ -4,6 +4,7 @@ import { listSessions } from "./autopilotStore";
 import { listClients, listLeads } from "./clientCrm";
 import { listCampaigns, listPublishedAssets } from "./distributionEngine";
 import { listProposals, listRevenueRecords } from "./revenueSystem";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 const REPO_ROOT = process.cwd();
 const DATA_DIR = path.join(REPO_ROOT, "data");
@@ -49,6 +50,8 @@ export interface CompanyWorkspace {
   metrics: WorkspaceMetrics;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface WorkspaceOverview {
@@ -228,7 +231,14 @@ export function createWorkspace(input: CreateWorkspaceInput): CompanyWorkspace {
 
 export function listWorkspaces(): CompanyWorkspace[] {
   const data = loadSynced();
-  return data.workspaces.map(withComputedMetrics).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return data.workspaces
+    .filter((workspace) => !workspace.archivedAt && !workspace.deletedAt)
+    .map(withComputedMetrics)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function listAllWorkspaces(): CompanyWorkspace[] {
+  return loadSynced().workspaces.map(withComputedMetrics).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function getWorkspace(workspaceId: string): CompanyWorkspace | null {
@@ -264,6 +274,34 @@ export function assignMissionToWorkspace(workspaceId: string, missionId: string)
   data.workspaces[idx].updatedAt = new Date().toISOString();
   writeData(data);
   return withComputedMetrics(data.workspaces[idx]);
+}
+
+export function removeMissionFromWorkspace(workspaceId: string, missionId: string): CompanyWorkspace | null {
+  const data = loadSynced();
+  const idx = data.workspaces.findIndex((workspace) => workspace.id === workspaceId || workspace.slug === workspaceId);
+  if (idx === -1) return null;
+  data.workspaces[idx].activeMissionIds = data.workspaces[idx].activeMissionIds.filter((id) => id !== missionId);
+  data.workspaces[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return withComputedMetrics(data.workspaces[idx]);
+}
+
+export function archiveWorkspace(workspaceId: string): CompanyWorkspace | null {
+  const workspace = updateWorkspace(workspaceId, { archivedAt: new Date().toISOString() } as Partial<Omit<CompanyWorkspace, "id" | "createdAt">>);
+  if (workspace) archiveEntity({ entityType: "workspaces", entityId: workspace.id, snapshot: workspace, label: workspace.name });
+  return workspace;
+}
+
+export function restoreWorkspace(workspaceId: string): CompanyWorkspace | null {
+  const workspace = updateWorkspace(workspaceId, { archivedAt: null, deletedAt: null } as Partial<Omit<CompanyWorkspace, "id" | "createdAt">>);
+  if (workspace) restoreEntity("workspaces", workspace.id);
+  return workspace;
+}
+
+export function softDeleteWorkspace(workspaceId: string): CompanyWorkspace | null {
+  const workspace = updateWorkspace(workspaceId, { archivedAt: new Date().toISOString(), deletedAt: new Date().toISOString() } as Partial<Omit<CompanyWorkspace, "id" | "createdAt">>);
+  if (workspace) softDeleteEntity({ entityType: "workspaces", entityId: workspace.id, snapshot: workspace, label: workspace.name });
+  return workspace;
 }
 
 export function getWorkspaceRevenue(workspaceId: string): { totalRevenue: number; records: ReturnType<typeof listRevenueRecords> } {

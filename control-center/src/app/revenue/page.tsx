@@ -4,13 +4,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  Archive,
   CheckCircle2,
+  Copy,
   DollarSign,
+  Edit3,
   FileText,
   PlusCircle,
   Receipt,
   RefreshCw,
   Send,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -49,6 +53,7 @@ interface Proposal {
   amount: number;
   validUntil: string;
   updatedAt: string;
+  archivedAt?: string | null;
 }
 
 interface Invoice {
@@ -58,9 +63,16 @@ interface Invoice {
   missionId: string | null;
   status: InvoiceStatus;
   amount: number;
+  subtotal?: number;
+  tpsRate?: number;
+  tpsAmount?: number;
+  tvqRate?: number;
+  tvqAmount?: number;
+  total?: number;
   dueDate: string;
   paidAt: string | null;
   updatedAt: string;
+  archivedAt?: string | null;
 }
 
 interface RevenueRecord {
@@ -112,6 +124,16 @@ export default function RevenuePage() {
   const [title, setTitle] = useState("");
   const [missionType, setMissionType] = useState("website");
   const [amount, setAmount] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusTab, setStatusTab] = useState<"all" | ProposalStatus | InvoiceStatus>("all");
+  const [editingProposalId, setEditingProposalId] = useState<string | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftAmount, setDraftAmount] = useState("");
+  const [draftStatus, setDraftStatus] = useState("");
+  const [draftSubtotal, setDraftSubtotal] = useState("");
+  const [draftTps, setDraftTps] = useState("5");
+  const [draftTvq, setDraftTvq] = useState("9.975");
 
   const loadData = async () => {
     setLoading(true);
@@ -175,6 +197,46 @@ export default function RevenuePage() {
     loadData();
   };
 
+  const revenueAction = async (kind: "proposals" | "invoices", id: string, body: Record<string, unknown>, method = "PATCH") => {
+    await fetch(`/api/revenue/${kind}/${id}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setEditingProposalId(null);
+    setEditingInvoiceId(null);
+    loadData();
+  };
+
+  const startProposalEdit = (proposal: Proposal) => {
+    setEditingProposalId(proposal.proposalId);
+    setDraftTitle(proposal.title);
+    setDraftAmount(String(proposal.amount));
+    setDraftStatus(proposal.status);
+  };
+
+  const startInvoiceEdit = (invoice: Invoice) => {
+    setEditingInvoiceId(invoice.invoiceId);
+    setDraftSubtotal(String(invoice.subtotal ?? invoice.amount));
+    setDraftTps(String(invoice.tpsRate ?? 5));
+    setDraftTvq(String(invoice.tvqRate ?? 9.975));
+    setDraftStatus(invoice.status);
+  };
+
+  const filteredProposals = proposals.filter((proposal) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q || proposal.title.toLowerCase().includes(q) || proposal.missionType.toLowerCase().includes(q);
+    const matchesStatus = statusTab === "all" || proposal.status === statusTab;
+    return matchesSearch && matchesStatus;
+  });
+
+  const filteredInvoices = invoices.filter((invoice) => {
+    const q = search.toLowerCase();
+    const matchesSearch = !q || invoice.invoiceId.toLowerCase().includes(q) || (invoice.clientId ?? "").toLowerCase().includes(q);
+    const matchesStatus = statusTab === "all" || invoice.status === statusTab;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
       <PageHeader
@@ -206,7 +268,7 @@ export default function RevenuePage() {
 
           <Panel>
             <SectionHeader icon={<PlusCircle size={12} />} title="Create Proposal" />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 150px auto", gap: 8 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 160px 150px auto", gap: 8, marginBottom: 10 }}>
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Proposal title" style={inputStyle} />
               <select value={missionType} onChange={(e) => setMissionType(e.target.value)} style={inputStyle}>
                 <option value="website">Website</option>
@@ -219,6 +281,14 @@ export default function RevenuePage() {
               <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Amount" type="number" style={inputStyle} />
               <PrimaryButton onClick={createProposal}><PlusCircle size={12} /> Create</PrimaryButton>
             </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search revenue, invoices, clients..." style={inputStyle} />
+              <select value={statusTab} onChange={(e) => setStatusTab(e.target.value as typeof statusTab)} style={inputStyle}>
+                <option value="all">All statuses</option>
+                {Object.keys(PROPOSAL_STATUS).map((status) => <option key={status} value={status}>{PROPOSAL_STATUS[status as ProposalStatus].label}</option>)}
+                {Object.keys(INVOICE_STATUS).map((status) => <option key={status} value={status}>{INVOICE_STATUS[status as InvoiceStatus].label}</option>)}
+              </select>
+            </div>
           </Panel>
 
           <Panel>
@@ -227,16 +297,33 @@ export default function RevenuePage() {
               <EmptyState title="No proposals yet" description="Create your first proposal above to start tracking deals and converting leads into revenue." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {proposals.map((proposal) => {
+                {filteredProposals.map((proposal) => {
                   const cfg = PROPOSAL_STATUS[proposal.status];
+                  const editing = editingProposalId === proposal.proposalId;
                   return (
                     <Row key={proposal.proposalId}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{proposal.title}</div>
+                        {editing ? (
+                          <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} style={inputStyle} />
+                        ) : (
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{proposal.title}</div>
+                        )}
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>{proposal.missionType.replace(/_/g, " ")} · ${proposal.estimate.monthlyRecurring.toLocaleString()} monthly est.</div>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>${proposal.amount.toLocaleString()}</span>
-                      <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                      {editing ? (
+                        <>
+                          <input value={draftAmount} onChange={(e) => setDraftAmount(e.target.value)} type="number" style={{ ...inputStyle, width: 110 }} />
+                          <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} style={inputStyle}>
+                            {Object.keys(PROPOSAL_STATUS).map((status) => <option key={status} value={status}>{PROPOSAL_STATUS[status as ProposalStatus].label}</option>)}
+                          </select>
+                          <PrimaryButton onClick={() => revenueAction("proposals", proposal.proposalId, { title: draftTitle, amount: Number(draftAmount), status: draftStatus })}>Save</PrimaryButton>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa" }}>${proposal.amount.toLocaleString()}</span>
+                          <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                        </>
+                      )}
                       {proposal.status !== "accepted" && proposal.status !== "rejected" && (
                         <>
                           <PrimaryButton onClick={() => acceptProposal(proposal.proposalId)} color="#22c55e">Accept</PrimaryButton>
@@ -246,6 +333,10 @@ export default function RevenuePage() {
                       {proposal.status === "accepted" && (
                         <PrimaryButton onClick={() => createInvoice(proposal)}>Invoice</PrimaryButton>
                       )}
+                      <GhostButton onClick={() => startProposalEdit(proposal)}><Edit3 size={10} /> Edit</GhostButton>
+                      <GhostButton onClick={() => revenueAction("proposals", proposal.proposalId, { action: "duplicate" })}><Copy size={10} /> Duplicate</GhostButton>
+                      <GhostButton onClick={() => revenueAction("proposals", proposal.proposalId, { action: "archive" })}><Archive size={10} /> Archive</GhostButton>
+                      <GhostButton onClick={() => revenueAction("proposals", proposal.proposalId, {}, "DELETE")}><Trash2 size={10} /> Delete</GhostButton>
                     </Row>
                   );
                 })}
@@ -259,17 +350,47 @@ export default function RevenuePage() {
               <EmptyState title="No invoices yet" description="Accept a proposal to auto-generate an invoice, or create one manually from the API." />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {invoices.map((invoice) => {
+                {filteredInvoices.map((invoice) => {
                   const cfg = INVOICE_STATUS[invoice.status];
+                  const editing = editingInvoiceId === invoice.invoiceId;
+                  const subtotal = editing ? Number(draftSubtotal) || 0 : invoice.subtotal ?? invoice.amount;
+                  const tps = subtotal * ((editing ? Number(draftTps) : invoice.tpsRate ?? 5) / 100);
+                  const tvq = subtotal * ((editing ? Number(draftTvq) : invoice.tvqRate ?? 9.975) / 100);
+                  const total = editing ? subtotal + tps + tvq : invoice.total ?? invoice.amount;
                   return (
                     <Row key={invoice.invoiceId}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{invoice.invoiceId}</div>
-                        <div style={{ fontSize: 10, color: "var(--text-3)" }}>Due {new Date(invoice.dueDate).toLocaleDateString()}</div>
+                        <div style={{ fontSize: 10, color: "var(--text-3)" }}>Due {new Date(invoice.dueDate).toLocaleDateString()} · TPS ${tps.toFixed(2)} · TVQ ${tvq.toFixed(2)}</div>
                       </div>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "#fb923c" }}>${invoice.amount.toLocaleString()}</span>
-                      <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                      {editing ? (
+                        <>
+                          <input value={draftSubtotal} onChange={(e) => setDraftSubtotal(e.target.value)} type="number" style={{ ...inputStyle, width: 100 }} />
+                          <input value={draftTps} onChange={(e) => setDraftTps(e.target.value)} type="number" style={{ ...inputStyle, width: 80 }} />
+                          <input value={draftTvq} onChange={(e) => setDraftTvq(e.target.value)} type="number" style={{ ...inputStyle, width: 90 }} />
+                          <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} style={inputStyle}>
+                            {Object.keys(INVOICE_STATUS).map((status) => <option key={status} value={status}>{INVOICE_STATUS[status as InvoiceStatus].label}</option>)}
+                          </select>
+                          <PrimaryButton onClick={() => revenueAction("invoices", invoice.invoiceId, {
+                            amount: subtotal,
+                            status: draftStatus,
+                            lineItems: [{ description: "Services", quantity: 1, unitPrice: subtotal }],
+                            taxes: { tpsRate: Number(draftTps), tvqRate: Number(draftTvq) },
+                          })}>Save</PrimaryButton>
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#fb923c" }}>${total.toLocaleString()}</span>
+                          <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                        </>
+                      )}
                       {invoice.status !== "paid" && <PrimaryButton onClick={() => markPaid(invoice.invoiceId)} color="#22c55e">Pay</PrimaryButton>}
+                      {invoice.status === "paid" && <GhostButton onClick={() => revenueAction("invoices", invoice.invoiceId, { action: "mark_unpaid" })}>Unpaid</GhostButton>}
+                      <GhostButton onClick={() => startInvoiceEdit(invoice)}><Edit3 size={10} /> Edit</GhostButton>
+                      <GhostButton onClick={() => revenueAction("invoices", invoice.invoiceId, { action: "duplicate" })}><Copy size={10} /> Duplicate</GhostButton>
+                      <GhostButton onClick={() => revenueAction("invoices", invoice.invoiceId, { action: "archive" })}><Archive size={10} /> Archive</GhostButton>
+                      <GhostButton onClick={() => revenueAction("invoices", invoice.invoiceId, {}, "DELETE")}><Trash2 size={10} /> Delete</GhostButton>
+                      <GhostButton>Export PDF</GhostButton>
                     </Row>
                   );
                 })}

@@ -72,6 +72,38 @@ describe("revenueSystem", () => {
     expect(listRevenueRecords()).toHaveLength(1);
   });
 
+  it("edits invoice line items and calculates TPS/TVQ totals", async () => {
+    const { calculateInvoiceTotals, createInvoice, updateInvoice } = await import("@/lib/revenueSystem");
+
+    const totals = calculateInvoiceTotals([{ description: "Design", quantity: 2, unitPrice: 1000 }], { tpsRate: 5, tvqRate: 9.975 });
+    expect(totals.subtotal).toBe(2000);
+    expect(totals.tpsAmount).toBe(100);
+    expect(totals.tvqAmount).toBe(199.5);
+    expect(totals.total).toBe(2299.5);
+
+    const invoice = createInvoice({ amount: 1000 })!;
+    const updated = updateInvoice(invoice.invoiceId, {
+      lineItems: [{ description: "Implementation", quantity: 1, unitPrice: 2000 }],
+      taxes: { tpsRate: 5, tvqRate: 9.975 },
+    });
+
+    expect(updated?.subtotal).toBe(2000);
+    expect(updated?.total).toBe(2299.5);
+  });
+
+  it("archives and soft deletes revenue items", async () => {
+    const { archiveRevenue, createProposal, listProposals, softDeleteRevenue } = await import("@/lib/revenueSystem");
+
+    const proposal = createProposal({ title: "Archive me", amount: 1500 });
+    archiveRevenue("proposal", proposal.proposalId);
+    expect(listProposals().find((item) => item.proposalId === proposal.proposalId)).toBeUndefined();
+    expect(listProposals({ includeArchived: true }).find((item) => item.proposalId === proposal.proposalId)).toBeTruthy();
+
+    softDeleteRevenue("proposal", proposal.proposalId);
+    expect(listProposals({ includeArchived: true }).find((item) => item.proposalId === proposal.proposalId)).toBeUndefined();
+    expect(listProposals({ includeArchived: true, includeDeleted: true }).find((item) => item.proposalId === proposal.proposalId)).toBeTruthy();
+  });
+
   it("revenue overview calculates pipeline, revenue and conversion", async () => {
     const { acceptProposal, createInvoice, createProposal, getRevenueOverview, markInvoicePaid, rejectProposal } = await import("@/lib/revenueSystem");
 

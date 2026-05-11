@@ -4,7 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
   Briefcase,
+  Archive,
   DollarSign,
+  Edit3,
   FileText,
   Layers3,
   Mail,
@@ -12,6 +14,9 @@ import {
   PlusCircle,
   RefreshCw,
   Star,
+  Search,
+  Tag,
+  Trash2,
   UserCheck,
   Users,
   X,
@@ -37,12 +42,14 @@ type ClientStatus = "active" | "paused" | "completed" | "archived";
 interface Lead {
   leadId: string; name: string; email: string; company: string | null;
   source: string; status: LeadStatus; estimatedValue: number; notes: string;
+  tags?: string[];
   createdAt: string; updatedAt: string;
 }
 
 interface Client {
   clientId: string; name: string; email: string; company: string | null;
   status: ClientStatus; linkedMissionIds: string[]; totalValue: number;
+  notes?: string; tags?: string[]; conversationId?: string | null;
   createdAt: string; updatedAt: string;
 }
 
@@ -104,6 +111,16 @@ export default function CrmPage() {
   const [lCompany, setLCompany] = useState(""); const [lValue, setLValue] = useState("");
   const [cName, setCName] = useState(""); const [cEmail, setCEmail] = useState("");
   const [cCompany, setCCompany] = useState(""); const [cValue, setCValue] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | LeadStatus | ClientStatus>("all");
+  const [editing, setEditing] = useState<{ kind: "lead" | "client"; id: string } | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftEmail, setDraftEmail] = useState("");
+  const [draftCompany, setDraftCompany] = useState("");
+  const [draftValue, setDraftValue] = useState("");
+  const [draftStatus, setDraftStatus] = useState("");
+  const [draftNotes, setDraftNotes] = useState("");
+  const [draftTags, setDraftTags] = useState("");
 
   const loadData = async () => {
     setLoading(true);
@@ -141,6 +158,61 @@ export default function CrmPage() {
   const handleConvert = async (leadId: string) => {
     await fetch(`/api/crm/leads/${leadId}/convert`, { method: "POST" }); loadData();
   };
+
+  const startLeadEdit = (lead: Lead) => {
+    setEditing({ kind: "lead", id: lead.leadId });
+    setDraftName(lead.name);
+    setDraftEmail(lead.email);
+    setDraftCompany(lead.company ?? "");
+    setDraftValue(String(lead.estimatedValue));
+    setDraftStatus(lead.status);
+    setDraftNotes(lead.notes ?? "");
+    setDraftTags((lead.tags ?? []).join(", "));
+  };
+
+  const startClientEdit = (client: Client) => {
+    setEditing({ kind: "client", id: client.clientId });
+    setDraftName(client.name);
+    setDraftEmail(client.email);
+    setDraftCompany(client.company ?? "");
+    setDraftValue(String(client.totalValue));
+    setDraftStatus(client.status);
+    setDraftNotes(client.notes ?? "");
+    setDraftTags((client.tags ?? []).join(", "));
+  };
+
+  const saveEntity = async () => {
+    if (!editing) return;
+    const endpoint = editing.kind === "lead" ? `/api/crm/leads/${editing.id}` : `/api/crm/clients/${editing.id}`;
+    const payload = editing.kind === "lead"
+      ? { name: draftName, email: draftEmail, company: draftCompany, estimatedValue: Number(draftValue) || 0, status: draftStatus, notes: draftNotes, tags: draftTags.split(",").map((tag) => tag.trim()).filter(Boolean) }
+      : { name: draftName, email: draftEmail, company: draftCompany, totalValue: Number(draftValue) || 0, status: draftStatus, notes: draftNotes, tags: draftTags.split(",").map((tag) => tag.trim()).filter(Boolean) };
+    await fetch(endpoint, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    setEditing(null);
+    loadData();
+  };
+
+  const crmAction = async (kind: "lead" | "client", id: string, body: Record<string, unknown>, method = "PATCH") => {
+    await fetch(`/api/crm/${kind === "lead" ? "leads" : "clients"}/${id}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (editing?.id === id) setEditing(null);
+    loadData();
+  };
+
+  const matches = (value: string | null | undefined) => (value ?? "").toLowerCase().includes(search.toLowerCase());
+  const visibleLeads = leads.filter((lead) => {
+    const text = matches(lead.name) || matches(lead.email) || matches(lead.company) || matches(lead.notes) || (lead.tags ?? []).some(matches);
+    const status = statusFilter === "all" || lead.status === statusFilter;
+    return (!search || text) && status;
+  });
+  const visibleClients = clients.filter((client) => {
+    const text = matches(client.name) || matches(client.email) || matches(client.company) || matches(client.notes) || (client.tags ?? []).some(matches);
+    const status = statusFilter === "all" || client.status === statusFilter;
+    return (!search || text) && status;
+  });
 
   // Modal wrapper
   const Modal = ({ show, onClose, title, children }: { show: boolean; onClose: () => void; title: string; children: React.ReactNode }) => show ? (
@@ -191,6 +263,21 @@ export default function CrmPage() {
         </div>
       </Modal>
 
+      <Modal show={!!editing} onClose={() => setEditing(null)} title={editing?.kind === "lead" ? "Edit Lead" : "Edit Client"}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <input placeholder="Name" value={draftName} onChange={(e) => setDraftName(e.target.value)} style={inputStyle} />
+          <input placeholder="Email" value={draftEmail} onChange={(e) => setDraftEmail(e.target.value)} style={inputStyle} />
+          <input placeholder="Company" value={draftCompany} onChange={(e) => setDraftCompany(e.target.value)} style={inputStyle} />
+          <input placeholder="Value" type="number" value={draftValue} onChange={(e) => setDraftValue(e.target.value)} style={inputStyle} />
+          <select value={draftStatus} onChange={(e) => setDraftStatus(e.target.value)} style={inputStyle}>
+            {(editing?.kind === "lead" ? Object.keys(LEAD_CFG) : Object.keys(CLIENT_CFG)).map((status) => <option key={status} value={status}>{status.replace(/_/g, " ")}</option>)}
+          </select>
+          <textarea placeholder="Notes" value={draftNotes} onChange={(e) => setDraftNotes(e.target.value)} style={{ ...inputStyle, minHeight: 70 }} />
+          <input placeholder="Tags separated by commas" value={draftTags} onChange={(e) => setDraftTags(e.target.value)} style={inputStyle} />
+          <PrimaryButton onClick={saveEntity}><Edit3 size={11} /> Save</PrimaryButton>
+        </div>
+      </Modal>
+
       <AnimatePresence mode="wait">
         <motion.div key="content" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
 
@@ -207,6 +294,18 @@ export default function CrmPage() {
             </section>
           )}
 
+          <Panel>
+            <SectionHeader icon={<Search size={12} />} title="CRM Filters" />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: 8 }}>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clients, leads, notes, tags..." style={inputStyle} />
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} style={inputStyle}>
+                <option value="all">All statuses</option>
+                {Object.keys(LEAD_CFG).map((status) => <option key={status} value={status}>{LEAD_CFG[status as LeadStatus].label}</option>)}
+                {Object.keys(CLIENT_CFG).map((status) => <option key={status} value={status}>{CLIENT_CFG[status as ClientStatus].label}</option>)}
+              </select>
+            </div>
+          </Panel>
+
           {/* ── LEADS PIPELINE ── */}
           <Panel>
             <SectionHeader title="Leads Pipeline" />
@@ -220,23 +319,27 @@ export default function CrmPage() {
                 })}
               </div>
             )}
-            {leads.filter((l) => l.status !== "won" && l.status !== "lost").length === 0 ? (
+            {visibleLeads.filter((l) => l.status !== "won" && l.status !== "lost").length === 0 ? (
               <EmptyState title="No active leads" description="Add your first lead to start building the pipeline." action={<PrimaryButton color="#3b82f6" onClick={() => setShowLeadForm(true)}><PlusCircle size={11} /> Add Lead</PrimaryButton>} />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {leads.filter((l) => l.status !== "won" && l.status !== "lost").map((lead) => {
+                {visibleLeads.filter((l) => l.status !== "won" && l.status !== "lost").map((lead) => {
                   const cfg = LEAD_CFG[lead.status];
                   return (
                     <Row key={lead.leadId}>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{lead.name}</div>
                         <div style={{ fontSize: 10, color: "var(--text-3)" }}>{lead.email} {lead.company ? `— ${lead.company}` : ""}</div>
+                        {(lead.tags ?? []).length > 0 && <div style={{ fontSize: 9, color: "#a78bfa", marginTop: 2 }}><Tag size={9} /> {lead.tags?.join(", ")}</div>}
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)" }}>${lead.estimatedValue.toLocaleString()}</span>
                       <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
                       {(lead.status === "proposal_sent" || lead.status === "qualified") && (
                         <PrimaryButton color="#22c55e" onClick={() => handleConvert(lead.leadId)}>Convert</PrimaryButton>
                       )}
+                      <GhostButton onClick={() => startLeadEdit(lead)}><Edit3 size={10} /> Edit</GhostButton>
+                      <GhostButton onClick={() => crmAction("lead", lead.leadId, { action: "archive" })}><Archive size={10} /> Archive</GhostButton>
+                      <GhostButton onClick={() => crmAction("lead", lead.leadId, {}, "DELETE")}><Trash2 size={10} /> Delete</GhostButton>
                     </Row>
                   );
                 })}
@@ -247,11 +350,11 @@ export default function CrmPage() {
           {/* ── CLIENTS ── */}
           <Panel>
             <SectionHeader title="Clients" />
-            {clients.length === 0 ? (
+            {visibleClients.length === 0 ? (
               <EmptyState title="No clients yet" description="Convert a lead or create a client directly to manage relationships." action={<PrimaryButton color="#22c55e" onClick={() => setShowClientForm(true)}><PlusCircle size={11} /> Add Client</PrimaryButton>} />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {clients.map((c) => {
+                {visibleClients.map((c) => {
                   const cfg = CLIENT_CFG[c.status];
                   return (
                     <Row key={c.clientId}>
@@ -261,9 +364,13 @@ export default function CrmPage() {
                           {c.email} {c.company ? `— ${c.company}` : ""}
                           {c.linkedMissionIds.length > 0 && <span style={{ marginLeft: 8, color: "#6366f1" }}>{c.linkedMissionIds.length} mission(s)</span>}
                         </div>
+                        {(c.tags ?? []).length > 0 && <div style={{ fontSize: 9, color: "#a78bfa", marginTop: 2 }}><Tag size={9} /> {c.tags?.join(", ")}</div>}
                       </div>
                       <span style={{ fontSize: 10, fontWeight: 600, color: "var(--text-3)" }}>${c.totalValue.toLocaleString()}</span>
                       <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
+                      <GhostButton onClick={() => startClientEdit(c)}><Edit3 size={10} /> Edit</GhostButton>
+                      <GhostButton onClick={() => crmAction("client", c.clientId, { action: "archive" })}><Archive size={10} /> Archive</GhostButton>
+                      <GhostButton onClick={() => crmAction("client", c.clientId, {}, "DELETE")}><Trash2 size={10} /> Delete</GhostButton>
                     </Row>
                   );
                 })}

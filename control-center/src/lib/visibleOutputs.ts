@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { type AgentId } from "./agentTypes";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,11 @@ export interface VisibleOutput {
   sourceFiles: string[];
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
+  favorite?: boolean;
+  versionHistory?: { version: number; title: string; preview: string; updatedAt: string }[];
+  revisions?: { id: string; note: string; createdAt: string }[];
 }
 
 interface OutputsData {
@@ -212,12 +218,12 @@ export function ensureFallbackVisibleOutput(sessionId: string, missionType: stri
 }
 
 export function getOutputsForSession(sessionId: string): VisibleOutput[] {
-  return readData().outputs.filter((o) => o.sessionId === sessionId)
+  return readData().outputs.filter((o) => o.sessionId === sessionId && !o.archivedAt && !o.deletedAt)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
 export function getOutputsForProject(projectId: string): VisibleOutput[] {
-  return readData().outputs.filter((o) => o.projectId === projectId)
+  return readData().outputs.filter((o) => o.projectId === projectId && !o.archivedAt && !o.deletedAt)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
 
@@ -236,9 +242,71 @@ export function getOutputCountForSession(sessionId: string): number {
 }
 
 export function getAllOutputs(): VisibleOutput[] {
-  return readData().outputs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return readData().outputs.filter((o) => !o.archivedAt && !o.deletedAt).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function getOutputById(outputId: string): VisibleOutput | null {
   return readData().outputs.find((o) => o.id === outputId) ?? null;
+}
+
+export function updateOutputMetadata(outputId: string, patch: Partial<Pick<VisibleOutput, "title" | "summary" | "preview" | "status" | "assignedAgent" | "favorite">>): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  const current = data.outputs[idx];
+  const history = current.versionHistory ?? [];
+  data.outputs[idx] = {
+    ...current,
+    ...patch,
+    versionHistory: [...history, { version: history.length + 1, title: current.title, preview: current.preview, updatedAt: current.updatedAt }],
+    updatedAt: new Date().toISOString(),
+  };
+  writeData(data);
+  return data.outputs[idx];
+}
+
+export function addOutputRevision(outputId: string, note: string): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  const revisions = data.outputs[idx].revisions ?? [];
+  data.outputs[idx].revisions = [{ id: `rev-${Date.now().toString(36)}`, note, createdAt: new Date().toISOString() }, ...revisions];
+  data.outputs[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return data.outputs[idx];
+}
+
+export function archiveOutput(outputId: string): VisibleOutput | null {
+  const output = updateOutputMetadata(outputId, { status: getOutputById(outputId)?.status });
+  if (!output) return null;
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  data.outputs[idx].archivedAt = new Date().toISOString();
+  writeData(data);
+  archiveEntity({ entityType: "outputs", entityId: output.id, snapshot: data.outputs[idx], label: output.title });
+  return data.outputs[idx];
+}
+
+export function restoreOutput(outputId: string): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  data.outputs[idx].archivedAt = null;
+  data.outputs[idx].deletedAt = null;
+  data.outputs[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  restoreEntity("outputs", outputId);
+  return data.outputs[idx];
+}
+
+export function softDeleteOutput(outputId: string): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  data.outputs[idx].deletedAt = new Date().toISOString();
+  data.outputs[idx].archivedAt = data.outputs[idx].archivedAt ?? data.outputs[idx].deletedAt;
+  data.outputs[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  softDeleteEntity({ entityType: "outputs", entityId: outputId, snapshot: data.outputs[idx], label: data.outputs[idx].title });
+  return data.outputs[idx];
 }

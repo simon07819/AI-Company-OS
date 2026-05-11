@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,9 @@ export interface Lead {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  tags?: string[];
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface Client {
@@ -35,6 +39,11 @@ export interface Client {
   totalValue: number;
   createdAt: string;
   updatedAt: string;
+  notes?: string;
+  tags?: string[];
+  conversationId?: string | null;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 export interface Opportunity {
@@ -55,6 +64,7 @@ export interface ClientInteraction {
   type: "call" | "email" | "meeting" | "note" | "delivery";
   summary: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface CrmOverview {
@@ -139,8 +149,11 @@ export function createLead(input: CreateLeadInput): Lead {
   return lead;
 }
 
-export function listLeads(): Lead[] {
-  return readCrm().leads.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+export function listLeads(options?: { includeArchived?: boolean; includeDeleted?: boolean }): Lead[] {
+  return readCrm().leads
+    .filter((lead) => options?.includeDeleted || !lead.deletedAt)
+    .filter((lead) => options?.includeArchived || !lead.archivedAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function getLead(leadId: string): Lead | null {
@@ -229,8 +242,11 @@ export function createClient(input: CreateClientInput): Client {
   return client;
 }
 
-export function listClients(): Client[] {
-  return readCrm().clients.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+export function listClients(options?: { includeArchived?: boolean; includeDeleted?: boolean }): Client[] {
+  return readCrm().clients
+    .filter((client) => options?.includeDeleted || !client.deletedAt)
+    .filter((client) => options?.includeArchived || !client.archivedAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function getClient(clientId: string): Client | null {
@@ -278,6 +294,42 @@ export function linkMissionToClient(clientId: string, sessionId: string): Client
   return data.clients[idx];
 }
 
+export function archiveClient(clientId: string): Client | null {
+  const client = updateClient(clientId, { status: "archived", archivedAt: new Date().toISOString() });
+  if (client) archiveEntity({ entityType: "clients", entityId: clientId, snapshot: client, label: client.name });
+  return client;
+}
+
+export function restoreClient(clientId: string): Client | null {
+  const client = updateClient(clientId, { status: "active", archivedAt: null, deletedAt: null });
+  if (client) restoreEntity("clients", clientId);
+  return client;
+}
+
+export function softDeleteClient(clientId: string): Client | null {
+  const client = updateClient(clientId, { status: "archived", archivedAt: new Date().toISOString(), deletedAt: new Date().toISOString() });
+  if (client) softDeleteEntity({ entityType: "clients", entityId: clientId, snapshot: client, label: client.name });
+  return client;
+}
+
+export function archiveLead(leadId: string): Lead | null {
+  const lead = updateLead(leadId, { archivedAt: new Date().toISOString() });
+  if (lead) archiveEntity({ entityType: "clients", entityId: leadId, snapshot: lead, label: lead.name });
+  return lead;
+}
+
+export function restoreLead(leadId: string): Lead | null {
+  const lead = updateLead(leadId, { archivedAt: null, deletedAt: null });
+  if (lead) restoreEntity("clients", leadId);
+  return lead;
+}
+
+export function softDeleteLead(leadId: string): Lead | null {
+  const lead = updateLead(leadId, { archivedAt: new Date().toISOString(), deletedAt: new Date().toISOString() });
+  if (lead) softDeleteEntity({ entityType: "clients", entityId: leadId, snapshot: lead, label: lead.name });
+  return lead;
+}
+
 // ─── Interaction Functions ────────────────────────────────────────────────
 
 export interface AddInteractionInput {
@@ -296,12 +348,22 @@ export function addInteraction(input: AddInteractionInput): ClientInteraction {
     type: input.type,
     summary: input.summary,
     createdAt: now,
+    updatedAt: now,
   };
 
   const data = readCrm();
   data.interactions.push(interaction);
   writeCrm(data);
   return interaction;
+}
+
+export function updateInteraction(interactionId: string, patch: Partial<ClientInteraction>): ClientInteraction | null {
+  const data = readCrm();
+  const idx = data.interactions.findIndex((interaction) => interaction.interactionId === interactionId);
+  if (idx === -1) return null;
+  data.interactions[idx] = { ...data.interactions[idx], ...patch, interactionId, updatedAt: new Date().toISOString() };
+  writeCrm(data);
+  return data.interactions[idx];
 }
 
 export function listInteractions(limit = 20): ClientInteraction[] {

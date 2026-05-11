@@ -79,6 +79,26 @@ describe("companyWorkspace", () => {
     expect(defaultWorkspace?.activeMissionIds).not.toContain("ap-1");
   });
 
+  it("updates, archives, restores and soft deletes workspaces", async () => {
+    const { archiveWorkspace, createWorkspace, listAllWorkspaces, listWorkspaces, restoreWorkspace, softDeleteWorkspace, updateWorkspace } = await import("@/lib/companyWorkspace");
+
+    const workspace = createWorkspace({ name: "Managed Workspace", industry: "services" });
+    const edited = updateWorkspace(workspace.id, { name: "Managed Workspace Updated", automationLevel: "autonomous" });
+    expect(edited?.name).toBe("Managed Workspace Updated");
+    expect(edited?.automationLevel).toBe("autonomous");
+
+    archiveWorkspace(workspace.id);
+    expect(listWorkspaces().find((item) => item.id === workspace.id)).toBeUndefined();
+    expect(listAllWorkspaces().find((item) => item.id === workspace.id)?.archivedAt).toBeTruthy();
+
+    restoreWorkspace(workspace.id);
+    expect(listWorkspaces().find((item) => item.id === workspace.id)).toBeTruthy();
+
+    softDeleteWorkspace(workspace.id);
+    expect(listWorkspaces().find((item) => item.id === workspace.id)).toBeUndefined();
+    expect(listAllWorkspaces().find((item) => item.id === workspace.id)?.deletedAt).toBeTruthy();
+  });
+
   it("calculates workspace overview metrics", async () => {
     sessions = [{ sessionId: "ap-2", status: "running", missionType: "social_campaign", projectName: "Launch" }];
     records = [{ missionId: "ap-2", amount: 5000, recordedAt: new Date().toISOString() }];

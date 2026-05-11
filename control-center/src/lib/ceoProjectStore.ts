@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -25,6 +26,8 @@ export interface CeoProject {
   lastActivity: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
+  deletedAt?: string | null;
 }
 
 interface ProjectsData {
@@ -95,8 +98,11 @@ export function createCeoProject(input: CreateProjectInput): CeoProject {
   return project;
 }
 
-export function listCeoProjects(): CeoProject[] {
-  return readData().projects.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+export function listCeoProjects(options?: { includeArchived?: boolean; includeDeleted?: boolean }): CeoProject[] {
+  return readData().projects
+    .filter((p) => options?.includeDeleted || !p.deletedAt)
+    .filter((p) => options?.includeArchived || !p.archivedAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 }
 
 export function getCeoProject(projectId: string): CeoProject | null {
@@ -127,4 +133,40 @@ export function updateProjectProgress(projectId: string, progress: number, outpu
   else if (progress >= 80) updates.status = "review";
   else if (progress > 0) updates.status = "in_progress";
   return updateCeoProject(projectId, updates);
+}
+
+export function archiveCeoProject(projectId: string): CeoProject | null {
+  const project = updateCeoProject(projectId, { archivedAt: new Date().toISOString() });
+  if (project) archiveEntity({ entityType: "projects", entityId: project.id, snapshot: project, label: project.name });
+  return project;
+}
+
+export function restoreCeoProject(projectId: string): CeoProject | null {
+  const project = updateCeoProject(projectId, { archivedAt: null, deletedAt: null });
+  if (project) restoreEntity("projects", project.id);
+  return project;
+}
+
+export function softDeleteCeoProject(projectId: string): CeoProject | null {
+  const project = updateCeoProject(projectId, { deletedAt: new Date().toISOString(), archivedAt: new Date().toISOString() });
+  if (project) softDeleteEntity({ entityType: "projects", entityId: project.id, snapshot: project, label: project.name });
+  return project;
+}
+
+export function duplicateCeoProject(projectId: string): CeoProject | null {
+  const source = getCeoProject(projectId);
+  if (!source) return null;
+  const duplicate = createCeoProject({
+    name: `${source.name} Copy`,
+    missionType: source.missionType,
+    sessionId: source.sessionId,
+    workspaceId: source.workspaceId,
+    conversationId: source.conversationId,
+    uploadedFileIds: source.uploadedFileIds,
+  });
+  return updateCeoProject(duplicate.id, {
+    status: source.status,
+    progress: source.progress,
+    outputsCount: source.outputsCount,
+  });
 }

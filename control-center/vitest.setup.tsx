@@ -153,6 +153,24 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     return { ok: true, status: 200, json: async () => ({ ok: true, pending: [] }) };
   }
 
+  if (url.includes("/api/archive")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        entities: [{
+          id: "arch-projects-proj-1",
+          entityType: "projects",
+          entityId: "proj-1",
+          label: "Archived Project",
+          action: "archived",
+          archivedAt: new Date().toISOString(),
+        }],
+      }),
+    };
+  }
+
   if (url.includes("/api/visible-outputs")) {
     return {
       ok: true,

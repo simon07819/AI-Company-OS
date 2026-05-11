@@ -4,14 +4,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import {
   Briefcase,
+  Archive,
   Building2,
   DollarSign,
+  Edit3,
   Layers3,
   Megaphone,
   Palette,
   PlusCircle,
   RefreshCw,
   Settings2,
+  Trash2,
   Users,
   Zap,
 } from "lucide-react";
@@ -58,6 +61,8 @@ interface CompanyWorkspace {
   automationLevel: "manual" | "assisted" | "autonomous";
   metrics: WorkspaceMetrics;
   createdAt: string;
+  updatedAt?: string;
+  archivedAt?: string | null;
 }
 
 interface WorkspaceOverview {
@@ -92,6 +97,11 @@ export default function WorkspacesPage() {
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [industry, setIndustry] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIndustry, setEditIndustry] = useState("");
+  const [editRevenue, setEditRevenue] = useState("");
+  const [editAutomation, setEditAutomation] = useState<CompanyWorkspace["automationLevel"]>("assisted");
 
   const loadData = async () => {
     setLoading(true);
@@ -155,6 +165,24 @@ export default function WorkspacesPage() {
     loadData();
   };
 
+  const workspaceAction = async (workspaceId: string, body: Record<string, unknown>, method = "PATCH") => {
+    await fetch(`/api/workspaces/${workspaceId}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setEditingId(null);
+    loadData();
+  };
+
+  const startEdit = (workspace: CompanyWorkspace) => {
+    setEditingId(workspace.id);
+    setEditName(workspace.name);
+    setEditIndustry(workspace.industry);
+    setEditRevenue(String(workspace.revenue ?? workspace.metrics.revenue ?? 0));
+    setEditAutomation(workspace.automationLevel);
+  };
+
   return (
     <div style={{ padding: "32px 40px", maxWidth: 1200, margin: "0 auto" }}>
       <PageHeader
@@ -204,11 +232,27 @@ export default function WorkspacesPage() {
                     <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
                       <div style={{ width: 34, height: 34, borderRadius: 8, background: workspace.branding.primaryColor, border: `3px solid ${workspace.branding.secondaryColor}` }} />
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{workspace.name}</div>
-                          <StatusBadge label={workspace.automationLevel} color={AUTOMATION_COLORS[workspace.automationLevel]} />
-                        </div>
-                        <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>{workspace.industry} · {workspace.primaryMissionTypes.join(", ")}</div>
+                        {editingId === workspace.id ? (
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 150px 120px 130px auto", gap: 8, marginBottom: 10 }}>
+                            <input value={editName} onChange={(e) => setEditName(e.target.value)} style={inputStyle} />
+                            <input value={editIndustry} onChange={(e) => setEditIndustry(e.target.value)} style={inputStyle} />
+                            <input value={editRevenue} onChange={(e) => setEditRevenue(e.target.value)} type="number" style={inputStyle} />
+                            <select value={editAutomation} onChange={(e) => setEditAutomation(e.target.value as CompanyWorkspace["automationLevel"])} style={inputStyle}>
+                              <option value="manual">Manual</option>
+                              <option value="assisted">Assisted</option>
+                              <option value="autonomous">Autonomous</option>
+                            </select>
+                            <PrimaryButton onClick={() => workspaceAction(workspace.id, { name: editName, industry: editIndustry, revenue: Number(editRevenue) || 0, automationLevel: editAutomation })}>Save</PrimaryButton>
+                          </div>
+                        ) : (
+                          <>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)" }}>{workspace.name}</div>
+                              <StatusBadge label={workspace.automationLevel} color={AUTOMATION_COLORS[workspace.automationLevel]} />
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 10 }}>{workspace.industry} · {workspace.primaryMissionTypes.join(", ")}</div>
+                          </>
+                        )}
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
                           <MiniStat label="Revenue" value={`$${workspace.metrics.revenue.toLocaleString()}`} color="#22c55e" />
                           <MiniStat label="Missions" value={workspace.metrics.totalMissions} color="#f59e0b" />
@@ -216,15 +260,29 @@ export default function WorkspacesPage() {
                           <MiniStat label="Assets" value={workspace.metrics.publishedAssets} color="#38bdf8" />
                           <MiniStat label="CRM" value={`${workspace.metrics.crmClients} clients`} color="#6366f1" />
                         </div>
+                        {workspace.activeMissionIds.length > 0 && (
+                          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+                            {workspace.activeMissionIds.map((missionId) => (
+                              <button key={missionId} onClick={() => workspaceAction(workspace.id, { activeMissionIds: workspace.activeMissionIds.filter((id) => id !== missionId) })} style={smallButtonStyle}>
+                                Remove {missionId.slice(0, 10)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      <select onChange={(e) => e.target.value && assignMission(workspace.id, e.target.value)} value="" style={inputStyle}>
-                        <option value="">Assign mission</option>
-                        {missions
-                          .filter((mission) => !workspace.activeMissionIds.includes(mission.sessionId))
-                          .map((mission) => (
-                            <option key={mission.sessionId} value={mission.sessionId}>{mission.projectName || mission.sessionId}</option>
-                          ))}
-                      </select>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, width: 170 }}>
+                        <select onChange={(e) => e.target.value && assignMission(workspace.id, e.target.value)} value="" style={inputStyle}>
+                          <option value="">Assign mission</option>
+                          {missions
+                            .filter((mission) => !workspace.activeMissionIds.includes(mission.sessionId))
+                            .map((mission) => (
+                              <option key={mission.sessionId} value={mission.sessionId}>{mission.projectName || mission.sessionId}</option>
+                            ))}
+                        </select>
+                        <GhostButton onClick={() => startEdit(workspace)}><Edit3 size={10} /> Edit</GhostButton>
+                        <GhostButton onClick={() => workspaceAction(workspace.id, { action: "archive" })}><Archive size={10} /> Archive</GhostButton>
+                        <GhostButton onClick={() => workspaceAction(workspace.id, {}, "DELETE")}><Trash2 size={10} /> Delete</GhostButton>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -319,4 +377,14 @@ const inputStyle: React.CSSProperties = {
   borderRadius: "var(--radius-sm)",
   color: "var(--text)",
   outline: "none",
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  padding: "4px 7px",
+  borderRadius: 5,
+  border: "1px solid var(--border)",
+  background: "var(--bg)",
+  color: "var(--text-2)",
+  fontSize: 10,
+  cursor: "pointer",
 };

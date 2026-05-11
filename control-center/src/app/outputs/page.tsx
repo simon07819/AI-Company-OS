@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   CheckCircle2, Clock, Eye, FileText, Filter, Image, Layout, Palette,
-  RefreshCw, Rocket, Search, ShieldCheck, XCircle,
+  Archive, GitCompare, Heart, Pencil, RefreshCw, Rocket, Search, ShieldCheck, Trash2, XCircle,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, GhostButton, PageHeader, Panel, SectionHeader, StatusBadge } from "@/components/ui";
 
@@ -24,6 +24,10 @@ interface VisibleOutput {
   assignedAgent: string;
   sourceFile: string | null;
   sourceFiles: string[];
+  archivedAt?: string | null;
+  favorite?: boolean;
+  versionHistory?: { version: number; title: string; preview: string; updatedAt: string }[];
+  revisions?: { id: string; note: string; createdAt: string }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +78,10 @@ export default function OutputsPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<OutputStatus | "all">("all");
   const [filterType, setFilterType] = useState<string>("all");
+  const [editing, setEditing] = useState<VisibleOutput | null>(null);
+  const [draftTitle, setDraftTitle] = useState("");
+  const [draftSummary, setDraftSummary] = useState("");
+  const [revisionNotes, setRevisionNotes] = useState("");
 
   const loadOutputs = async () => {
     setLoading(true);
@@ -93,6 +101,24 @@ export default function OutputsPage() {
   };
 
   useEffect(() => { loadOutputs(); }, []);
+
+  const outputAction = async (id: string, body: Record<string, unknown>, method = "PATCH") => {
+    await fetch(`/api/visible-outputs/${id}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setEditing(null);
+    setRevisionNotes("");
+    loadOutputs();
+  };
+
+  const startEdit = (output: VisibleOutput) => {
+    setEditing(output);
+    setDraftTitle(output.title);
+    setDraftSummary(output.summary);
+    setRevisionNotes("");
+  };
 
   const filtered = outputs.filter((o) => {
     if (filterStatus !== "all" && o.status !== filterStatus) return false;
@@ -124,6 +150,21 @@ export default function OutputsPage() {
       />
 
       {error && <ErrorBanner message={error} onRetry={loadOutputs} />}
+
+      {editing && (
+        <Panel style={{ marginBottom: 20 }}>
+          <SectionHeader icon={<Pencil size={12} />} title="Edit Output Metadata" />
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, marginBottom: 8 }}>
+            <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder="Title" style={inputStyle} />
+            <input value={draftSummary} onChange={(e) => setDraftSummary(e.target.value)} placeholder="Summary" style={inputStyle} />
+            <button onClick={() => outputAction(editing.id, { title: draftTitle, summary: draftSummary })} style={buttonStyle}>Save</button>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+            <input value={revisionNotes} onChange={(e) => setRevisionNotes(e.target.value)} placeholder="Revision notes" style={inputStyle} />
+            <button onClick={() => outputAction(editing.id, { action: "revision", notes: revisionNotes })} disabled={!revisionNotes.trim()} style={buttonStyle}>Add Revision</button>
+          </div>
+        </Panel>
+      )}
 
       {/* Filters */}
       <Panel style={{ marginBottom: 20, padding: "14px 18px" }}>
@@ -206,11 +247,21 @@ export default function OutputsPage() {
                         <span style={{ fontSize: 9, color: "var(--text-3)" }}>
                           {new Date(output.updatedAt).toLocaleDateString()}
                         </span>
+                        <span style={{ fontSize: 9, color: "var(--text-3)" }}>
+                          {(output.versionHistory?.length ?? 0)} versions · {(output.revisions?.length ?? 0)} revisions
+                        </span>
                         {output.sourceFiles.length > 0 && (
                           <span style={{ fontSize: 9, color: "var(--text-3)" }}>
                             {output.sourceFiles.length} file{output.sourceFiles.length > 1 ? "s" : ""}
                           </span>
                         )}
+                      </div>
+                      <div onClick={(e) => e.preventDefault()} style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 10 }}>
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(output); }} style={smallButtonStyle}><Pencil size={10} /> Edit</button>
+                        <button onClick={(e) => { e.stopPropagation(); outputAction(output.id, { action: "favorite", favorite: !output.favorite }); }} style={smallButtonStyle}><Heart size={10} /> {output.favorite ? "Unfavorite" : "Favorite"}</button>
+                        <button onClick={(e) => { e.stopPropagation(); startEdit(output); }} style={smallButtonStyle}><GitCompare size={10} /> Compare</button>
+                        <button onClick={(e) => { e.stopPropagation(); outputAction(output.id, { action: "archive" }); }} style={smallButtonStyle}><Archive size={10} /> Archive</button>
+                        <button onClick={(e) => { e.stopPropagation(); outputAction(output.id, {}, "DELETE"); }} style={smallButtonStyle}><Trash2 size={10} /> Delete</button>
                       </div>
                     </div>
                   </Link>
@@ -223,3 +274,37 @@ export default function OutputsPage() {
     </div>
   );
 }
+
+const inputStyle: React.CSSProperties = {
+  padding: "8px 10px",
+  borderRadius: 6,
+  fontSize: 12,
+  background: "var(--bg-2)",
+  border: "1px solid var(--border)",
+  color: "var(--text)",
+  outline: "none",
+};
+
+const buttonStyle: React.CSSProperties = {
+  padding: "8px 12px",
+  borderRadius: 6,
+  fontSize: 12,
+  fontWeight: 700,
+  background: "#3b82f6",
+  border: "none",
+  color: "#fff",
+  cursor: "pointer",
+};
+
+const smallButtonStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 4,
+  padding: "5px 7px",
+  borderRadius: 5,
+  border: "1px solid var(--border)",
+  background: "var(--bg-2)",
+  color: "var(--text-2)",
+  fontSize: 10,
+  cursor: "pointer",
+};

@@ -3,8 +3,12 @@ import { listCeoProjects, createCeoProject, getCeoProject } from "@/lib/ceoProje
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  const projects = listCeoProjects();
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const projects = listCeoProjects({
+    includeArchived: url.searchParams.get("includeArchived") === "true",
+    includeDeleted: url.searchParams.get("includeDeleted") === "true",
+  });
   return NextResponse.json({ ok: true, projects });
 }
 

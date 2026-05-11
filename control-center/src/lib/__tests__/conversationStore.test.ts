@@ -137,6 +137,15 @@ describe("conversationStore", () => {
     expect(all.find((t) => t.id === thread.id)).toBeTruthy();
   });
 
+  it("soft deletes a thread", async () => {
+    const { createThread, listThreads, softDeleteThread } = await import("@/lib/conversationStore");
+    const thread = createThread({ title: "Delete me" });
+    softDeleteThread(thread.id);
+
+    expect(listThreads({ includeArchived: true }).find((t) => t.id === thread.id)).toBeUndefined();
+    expect(listThreads({ includeArchived: true, includeDeleted: true }).find((t) => t.id === thread.id)).toBeTruthy();
+  });
+
   it("pins a thread", async () => {
     const { createThread, pinThread } = await import("@/lib/conversationStore");
     const thread = createThread({ title: "Important" });

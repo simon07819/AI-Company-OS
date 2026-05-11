@@ -13,6 +13,7 @@ import {
   Database,
   DollarSign,
   FileText,
+  Eye,
   Image as ImageIcon,
   MessageSquare,
   Paperclip,
@@ -1097,6 +1098,8 @@ export default function CeoPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [createdMission, setCreatedMission] = useState<CeoAction | null>(null);
   const [clipHovered, setClipHovered] = useState(false);
+  const [recentOutputs, setRecentOutputs] = useState<unknown[]>([]);
+  const [, setActiveRevisions] = useState<unknown[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversationMessages: CeoMessage[] = activeThread
@@ -1145,6 +1148,12 @@ export default function CeoPage() {
     }).catch(() => {});
     fetch("/api/approvals").then((r) => r.json()).then((d) => {
       if (d.ok) setPendingApprovals(d.pending ?? []);
+    }).catch(() => {});
+    fetch("/api/visible-outputs").then((r) => r.json()).then((d) => {
+      if (d.ok) setRecentOutputs((d.outputs ?? []).slice(0, 5));
+    }).catch(() => {});
+    fetch("/api/revisions?pending=true").then((r) => r.json()).then((d) => {
+      if (d.ok) setActiveRevisions((d.revisions ?? []).slice(0, 5));
     }).catch(() => {});
   }, []);
 
@@ -1444,57 +1453,96 @@ export default function CeoPage() {
       gap: 10,
     }}>
 
-      {/* ── Header ── */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 9,
-            background: "rgba(245,158,11,0.15)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Crown size={17} style={{ color: "#f59e0b" }} />
-          </div>
-          <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>CEO Cockpit</div>
-            <div style={{ fontSize: 10, color: "var(--text-3)" }}>Executive Team · {runtimeMode === "nvidia" ? "NVIDIA Connected" : "Local mode"}</div>
-          </div>
-          <LocalBadge />
-          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          {createdMission?.href && (
-            <a
-              href={createdMission.href}
-              style={{
-                padding: "6px 10px",
-                borderRadius: 8,
-                background: "rgba(16,185,129,0.12)",
-                border: "1px solid rgba(16,185,129,0.35)",
-                color: "#34d399",
-                fontSize: 11,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
-              <CheckCircle2 size={12} /> Mission créée — ouvrir la Mission Room
-            </a>
-          )}
-          {metrics.map((m) => (
-            <div key={m.label} style={{
-              padding: "4px 10px", background: "var(--bg-2)",
-              border: "1px solid var(--border)", borderRadius: 6,
-              display: "flex", alignItems: "center", gap: 5,
+      {/* ── Premium Header ── */}
+      <div style={{
+        flexShrink: 0,
+        background: "linear-gradient(135deg, rgba(245,158,11,0.06), rgba(139,92,246,0.04), transparent)",
+        border: "1px solid rgba(245,158,11,0.15)",
+        borderRadius: 14,
+        padding: "14px 18px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 10,
+              background: "linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.08))",
+              border: "1px solid rgba(245,158,11,0.35)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 2px 8px rgba(245,158,11,0.15)",
             }}>
-              <span style={{ color: m.color }}>{m.icon}</span>
-              <div>
-                <div style={{ fontSize: 8, color: "var(--text-3)", textTransform: "uppercase" }}>{m.label}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: m.color }}>{m.value}</div>
+              <Crown size={18} style={{ color: "#f59e0b" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "var(--text)", lineHeight: 1.1 }}>CEO Cockpit</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                <span style={{ fontSize: 10, color: "var(--text-3)" }}>Premium AI Agency</span>
+                <LocalBadge />
+                {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
               </div>
             </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            {createdMission?.href && (
+              <a
+                href={createdMission.href}
+                style={{
+                  padding: "6px 10px", borderRadius: 8,
+                  background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.35)",
+                  color: "#34d399", fontSize: 11, fontWeight: 800,
+                  display: "flex", alignItems: "center", gap: 5, textDecoration: "none",
+                }}
+              >
+                <CheckCircle2 size={12} /> Mission créée
+              </a>
+            )}
+            {metrics.map((m) => (
+              <div key={m.label} style={{
+                padding: "5px 10px",
+                background: `${m.color}08`, border: `1px solid ${m.color}20`, borderRadius: 8,
+                display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ color: m.color }}>{m.icon}</span>
+                <div>
+                  <div style={{ fontSize: 8, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600 }}>{m.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: m.color }}>{m.value}</div>
+                </div>
+              </div>
+            ))}
+            <GhostButton onClick={loadData}><RefreshCw size={11} /></GhostButton>
+          </div>
+        </div>
+
+        {/* Navigation Cards */}
+        <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
+          {[
+            { href: "/team", icon: <Users size={12} />, label: "Team", color: "#8b5cf6", desc: "Agent profiles" },
+            { href: "/outputs", icon: <Eye size={12} />, label: "Outputs", color: "#a78bfa", desc: `${recentOutputs.length} recent` },
+            { href: "/command", icon: <Crown size={12} />, label: "Command", color: "#f59e0b", desc: "Overview" },
+            { href: "/conversations", icon: <MessageSquare size={12} />, label: "Conversations", color: "#3b82f6", desc: "All threads" },
+            { href: "/operations/live", icon: <Zap size={12} />, label: "Live Ops", color: "#34d399", desc: "Realtime" },
+          ].map((nav) => (
+            <a key={nav.href} href={nav.href} style={{ textDecoration: "none", flex: "0 0 auto" }}>
+              <div style={{
+                padding: "7px 12px", borderRadius: 8,
+                background: `${nav.color}06`, border: `1px solid ${nav.color}18`,
+                display: "flex", alignItems: "center", gap: 6,
+                transition: "border-color 0.15s, background 0.15s",
+              }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: 5,
+                  background: `${nav.color}14`, border: `1px solid ${nav.color}25`,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ color: nav.color }}>{nav.icon}</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text)" }}>{nav.label}</div>
+                  <div style={{ fontSize: 8, color: "var(--text-3)" }}>{nav.desc}</div>
+                </div>
+                <ChevronRight size={10} style={{ color: nav.color, opacity: 0.5 }} />
+              </div>
+            </a>
           ))}
-          <GhostButton onClick={loadData}><RefreshCw size={11} /></GhostButton>
         </div>
       </div>
 
