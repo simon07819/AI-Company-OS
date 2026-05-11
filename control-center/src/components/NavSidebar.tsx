@@ -39,6 +39,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "CEO Cockpit",
     items: [
       { href: "/ceo", label: "CEO Cockpit", description: "AI CEO chat, missions, decisions", icon: <Crown size={16} /> },
+      { href: "/mission", label: "Recent Missions", description: "Guided Mission Rooms", icon: <Rocket size={16} /> },
     ],
   },
   {

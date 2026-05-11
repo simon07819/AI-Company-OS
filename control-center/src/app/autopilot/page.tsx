@@ -241,7 +241,7 @@ export default function AutopilotPage() {
                       transition: "border-color 140ms ease, box-shadow 140ms ease",
                       boxShadow: session.status === "running" ? "0 0 24px rgba(16,185,129,0.08)" : "none",
                     }}
-                    onClick={() => router.push(`/autopilot/${session.sessionId}`)}
+                    onClick={() => router.push(`/mission/${session.sessionId}`)}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 12 }}>
                       {/* Avatar */}
@@ -320,7 +320,7 @@ export default function AutopilotPage() {
                         fontSize: 12, fontWeight: 600, color: "var(--accent-light)",
                         display: "flex", alignItems: "center", gap: 4,
                       }}>
-                        Open &rarr;
+                        Open Mission &rarr;
                       </span>
                     </div>
                   </motion.div>

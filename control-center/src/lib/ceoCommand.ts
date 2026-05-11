@@ -224,9 +224,9 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       sessionId = session.sessionId;
       actions.push({
         type: "created_session",
-        label: `Session créée: ${session.sessionId}`,
+        label: "Mission créée — ouvrir la Mission Room",
         targetId: session.sessionId,
-        href: `/autopilot/${session.sessionId}`,
+        href: `/mission/${session.sessionId}`,
       });
     } catch {
       actions.push({ type: "created_session", label: "Erreur lors de la création de session" });
@@ -261,7 +261,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
             type: "approval_needed",
             label: `Mission "${s.projectName}" requiert approbation`,
             targetId: s.sessionId,
-            href: `/autopilot/${s.sessionId}`,
+            href: `/mission/${s.sessionId}`,
           });
         }
       }

@@ -1,0 +1,39 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import React from "react";
+import { beforeEach, describe, expect, it } from "vitest";
+import MissionRoomPage from "@/app/mission/[missionId]/page";
+import MissionsPage from "@/app/mission/page";
+
+describe("Mission Room experience", () => {
+  beforeEach(() => {
+    globalThis.__TEST_PATHNAME__ = "/mission/ap-test123";
+  });
+
+  it("renders the guided mission room layout", async () => {
+    render(React.createElement(MissionRoomPage));
+
+    await waitFor(() => expect(screen.getByText(/Mission Room: TestProject/)).toBeInTheDocument());
+    expect(screen.getByText("CEO Conversation")).toBeInTheDocument();
+    expect(screen.getByText("Live Timeline")).toBeInTheDocument();
+    expect(screen.getByText("Executive Team")).toBeInTheDocument();
+  });
+
+  it("shows approvals and results sections", async () => {
+    render(React.createElement(MissionRoomPage));
+
+    await waitFor(() => expect(screen.getByText("Decisions Required")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Approve/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reject/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ask Revision/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Change Direction/ })).toBeInTheDocument();
+    expect(screen.getByText("Results")).toBeInTheDocument();
+  });
+
+  it("renders Recent Missions navigation", async () => {
+    render(React.createElement(MissionsPage));
+
+    await waitFor(() => expect(screen.getByText("Recent Missions")).toBeInTheDocument());
+    expect(screen.getByText("Guided Mission Rooms for CEO supervision, approvals, and generated results.")).toBeInTheDocument();
+    expect(screen.getByText(/Resume Mission/)).toBeInTheDocument();
+  });
+});

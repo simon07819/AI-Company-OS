@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
@@ -967,6 +968,7 @@ function DragOverlay({ active }: { active: boolean }) {
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function CeoPage() {
+  const router = useRouter();
   const [messages, setMessages] = useState<CeoMessage[]>([]);
   const [overview, setOverview] = useState<CeoOverview | null>(null);
   const [discussion, setDiscussion] = useState<ExecutiveDiscussion | null>(null);
@@ -985,6 +987,7 @@ export default function CeoPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<ClientFile[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [createdMission, setCreatedMission] = useState<CeoAction | null>(null);
   const [clipHovered, setClipHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1055,6 +1058,13 @@ export default function CeoPage() {
         setCeoTyping(false);
         if (d.discussion) setDiscussion(d.discussion);
         await loadData();
+        const missionAction = d.response?.actions?.find((action: CeoAction) => action.type === "created_session" && action.href);
+        if (missionAction) {
+          setCreatedMission(missionAction);
+          window.setTimeout(() => {
+            router.push(missionAction.href!);
+          }, 900);
+        }
       }
     } catch { /* */ }
 
@@ -1222,6 +1232,25 @@ export default function CeoPage() {
           <SimBadge />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          {createdMission?.href && (
+            <a
+              href={createdMission.href}
+              style={{
+                padding: "6px 10px",
+                borderRadius: 8,
+                background: "rgba(16,185,129,0.12)",
+                border: "1px solid rgba(16,185,129,0.35)",
+                color: "#34d399",
+                fontSize: 11,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <CheckCircle2 size={12} /> Mission créée — ouvrir la Mission Room
+            </a>
+          )}
           {metrics.map((m) => (
             <div key={m.label} style={{
               padding: "4px 10px", background: "var(--bg-2)",

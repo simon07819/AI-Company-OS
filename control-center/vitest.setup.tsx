@@ -23,6 +23,13 @@ globalThis.__TEST_PATHNAME__ = "/";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => globalThis.__TEST_PATHNAME__ ?? "/",
+  useParams: () => {
+    const segments = (globalThis.__TEST_PATHNAME__ ?? "/").split("/").filter(Boolean);
+    return {
+      missionId: segments[0] === "mission" ? segments[1] : undefined,
+      sessionId: segments[0] === "autopilot" ? segments[1] : undefined,
+    };
+  },
   useRouter: () => ({
     push: vi.fn(),
     replace: vi.fn(),

@@ -231,6 +231,15 @@ describe("ceoCommand", () => {
     expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);
   });
 
+  it("creates guided Mission Room action for new missions", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("Créer un site web pour mon entreprise");
+    const action = ceoMessage.actions!.find((a) => a.type === "created_session");
+
+    expect(action?.label).toBe("Mission créée — ouvrir la Mission Room");
+    expect(action?.href).toBe("/mission/ceo-test-session");
+  });
+
   it("detects create_flyer intent and creates session", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
     const { ceoMessage } = await sendMessage("Créer un flyer pour mon entreprise");
