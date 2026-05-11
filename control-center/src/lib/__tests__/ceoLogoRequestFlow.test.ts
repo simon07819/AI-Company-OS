@@ -1,0 +1,140 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+let fileStore: Record<string, string> = {};
+
+vi.mock("fs", () => ({
+  default: {
+    readdirSync: vi.fn(() => []),
+    statSync: vi.fn(() => ({ size: 100, mtime: new Date(), isFile: () => true })),
+    mkdirSync: vi.fn(),
+    existsSync: vi.fn((p: string) => {
+      const name = p.split("/").pop() ?? p;
+      return name in fileStore;
+    }),
+    readFileSync: vi.fn((p: string) => {
+      const name = p.split("/").pop() ?? p;
+      return fileStore[name] ?? "{}";
+    }),
+    writeFileSync: vi.fn((p: string, data: string) => {
+      const name = p.split("/").pop() ?? p;
+      fileStore[name] = data;
+    }),
+  },
+}));
+
+vi.mock("@/lib/runtimeEvents", () => ({
+  emitEvent: vi.fn(),
+}));
+
+vi.mock("@/lib/workspaceStore", () => ({
+  createWorkspaceForSession: vi.fn(),
+  updateWorkspaceAfterStep: vi.fn(),
+  generateAgentArtifact: vi.fn(() => []),
+  generateProjectScaffold: vi.fn(() => []),
+  projectScaffoldExists: vi.fn(() => false),
+  writeAgentRun: vi.fn(),
+}));
+
+function resetStore() {
+  fileStore = {
+    "agent-runtime-events.json": "[]",
+    "agent-runtime-queue.json": "[]",
+    "approvals.json": '{"approvals":[]}',
+    "autopilot-sessions.json": "[]",
+    "ceo-chat.json": '{"messages":[]}',
+    "ceo-memory.json": '{"entries":[],"recentIntents":[],"messageCount":0,"lastSeen":""}',
+    "ceo-projects.json": '{"projects":[]}',
+    "conversations.json": '{"folders":[],"threads":[]}',
+    "project-archive.json": '{"entities":[]}',
+    "runtime-state.json": '{"agents":[],"queue":[],"pausedAgents":[],"stats":{"totalEventsEmitted":0},"savedAt":""}',
+    "settings.json": '{"runtimeMode":"simulation","nvidiaKeyPresent":false}',
+    "visible-outputs.json": '{"outputs":[]}',
+  };
+}
+
+async function jsonFrom(response: Response) {
+  return await response.json() as Record<string, unknown>;
+}
+
+describe("CEO logo request execution flow", () => {
+  beforeEach(() => {
+    delete process.env.NVIDIA_API_KEY;
+    vi.resetModules();
+    resetStore();
+  });
+
+  afterEach(() => {
+    resetStore();
+  });
+
+  it("CEO logo request creates project, starts mission, creates visible output", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { getSession } = await import("@/lib/autopilotStore");
+    const { listCeoProjects } = await import("@/lib/ceoProjectStore");
+    const { getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const { POST: ceoChatPost } = await import("@/app/api/ceo/chat/route");
+    const { GET: projectsGet } = await import("@/app/api/ceo-projects/route");
+    const { GET: outputsGet } = await import("@/app/api/visible-outputs/route");
+    const { GET: missionGet } = await import("@/app/api/autopilot/sessions/[sessionId]/route");
+
+    const { ceoMessage } = await sendMessage("Je veux un logo simple pour une compagnie de photo");
+
+    expect(ceoMessage.intent).toBe("redesign_logo");
+    expect(ceoMessage.sessionId).toBeTruthy();
+
+    const sessionId = ceoMessage.sessionId!;
+    const project = listCeoProjects().find((p) => p.sessionId === sessionId);
+    expect(project).toBeTruthy();
+    expect(project!.name.toLowerCase()).toContain("logo");
+    expect(project!.missionType).toBe("branding_pack");
+
+    const session = getSession(sessionId);
+    expect(session).toBeTruthy();
+    expect(session!.status).toMatch(/running|completed|failed/);
+    expect(session!.progress).toBeGreaterThan(0);
+
+    const outputs = getOutputsForSession(sessionId);
+    expect(outputs.length).toBeGreaterThan(0);
+    expect(project!.outputsCount).toBe(outputs.length);
+    expect(outputs.every((output) => output.projectId === project!.id)).toBe(true);
+
+    const missionResponse = await missionGet(
+      new NextRequest(`http://test.local/api/autopilot/sessions/${sessionId}`),
+      { params: Promise.resolve({ sessionId }) },
+    );
+    expect(missionResponse.status).toBe(200);
+    const missionPayload = await jsonFrom(missionResponse);
+    expect(missionPayload.ok).toBe(true);
+    expect((missionPayload.session as { sessionId: string }).sessionId).toBe(sessionId);
+
+    const missionOutputsResponse = await outputsGet(
+      new NextRequest(`http://test.local/api/visible-outputs?sessionId=${sessionId}`),
+    );
+    const missionOutputsPayload = await jsonFrom(missionOutputsResponse);
+    expect((missionOutputsPayload.outputs as unknown[]).length).toBe(outputs.length);
+
+    const projectOutputsResponse = await outputsGet(
+      new NextRequest(`http://test.local/api/visible-outputs?projectId=${project!.id}`),
+    );
+    const projectOutputsPayload = await jsonFrom(projectOutputsResponse);
+    expect((projectOutputsPayload.outputs as unknown[]).length).toBe(outputs.length);
+
+    const projectsResponse = await projectsGet(new NextRequest("http://test.local/api/ceo-projects"));
+    const projectsPayload = await jsonFrom(projectsResponse);
+    expect((projectsPayload.projects as Array<{ id: string }>).some((p) => p.id === project!.id)).toBe(true);
+
+    const allOutputsResponse = await outputsGet(new NextRequest("http://test.local/api/visible-outputs"));
+    const allOutputsPayload = await jsonFrom(allOutputsResponse);
+    expect((allOutputsPayload.outputs as Array<{ id: string }>).some((o) => o.id === outputs[0].id)).toBe(true);
+
+    const postResponse = await ceoChatPost(new NextRequest("http://test.local/api/ceo/chat", {
+      method: "POST",
+      body: JSON.stringify({ text: "Je veux un logo simple pour une compagnie de photo" }),
+      headers: { "content-type": "application/json" },
+    }));
+    const postPayload = await jsonFrom(postResponse);
+    expect(postPayload.ok).toBe(true);
+    expect((postPayload.response as { actions: Array<{ type: string }> }).actions.some((a) => a.type === "created_session")).toBe(true);
+  });
+});

@@ -487,15 +487,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
 
-      // 2. Start mission autopilot (generates outputs, runs steps, links delegation)
-      const autopilotResult = await startMissionAutopilot(
-        projectName,
-        missionTypeKey ?? "saas_project",
-        projectName,
-        session.sessionId,
-      );
-
-      // 3. Create CEO project (visible in /projects) with full context
+      // 2. Create CEO project (visible in /projects) before outputs are generated
       const project = createCeoProject({
         name: projectName,
         missionType: missionTypeKey ?? "saas_project",
@@ -503,6 +495,15 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         conversationId: "ceo-main-thread",
         uploadedFileIds: linkedFileIds,
       });
+
+      // 3. Start mission autopilot (generates outputs, runs steps, links delegation)
+      const autopilotResult = await startMissionAutopilot(
+        projectName,
+        missionTypeKey ?? "saas_project",
+        projectName,
+        session.sessionId,
+        project.id,
+      );
 
       // 4. Update project progress from autopilot result
       if (autopilotResult.ok) {

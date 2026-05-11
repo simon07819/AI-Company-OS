@@ -1115,6 +1115,7 @@ export async function startMissionAutopilot(
   missionType: string,
   projectIdea?: string,
   existingSessionId?: string,
+  projectId?: string | null,
 ): Promise<MissionAutopilotResult> {
   const emptyResult: MissionAutopilotResult = {
     ok: false, sessionId: "", projectName, missionType,
@@ -1202,14 +1203,14 @@ export async function startMissionAutopilot(
     const { generateVisibleOutputs, getOutputCountForSession, ensureFallbackVisibleOutput } = await import("./visibleOutputs");
     const existing = getOutputCountForSession(session.sessionId);
     if (existing === 0) {
-      const outputs = generateVisibleOutputs(session.sessionId, missionType);
+      const outputs = generateVisibleOutputs(session.sessionId, missionType, projectId ?? null);
       outputsGenerated = outputs.length;
     } else {
       outputsGenerated = existing;
     }
     const latest = getSession(session.sessionId);
     if ((latest?.progress ?? 0) >= 70 && getOutputCountForSession(session.sessionId) === 0) {
-      ensureFallbackVisibleOutput(session.sessionId, missionType);
+      ensureFallbackVisibleOutput(session.sessionId, missionType, projectId ?? null);
       outputsGenerated = 1;
       appendLog(session.sessionId, {
         timestamp: new Date().toISOString(),
@@ -1237,8 +1238,10 @@ export async function startMissionAutopilot(
   // 7. Update project progress
   try {
     const { updateProjectProgress } = await import("./ceoProjectStore");
+    const { getCeoProjectBySession } = await import("./ceoProjectStore");
     const progressPct = Math.min(Math.round((stepsExecuted / Math.max(session.tasks.length, 1)) * 100), 100);
-    updateProjectProgress(session.sessionId, progressPct, outputsGenerated);
+    const targetProjectId = projectId ?? getCeoProjectBySession(session.sessionId)?.id;
+    if (targetProjectId) updateProjectProgress(targetProjectId, progressPct, outputsGenerated);
   } catch { /* best-effort */ }
 
   // 8. Get final state
