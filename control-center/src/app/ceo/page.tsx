@@ -36,6 +36,7 @@ import {
   Row,
   SectionHeader,
   SimBadge,
+  NvidiaLiveBadge,
   StatusBadge,
 } from "@/components/ui";
 import type { ExecutiveDiscussion, DiscussionMessage } from "@/lib/executiveDiscussion";
@@ -1043,6 +1044,7 @@ export default function CeoPage() {
   const [sending, setSending] = useState(false);
   const [ceoTyping, setCeoTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
   const [activeExecs, setActiveExecs] = useState<Set<ExecutiveId>>(new Set());
   const [typingExecs, setTypingExecs] = useState<Set<ExecutiveId>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1073,6 +1075,12 @@ export default function CeoPage() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
+      if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1293,10 +1301,10 @@ export default function CeoPage() {
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>CEO Cockpit</div>
-            <div style={{ fontSize: 10, color: "var(--text-3)" }}>Executive Team · Real-time strategy simulation</div>
+            <div style={{ fontSize: 10, color: "var(--text-3)" }}>Executive Team · {runtimeMode === "nvidia" ? "NVIDIA LIVE" : "Local mode"}</div>
           </div>
           <LocalBadge />
-          <SimBadge />
+          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           {createdMission?.href && (

@@ -81,17 +81,20 @@ function ensureDataDir() {
 
 function readSettings(): AppSettings {
   ensureDataDir();
-  if (!fs.existsSync(SETTINGS_PATH)) return { ...DEFAULT_SETTINGS, nvidiaKeyPresent: !!process.env.NVIDIA_API_KEY };
+  const keyPresent = !!(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.length >= 8);
+  const defaults = { ...DEFAULT_SETTINGS, nvidiaKeyPresent: keyPresent, runtimeMode: keyPresent ? "nvidia" as const : "simulation" as const };
+  if (!fs.existsSync(SETTINGS_PATH)) return defaults;
   try {
     const raw = fs.readFileSync(SETTINGS_PATH, "utf-8");
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {
-      ...DEFAULT_SETTINGS,
+      ...defaults,
       ...parsed,
-      nvidiaKeyPresent: !!process.env.NVIDIA_API_KEY,
+      nvidiaKeyPresent: keyPresent,
+      runtimeMode: keyPresent ? "nvidia" : (parsed.runtimeMode ?? "simulation"),
     };
   } catch {
-    return { ...DEFAULT_SETTINGS, nvidiaKeyPresent: !!process.env.NVIDIA_API_KEY };
+    return defaults;
   }
 }
 

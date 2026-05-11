@@ -23,6 +23,7 @@ import {
   PrimaryButton,
   LocalBadge,
   SimBadge,
+  NvidiaLiveBadge,
   ErrorBanner,
 } from "@/components/ui";
 import { EXECUTIVES, type ExecutiveId } from "@/lib/executiveTeam";
@@ -78,6 +79,7 @@ export default function ConversationsPage() {
   const [agentQuestions, setAgentQuestions] = useState<AgentQ[]>([]);
   const [autreText, setAutreText] = useState<Record<string, string>>({});
   const [showAutre, setShowAutre] = useState<Record<string, boolean>>({});
+  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<ConvThread[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -98,7 +100,7 @@ export default function ConversationsPage() {
     } catch { setError("Failed to load conversations"); }
   }, [selectedFolder]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadData(); fetch("/api/runtime-mode").then((r) => r.json()).then((d) => { if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation"); }).catch(() => {}); }, [loadData]);
 
   // Auto-poll for new messages every 8s
   useEffect(() => {
@@ -316,7 +318,7 @@ export default function ConversationsPage() {
             <div style={{ background: "#3b82f6", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 10 }}>{totalUnread}</div>
           )}
           <LocalBadge />
-          <SimBadge />
+          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <GhostButton onClick={() => setShowNewFolder(true)}><FolderPlus size={11} /> Folder</GhostButton>

@@ -400,7 +400,7 @@ function buildAgentAssignments(agents: string[], missionTypeId?: string): Autopi
     agentId: id,
     role: ROLES[id] ?? "General purpose agent",
     status: "available" as const,
-    provider: "NVIDIA API (Nemotron)",
+    provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
   }));
 }
 
@@ -460,7 +460,7 @@ export function createSession(input: CreateSessionInput): AutopilotSession {
     }],
     runtime: {
       status: "online",
-      provider: "NVIDIA API (Nemotron)",
+      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
       activeWorkers: 1,
       lastEvent: `Session created — ${firstPhase.agent} starting ${firstPhase.label}`,
     },
@@ -847,7 +847,7 @@ export async function runStep(sessionId: string): Promise<RunStepResult> {
     assignedAgents,
     runtime: {
       status: "online",
-      provider: "NVIDIA API (Nemotron)",
+      provider: process.env.NVIDIA_API_KEY ? "NVIDIA API (Nemotron)" : "Local Simulation",
       activeWorkers: activeWorkerCount,
       lastEvent: executionOk
         ? `${agent} completed: ${task.title}`

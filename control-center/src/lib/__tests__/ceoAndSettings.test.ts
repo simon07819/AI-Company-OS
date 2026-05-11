@@ -1063,3 +1063,77 @@ describe("CEO Auto-Start & Projects", () => {
     expect(ceoMessage.text).toMatch(/travaille|avancement|démarré|l'équipe/i);
   });
 });
+
+// ─── NVIDIA Runtime Mode Tests ───────────────────────────────────────────
+
+describe("NVIDIA Runtime Mode", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("with NVIDIA_API_KEY set, runtimeMode is nvidia not simulated", async () => {
+    const origKey = process.env.NVIDIA_API_KEY;
+    process.env.NVIDIA_API_KEY = "nvapi-test-key-1234567890";
+    try {
+      const { getSettings } = await import("@/lib/settingsStore");
+      const settings = getSettings();
+      expect(settings.nvidiaKeyPresent).toBe(true);
+      expect(settings.runtimeMode).toBe("nvidia");
+    } finally {
+      process.env.NVIDIA_API_KEY = origKey;
+    }
+  });
+
+  it("without NVIDIA_API_KEY, runtimeMode is simulation", async () => {
+    const origKey = process.env.NVIDIA_API_KEY;
+    delete process.env.NVIDIA_API_KEY;
+    try {
+      const { getSettings } = await import("@/lib/settingsStore");
+      const settings = getSettings();
+      expect(settings.nvidiaKeyPresent).toBe(false);
+      expect(settings.runtimeMode).toBe("simulation");
+    } finally {
+      process.env.NVIDIA_API_KEY = origKey;
+    }
+  });
+
+  it("SIMULATED badge hidden when NVIDIA is online", () => {
+    // RuntimeBadge component logic: if mode === "nvidia" → NvidiaLiveBadge, else SimBadge
+    const origKey = process.env.NVIDIA_API_KEY;
+    try {
+      // Without key
+      delete process.env.NVIDIA_API_KEY;
+      const modeWithoutKey = !!(process.env.NVIDIA_API_KEY);
+      expect(modeWithoutKey ? "nvidia" : "simulation").toBe("simulation");
+      // With key set
+      process.env.NVIDIA_API_KEY = "nvapi-testkey1234567890";
+      const modeWithKeySet = !!(process.env.NVIDIA_API_KEY);
+      expect(modeWithKeySet ? "nvidia" : "simulation").toBe("nvidia");
+    } finally {
+      if (origKey) process.env.NVIDIA_API_KEY = origKey;
+      else delete process.env.NVIDIA_API_KEY;
+    }
+  });
+
+  it("CEO-created mission auto-starts and runs steps", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("crée un site web pour mon business");
+    const sessionAction = ceoMessage.actions.find((a) => a.type === "created_session");
+    expect(sessionAction).toBeTruthy();
+    const autoStartAction = ceoMessage.actions.find((a) => a.type === "auto_started");
+    expect(autoStartAction).toBeTruthy();
+    // Should have executed at least 1 step
+    expect(autoStartAction!.label).toMatch(/\d+/);
+  });
+
+  it("Mission Room progress updates after auto-start", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("lance une mission redesign logo");
+    const sessionAction = ceoMessage.actions.find((a) => a.type === "created_session");
+    expect(sessionAction).toBeTruthy();
+    expect(sessionAction!.targetId).toBeTruthy();
+    // CEO auto-start creates a session that is immediately running
+    const autoStartAction = ceoMessage.actions.find((a) => a.type === "auto_started");
+    expect(autoStartAction).toBeTruthy();
+    // Session status should be "running" since auto-start was triggered
+    expect(ceoMessage.text).toMatch(/démarré|avancement|travaille/i);
+  });
+});

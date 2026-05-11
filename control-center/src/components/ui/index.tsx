@@ -354,3 +354,26 @@ export function SimBadge() {
     </span>
   );
 }
+
+export function NvidiaLiveBadge() {
+  return (
+    <span style={{
+      fontSize: 9,
+      fontWeight: 600,
+      color: "#22c55e",
+      background: "rgba(34,197,94,0.1)",
+      padding: "2px 7px",
+      borderRadius: 99,
+      textTransform: "uppercase",
+      letterSpacing: "0.3px",
+      marginLeft: 6,
+    }}>
+      NVIDIA Live
+    </span>
+  );
+}
+
+export function RuntimeBadge({ mode }: { mode: "nvidia" | "simulation" | "hybrid" }) {
+  if (mode === "nvidia") return <NvidiaLiveBadge />;
+  return <SimBadge />;
+}

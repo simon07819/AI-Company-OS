@@ -25,6 +25,7 @@ import {
   PrimaryButton,
   LocalBadge,
   SimBadge,
+  NvidiaLiveBadge,
   Row,
   ErrorBanner,
 } from "@/components/ui";
@@ -85,6 +86,7 @@ function shortId(sessionId: string): string {
 export default function AutopilotPage() {
   const router = useRouter();
   const [sessions, setSessions] = useState<AutopilotSession[]>([]);
+  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("Loading sessions...");
   const [search, setSearch] = useState("");
@@ -109,6 +111,9 @@ export default function AutopilotPage() {
 
   useEffect(() => {
     void loadSessions();
+    fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
+      if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
+    }).catch(() => {});
   }, []);
 
   const filtered = sessions.filter((s) => {
@@ -143,11 +148,11 @@ export default function AutopilotPage() {
           </div>
         }
         title="Autopilot Sessions"
-        description="AI agents execute missions autonomously. Simulation mode active when NVIDIA_API_KEY not set."
+        description={`AI agents execute missions autonomously. ${runtimeMode === "nvidia" ? "NVIDIA LIVE — real GPU inference active." : "Local mode — simulation when NVIDIA_API_KEY not set."}`}
         badge={
           <>
             <LocalBadge />
-            <SimBadge />
+            {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
           </>
         }
         actions={

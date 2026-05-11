@@ -27,7 +27,7 @@ import {
   Users,
   XCircle,
 } from "lucide-react";
-import { GhostButton, LocalBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge } from "@/components/ui";
+import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge } from "@/components/ui";
 
 type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
 type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
@@ -214,6 +214,7 @@ export default function MissionRoomPage() {
   const [session, setSession] = useState<MissionSession | null>(null);
   const [recent, setRecent] = useState<MissionSession[]>([]);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
+  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
   const [visibleOutputs, setVisibleOutputs] = useState<{ id: string; title: string; type: string; preview: string; status: string; assignedAgent: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -241,6 +242,9 @@ export default function MissionRoomPage() {
 
   useEffect(() => {
     void loadMission();
+    fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
+      if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
+    }).catch(() => {});
     const timer = window.setInterval(() => void loadMission(), 4000);
     return () => window.clearInterval(timer);
   }, [loadMission]);
@@ -316,7 +320,7 @@ export default function MissionRoomPage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
           <LocalBadge />
-          <SimBadge />
+          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
           <PrimaryButton onClick={() => runMissionAction("run-step")} disabled={!!actionLoading || session.status === "completed"} color="#34d399">
             <Play size={13} /> {actionLoading === "run-step" ? "Running..." : "Resume Mission"}
           </PrimaryButton>

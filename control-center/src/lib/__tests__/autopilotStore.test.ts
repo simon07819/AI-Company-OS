@@ -87,7 +87,7 @@ describe("autopilotStore", () => {
     expect(session.logs.length).toBeGreaterThan(0);
     expect(session.roadmap.length).toBeGreaterThan(0);
     expect(session.runtime.status).toBe("online");
-    expect(session.runtime.provider).toContain("NVIDIA");
+    expect(session.runtime.provider).toMatch(/NVIDIA|Local Simulation/);
     expect(session.createdAt).toBeTruthy();
     expect(session.updatedAt).toBeTruthy();
   });

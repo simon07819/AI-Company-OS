@@ -24,6 +24,7 @@ import {
   PrimaryButton,
   LocalBadge,
   SimBadge,
+  NvidiaLiveBadge,
   ErrorBanner,
   StatusBadge,
 } from "@/components/ui";
@@ -75,6 +76,7 @@ export default function AgentProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
 
   // Editable fields
   const [editSystemPrompt, setEditSystemPrompt] = useState("");
@@ -116,7 +118,7 @@ export default function AgentProfilePage() {
     } catch { setError("Failed to load agent"); }
   };
 
-  useEffect(() => { loadData(); }, [agentId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadData(); fetch("/api/runtime-mode").then((r) => r.json()).then((d) => { if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation"); }).catch(() => {}); }, [agentId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     if (!agentId) return;
@@ -170,7 +172,7 @@ export default function AgentProfilePage() {
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
           <StatusBadge label={profile.online ? "Online" : "Offline"} color={profile.online ? "#22c55e" : "#ef4444"} size="xs" />
           <LocalBadge />
-          <SimBadge />
+          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
           {!editing ? (
             <GhostButton onClick={() => setEditing(true)}><Edit3 size={11} /> Edit</GhostButton>
           ) : (
