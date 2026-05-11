@@ -77,6 +77,7 @@ describe("CEO logo request execution flow", () => {
     const { GET: projectsGet } = await import("@/app/api/ceo-projects/route");
     const { GET: outputsGet } = await import("@/app/api/visible-outputs/route");
     const { GET: missionGet } = await import("@/app/api/autopilot/sessions/[sessionId]/route");
+    const { GET: simpleAgencyGet } = await import("@/app/api/ceo/simple-agency/route");
 
     const { ceoMessage } = await sendMessage("Je veux un logo simple pour une compagnie de photo");
 
@@ -88,6 +89,7 @@ describe("CEO logo request execution flow", () => {
     expect(project).toBeTruthy();
     expect(project!.name.toLowerCase()).toContain("logo");
     expect(project!.missionType).toBe("branding_pack");
+    expect(project!.workspaceId).toBeTruthy();
 
     const session = getSession(sessionId);
     expect(session).toBeTruthy();
@@ -128,6 +130,21 @@ describe("CEO logo request execution flow", () => {
     const allOutputsResponse = await outputsGet(new NextRequest("http://test.local/api/visible-outputs"));
     const allOutputsPayload = await jsonFrom(allOutputsResponse);
     expect((allOutputsPayload.outputs as Array<{ id: string }>).some((o) => o.id === outputs[0].id)).toBe(true);
+
+    const simpleAgencyResponse = await simpleAgencyGet();
+    const simpleAgencyPayload = await jsonFrom(simpleAgencyResponse);
+    const view = simpleAgencyPayload.view as {
+      companies: Array<{ name: string; projectIds: string[] }>;
+      projects: Array<{ id: string }>;
+      outputs: Array<{ id: string; visualPreview?: unknown }>;
+      approvals: Array<{ item: { id: string }; visualPreview?: unknown; canApprove: boolean }>;
+      logs: unknown[];
+    };
+    expect(view.companies.some((company) => company.name === "Studio Lumiere" && company.projectIds.includes(project!.id))).toBe(true);
+    expect(view.projects.some((item) => item.id === project!.id)).toBe(true);
+    expect(view.outputs.some((output) => output.id === outputs[0].id && output.visualPreview)).toBe(true);
+    expect(view.approvals.some((approval) => approval.canApprove && approval.visualPreview)).toBe(true);
+    expect(view.logs.length).toBeGreaterThan(0);
 
     const postResponse = await ceoChatPost(new NextRequest("http://test.local/api/ceo/chat", {
       method: "POST",

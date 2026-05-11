@@ -127,9 +127,10 @@ export function getTypeLabel(type: ApprovalType): string {
 // ─── Collect Pending Approvals from all sources ───────────────────────────
 
 export function collectPendingApprovals(): ApprovalItem[] {
-  const existing = readApprovals().approvals.filter((a) => a.status === "pending");
+  const storedApprovals = readApprovals().approvals;
+  const existing = storedApprovals.filter((a) => a.status === "pending");
   const collected: ApprovalItem[] = [...existing];
-  const existingIds = new Set(existing.map((a) => a.id));
+  const existingIds = new Set(storedApprovals.map((a) => a.id));
 
   // 1. Collect from visible outputs in "review" status
   try {
@@ -481,6 +482,12 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
 export function approveApproval(approvalId: string): ApprovalItem | null {
   const data = readApprovals();
   const idx = data.approvals.findIndex((a) => a.id === approvalId);
+  if (approvalId.startsWith("output-")) {
+    try {
+      const { updateOutputStatus } = require("./visibleOutputs") as typeof import("./visibleOutputs");
+      updateOutputStatus(approvalId.replace(/^output-/, ""), "approved");
+    } catch { /* output approval is best-effort */ }
+  }
   if (idx === -1) {
     // Create entry from collected
     const collected = collectPendingApprovals();
@@ -502,6 +509,12 @@ export function approveApproval(approvalId: string): ApprovalItem | null {
 export function rejectApproval(approvalId: string, reason: string): ApprovalItem | null {
   const data = readApprovals();
   const idx = data.approvals.findIndex((a) => a.id === approvalId);
+  if (approvalId.startsWith("output-")) {
+    try {
+      const { updateOutputMetadata } = require("./visibleOutputs") as typeof import("./visibleOutputs");
+      updateOutputMetadata(approvalId.replace(/^output-/, ""), { status: "draft" });
+    } catch { /* output rejection is best-effort */ }
+  }
   if (idx === -1) {
     const collected = collectPendingApprovals();
     const item = collected.find((a) => a.id === approvalId);

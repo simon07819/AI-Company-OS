@@ -164,6 +164,17 @@ vi.mock("@/lib/executiveCommand", () => ({
 }));
 
 vi.mock("@/lib/companyWorkspace", () => ({
+  listWorkspaces: vi.fn(() => []),
+  createWorkspace: vi.fn((input: { name: string; industry?: string; description?: string; primaryMissionTypes?: string[] }) => ({
+    id: "workspace-test",
+    name: input.name,
+    industry: input.industry ?? "test",
+    description: input.description ?? "",
+    activeMissionIds: [],
+    primaryMissionTypes: input.primaryMissionTypes ?? [],
+    metrics: { totalMissions: 0, activeMissions: 0 },
+  })),
+  assignMissionToWorkspace: vi.fn(() => null),
   getWorkspaceOverview: vi.fn(() => ({
     totalWorkspaces: 0, activeWorkspaces: 0, totalRevenue: 0,
     activeMissions: 0, activeCampaigns: 0, publishedAssets: 0,

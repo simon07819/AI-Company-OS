@@ -18,7 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
-import type { ApprovalItem } from "@/lib/approvalPreview";
+import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
 type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
@@ -45,6 +45,7 @@ interface CeoProject {
   missionType: string;
   status: string;
   sessionId: string | null;
+  workspaceId?: string | null;
   progress: number;
   outputsCount: number;
   updatedAt: string;
@@ -60,6 +61,7 @@ interface AutopilotSession {
   progress: number;
   assignedAgents: { agentId: string; role: string; status: string; provider: string }[];
   tasks: { id: string; title: string; agent: string; status: string; progress: number }[];
+  logs: { id: string; timestamp: string; level: string; agent: string; message: string; source: string }[];
   runtime: { lastEvent: string; activeWorkers: number };
 }
 
@@ -81,8 +83,17 @@ interface CompanyGroup {
   id: string;
   name: string;
   status: string;
-  projects: CeoProject[];
+  avatar: string;
+  projectsCount: number;
+  projectIds: string[];
   lastResult?: VisibleOutput;
+}
+
+interface ApprovalCardData {
+  item: ApprovalItem;
+  preview: ApprovalPreview | null;
+  visualPreview: OutputVisualPreview | null;
+  canApprove: boolean;
 }
 
 const AGENT_META: Record<string, { name: string; role: string; avatar: string; color: string }> = {
@@ -118,14 +129,6 @@ function statusLabel(status: string) {
   return STATUS_LABEL[status] ?? status.replace(/_/g, " ");
 }
 
-function inferCompanyName(projects: CeoProject[], sessions: AutopilotSession[]) {
-  const text = [...projects.map((p) => p.name), ...sessions.map((s) => `${s.projectName} ${s.projectIdea}`)].join(" ").toLowerCase();
-  if (text.includes("photo") || text.includes("lumiere") || text.includes("lumière")) return "Studio Lumiere AI";
-  if (text.includes("shop") || text.includes("boutique") || text.includes("commerce")) return "Nouvelle Boutique AI";
-  if (text.includes("site web") || text.includes("website")) return "Agence Web AI";
-  return projects.length > 0 ? "Nouvelle entreprise AI" : "Votre premiere entreprise";
-}
-
 function Avatar({ label, color, pulse = false }: { label: string; color: string; pulse?: boolean }) {
   return (
     <motion.div
@@ -155,31 +158,24 @@ export default function EasyAgencyOSPage() {
   const [projects, setProjects] = useState<CeoProject[]>([]);
   const [sessions, setSessions] = useState<AutopilotSession[]>([]);
   const [outputs, setOutputs] = useState<VisibleOutput[]>([]);
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [approvals, setApprovals] = useState<ApprovalCardData[]>([]);
+  const [companies, setCompanies] = useState<CompanyGroup[]>([]);
+  const [logs, setLogs] = useState<AutopilotSession["logs"]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   const load = async () => {
-    const [messagesRes, projectsRes, sessionsRes, outputsRes, approvalsRes] = await Promise.all([
-      fetch("/api/ceo/messages", { cache: "no-store" }),
-      fetch("/api/ceo-projects?includeArchived=false", { cache: "no-store" }),
-      fetch("/api/autopilot/sessions", { cache: "no-store" }),
-      fetch("/api/visible-outputs", { cache: "no-store" }),
-      fetch("/api/approvals", { cache: "no-store" }),
-    ]);
-    const [messagesPayload, projectsPayload, sessionsPayload, outputsPayload, approvalsPayload] = await Promise.all([
-      messagesRes.json().catch(() => ({})),
-      projectsRes.json().catch(() => ({})),
-      sessionsRes.json().catch(() => ({})),
-      outputsRes.json().catch(() => ({})),
-      approvalsRes.json().catch(() => ({})),
-    ]);
-    setMessages(messagesPayload.messages ?? []);
-    setProjects(projectsPayload.projects ?? []);
-    setSessions(sessionsPayload.sessions ?? []);
-    setOutputs(outputsPayload.outputs ?? []);
-    setApprovals(approvalsPayload.pending ?? []);
+    const res = await fetch("/api/ceo/simple-agency", { cache: "no-store" });
+    const payload = await res.json().catch(() => ({}));
+    const view = payload.view ?? {};
+    setMessages(view.messages ?? []);
+    setProjects(view.projects ?? []);
+    setSessions(view.sessions ?? []);
+    setOutputs(view.outputs ?? []);
+    setApprovals(view.approvals ?? []);
+    setCompanies(view.companies ?? []);
+    setLogs(view.logs ?? []);
   };
 
   useEffect(() => {
@@ -195,17 +191,6 @@ export default function EasyAgencyOSPage() {
   const latestSession = sessions[0] ?? null;
   const activeSessionIds = new Set(sessions.filter((s) => s.status === "running" || s.status === "waiting_approval").map((s) => s.sessionId));
   const latestOutputs = outputs.slice(0, 5);
-
-  const companies = useMemo<CompanyGroup[]>(() => {
-    const companyName = inferCompanyName(projects, sessions);
-    return [{
-      id: "company-main",
-      name: companyName,
-      status: sessions.some((s) => s.status === "running") ? "Agence active" : sessions.some((s) => s.status === "waiting_approval") ? "Attend ton avis" : "Pret a lancer",
-      projects,
-      lastResult: latestOutputs[0],
-    }];
-  }, [projects, sessions, latestOutputs]);
 
   const agentRows = useMemo(() => {
     const ids = new Set<string>(["ceo"]);
@@ -223,9 +208,18 @@ export default function EasyAgencyOSPage() {
   }, [sessions]);
 
   const conversationItems = useMemo(() => {
-    const items: Array<{ id: string; type: "message" | "agent" | "output"; payload: CeoMessage | { agent: string; text: string; color: string } | VisibleOutput; timestamp: string }> = [];
+    const items: Array<{ id: string; type: "message" | "agent" | "output" | "approval"; payload: CeoMessage | { agent: string; text: string; color: string } | VisibleOutput | ApprovalCardData; timestamp: string }> = [];
     for (const message of messages.slice(-18)) {
       items.push({ id: message.id, type: "message", payload: message, timestamp: message.timestamp });
+    }
+    for (const log of logs.slice(0, 8)) {
+      const meta = agentMeta(log.agent);
+      items.push({
+        id: `log-${log.id}`,
+        type: "agent",
+        payload: { agent: meta.name, text: log.message, color: meta.color },
+        timestamp: log.timestamp,
+      });
     }
     if (latestSession) {
       for (const task of (latestSession.tasks ?? []).filter((t) => t.status === "completed" || t.status === "running").slice(0, 4)) {
@@ -241,8 +235,11 @@ export default function EasyAgencyOSPage() {
     for (const output of latestOutputs.slice(0, 2)) {
       items.push({ id: `output-${output.id}`, type: "output", payload: output, timestamp: output.updatedAt });
     }
+    for (const approval of approvals.slice(0, 1)) {
+      items.push({ id: `approval-${approval.item.id}`, type: "approval", payload: approval, timestamp: approval.item.createdAt });
+    }
     return items.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()).slice(-24);
-  }, [messages, latestSession, latestOutputs]);
+  }, [messages, logs, latestSession, latestOutputs, approvals]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -273,6 +270,20 @@ export default function EasyAgencyOSPage() {
     await load();
   };
 
+  const approveApproval = async (approvalId: string) => {
+    await fetch(`/api/approvals/${approvalId}/approve`, { method: "POST" });
+    await load();
+  };
+
+  const rejectApproval = async (approvalId: string) => {
+    await fetch(`/api/approvals/${approvalId}/reject`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason: "Changements demandes depuis le mode simple CEO." }),
+    });
+    await load();
+  };
+
   return (
     <main className="agency-root">
       <style>{styles}</style>
@@ -289,10 +300,10 @@ export default function EasyAgencyOSPage() {
           <div className="contact-list">
             {companies.map((company) => (
               <div key={company.id} className="company-card active">
-                <Avatar label="CO" color="#38bdf8" pulse={company.status !== "Pret a lancer"} />
+                <Avatar label={company.avatar} color="#38bdf8" pulse={company.status !== "Pret a lancer"} />
                 <div className="contact-copy">
                   <strong>{company.name}</strong>
-                  <span>{company.status} · {company.projects.length} projet{company.projects.length > 1 ? "s" : ""}</span>
+                  <span>{company.status} · {company.projectsCount} projet{company.projectsCount > 1 ? "s" : ""}</span>
                   <small>{company.lastResult ? `Dernier resultat: ${company.lastResult.title}` : "Dis au CEO ce que tu veux creer"}</small>
                 </div>
               </div>
@@ -305,12 +316,13 @@ export default function EasyAgencyOSPage() {
               <EmptyHint text="Aucun projet. Ecris au CEO pour lancer une entreprise ou un logo." />
             ) : projects.slice(0, 8).map((project) => {
               const session = sessions.find((s) => s.sessionId === project.sessionId);
+              const company = companies.find((item) => item.projectIds.includes(project.id));
               const status = statusLabel(session?.status ?? project.status);
               return (
                 <Link key={project.id} href={project.sessionId ? `/mission/${project.sessionId}` : "/projects"} className="project-row">
                   <div>
                     <strong>{project.name}</strong>
-                    <span>{companies[0]?.name ?? "Entreprise AI"}</span>
+                    <span>{company?.name ?? "Entreprise AI"}</span>
                   </div>
                   <div className="progress-mini">
                     <span>{status}</span>
@@ -323,8 +335,8 @@ export default function EasyAgencyOSPage() {
 
           <SectionTitle icon={<CheckCircle2 size={14} />} label="A approuver" />
           {approvals.length === 0 ? <EmptyHint text="Rien en attente." /> : approvals.slice(0, 4).map((approval) => (
-            <Link key={approval.id} href={approval.sessionId ? `/mission/${approval.sessionId}` : "/outputs"} className="approval-mini">
-              <Clock3 size={13} /> {approval.title}
+            <Link key={approval.item.id} href={approval.item.sessionId ? `/mission/${approval.item.sessionId}` : "/outputs"} className="approval-mini">
+              <Clock3 size={13} /> {approval.item.title}
             </Link>
           ))}
         </aside>
@@ -356,6 +368,19 @@ export default function EasyAgencyOSPage() {
                       <div className="output-line">
                         <strong>{output.title}</strong>
                         <Link href={`/outputs/${output.id}`}>Voir</Link>
+                      </div>
+                    </motion.div>
+                  );
+                }
+                if (item.type === "approval") {
+                  const approval = item.payload as ApprovalCardData;
+                  return (
+                    <motion.div key={item.id} className="timeline-output" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                      <div className="agent-name"><CheckCircle2 size={13} /> Approval pret</div>
+                      <VisualOutputPreview visualPreview={approval.visualPreview} title={approval.item.title} summary={approval.item.summary} compact />
+                      <div className="output-line">
+                        <strong>{approval.item.title}</strong>
+                        <Link href={approval.item.sessionId ? `/mission/${approval.item.sessionId}` : "/outputs"}>Voir</Link>
                       </div>
                     </motion.div>
                   );
@@ -438,11 +463,17 @@ export default function EasyAgencyOSPage() {
 
           <SectionTitle icon={<CheckCircle2 size={14} />} label="A approuver" />
           {approvals.length === 0 ? <EmptyHint text="Aucune decision urgente." /> : approvals.slice(0, 3).map((approval) => (
-            <Link key={approval.id} className="approval-card" href={approval.sessionId ? `/mission/${approval.sessionId}` : "/outputs"}>
-              <strong>{approval.title}</strong>
-              <span>{approval.summary}</span>
-              <em>Voir preview</em>
-            </Link>
+            <div key={approval.item.id} className="approval-card">
+              <VisualOutputPreview visualPreview={approval.visualPreview} title={approval.item.title} summary={approval.item.summary} compact />
+              <strong>{approval.item.title}</strong>
+              <span>{approval.item.summary}</span>
+              <div className="result-actions">
+                <Link href={approval.item.sessionId ? `/mission/${approval.item.sessionId}` : "/outputs"}>Voir details</Link>
+                <button disabled={!approval.canApprove} onClick={() => void approveApproval(approval.item.id)}>Approuver</button>
+                <button className="reject-action" onClick={() => void rejectApproval(approval.item.id)}>Changements</button>
+              </div>
+              {!approval.canApprove && <small>Preview visuelle requise avant approbation.</small>}
+            </div>
           ))}
         </aside>
       </div>
@@ -552,8 +583,11 @@ const styles = `
 .result-card p { margin: 0; color: #64748b; font-size: 11px; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .result-actions { display: flex; gap: 6px; }
 .result-actions button { color: #15803d; border-color: rgba(34,197,94,0.25); background: rgba(34,197,94,0.09); }
+.result-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.result-actions .reject-action { color: #92400e; border-color: rgba(245,158,11,0.28); background: rgba(245,158,11,0.1); }
 .approval-card { display: grid; gap: 4px; text-decoration: none; padding: 10px; }
 .approval-card strong { color: #0f172a; font-size: 12px; }
+.approval-card small { color: #b45309; font-size: 10px; font-weight: 800; }
 .approval-card em { color: #7c3aed; font-size: 11px; font-style: normal; font-weight: 900; }
 .empty-hint { color: #94a3b8; font-size: 12px; line-height: 1.45; border: 1px dashed rgba(148,163,184,0.38); border-radius: 12px; padding: 12px; background: rgba(255,255,255,0.46); }
 @keyframes pulse-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.25); } }

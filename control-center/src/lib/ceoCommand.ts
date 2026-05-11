@@ -17,6 +17,7 @@ import {
   type ThinkingState,
 } from "./ceoConversation";
 import { syncCeoMessageToConversation } from "./conversationStore";
+import { assignMissionToWorkspace, createWorkspace, listWorkspaces, type CompanyWorkspace } from "./companyWorkspace";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -197,7 +198,8 @@ function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
 
   // Smart project name inference (French-first, descriptive)
   let projectName = "";
-  if (lower.includes("refaire le logo") || lower.includes("redesign logo") || lower.includes("nouveau logo")) projectName = "Refonte logo";
+  if (lower.includes("logo") && lower.includes("photo")) projectName = "Logo pour compagnie de photo";
+  else if (lower.includes("refaire le logo") || lower.includes("redesign logo") || lower.includes("nouveau logo")) projectName = "Refonte logo";
   else if (lower.includes("logo") && (lower.includes("sportif"))) projectName = "Logo sportif";
   else if (lower.includes("logo") && (lower.includes("premium"))) projectName = "Logo premium";
   else if (lower.includes("logo")) projectName = "Refonte logo";
@@ -291,6 +293,59 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
     design_review: "branding_pack",
   };
   return map[intent] ?? null;
+}
+
+function inferCompanyWorkspace(text: string, missionType: string): { name: string; industry: string; description: string } {
+  const lower = text.toLowerCase();
+  if (lower.includes("photo") || lower.includes("photographie") || lower.includes("photographe")) {
+    return {
+      name: "Studio Lumiere",
+      industry: "photography",
+      description: "Entreprise de photographie creee avec les agents AI.",
+    };
+  }
+  if (lower.includes("boutique") || lower.includes("e-commerce") || lower.includes("ecommerce") || lower.includes("dropshipping")) {
+    return {
+      name: "Boutique AI",
+      industry: "ecommerce",
+      description: "Entreprise e-commerce creee avec les agents AI.",
+    };
+  }
+  if (lower.includes("site web") || lower.includes("website") || lower.includes("landing")) {
+    return {
+      name: "Agence Web AI",
+      industry: "web services",
+      description: "Entreprise web creee avec les agents AI.",
+    };
+  }
+  return {
+    name: missionType === "branding_pack" ? "Nouvelle Marque AI" : "Nouvelle Entreprise AI",
+    industry: missionType.replace(/_/g, " "),
+    description: "Entreprise creee avec les agents AI.",
+  };
+}
+
+function findOrCreateCompanyWorkspace(text: string, missionType: string): CompanyWorkspace {
+  const inferred = inferCompanyWorkspace(text, missionType);
+  try {
+    const existing = listWorkspaces().find((workspace) =>
+      workspace.name.toLowerCase() === inferred.name.toLowerCase() ||
+      (workspace.industry.toLowerCase() === inferred.industry.toLowerCase() && workspace.id !== "workspace-default")
+    );
+    if (existing) return existing;
+  } catch {
+    // Workspace overview dependencies are optional in isolated test/runtime contexts.
+  }
+  return createWorkspace({
+    name: inferred.name,
+    industry: inferred.industry,
+    description: inferred.description,
+    primaryMissionTypes: [missionType],
+    automationLevel: "assisted",
+    branding: missionType === "branding_pack"
+      ? { primaryColor: "#0f172a", secondaryColor: "#38bdf8", tone: "premium visual" }
+      : undefined,
+  });
 }
 
 // ─── Proactive Response Builder ──────────────────────────────────────────
@@ -486,12 +541,19 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       // 1. Create autopilot session
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
+      const workspace = findOrCreateCompanyWorkspace(text, missionTypeKey ?? "saas_project");
+      try {
+        assignMissionToWorkspace(workspace.id, session.sessionId);
+      } catch {
+        // Keep the CEO mission flow alive even if workspace metrics adapters are unavailable.
+      }
 
       // 2. Create CEO project (visible in /projects) before outputs are generated
       const project = createCeoProject({
         name: projectName,
         missionType: missionTypeKey ?? "saas_project",
         sessionId: session.sessionId,
+        workspaceId: workspace.id,
         conversationId: "ceo-main-thread",
         uploadedFileIds: linkedFileIds,
       });
@@ -519,7 +581,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       });
       actions.push({
         type: "created_project",
-        label: `Projet créé: ${projectName}`,
+        label: `Projet créé: ${projectName} · entreprise ${workspace.name}`,
         targetId: project.id,
         href: `/mission/${session.sessionId}`,
       });
