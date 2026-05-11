@@ -933,7 +933,7 @@ describe("Agent Customizable Settings", () => {
   it("agent response uses premium profile when available", async () => {
     const { addMessage, getThread, createThread } = await import("@/lib/conversationStore");
     const t = createThread({ title: "Premium Test", participants: ["cmo"] });
-    addMessage(t.id, "user", "I need a premium logo");
+    await addMessage(t.id, "user", "I need a premium logo");
     const updated = getThread(t.id)!;
     const agentMsg = updated.messages.find((m) => m.role === "cmo");
     expect(agentMsg).toBeTruthy();

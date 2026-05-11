@@ -2,6 +2,11 @@ import fs from "fs";
 import path from "path";
 import { EXECUTIVES, type ExecutiveId } from "./executiveTeam";
 import { getProfile, type AgentId } from "./agentProfiles";
+import {
+  generateSmartResponseAsync,
+  updateCeoMemory,
+  type ConversationIntent,
+} from "./ceoConversation";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -111,190 +116,216 @@ function participantFromRole(role: ParticipantRole): ConversationParticipant {
   return { id: role, name: exec.name, avatar: exec.avatar, color: exec.color };
 }
 
-// ─── Agent Response Logic ─────────────────────────────────────────────────
+// ─── Real AI Response Engine ──────────────────────────────────────────────
 
-function buildAgentResponse(agentId: ParticipantRole, userText: string): string {
-  const lower = userText.toLowerCase();
+const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
 
-  // Use agent profiles for premium responses when available
-  try {
-    const { getProfile } = require("./agentProfiles") as typeof import("./agentProfiles");
-    const profile = getProfile(agentId as import("./agentProfiles").AgentId);
-    if (profile) {
-      return buildPremiumResponse(profile, lower);
-    }
-  } catch { /* fallback to basic response */ }
-
-  // Fallback basic responses
-  return buildFallbackResponse(agentId, lower);
+function classifyIntent(text: string): ConversationIntent {
+  const lower = text.toLowerCase();
+  if (/^(salut|bonjour|hello|hey|coucou|hi)/.test(lower)) return "greeting";
+  if (/logo|branding|identité|charte|visual/.test(lower)) return "marketing";
+  if (/facture|invoice|budget|coût|tax|tps|tvq|roi|revenu|profit|financ/.test(lower)) return "financial";
+  if (/site|website|plateforme|app|api|stack|architecture|backend|frontend/.test(lower)) return "create_website";
+  if (/flyer|affiche|promotion|campagne|pub|ad/.test(lower)) return "create_flyer";
+  if (/dropshipping|fournisseur|supplier|supply chain|livraison/.test(lower)) return "dropshipping";
+  if (/mission|projet|project|lancer|créer une|démarrer/.test(lower)) return "business_mission";
+  if (/statut|status|progress|avancement|rapport/.test(lower)) return "status_check";
+  if (/délègue|delegate|assign|coordonn/.test(lower)) return "delegate";
+  if (/problème|bug|issue|erreur|error|fix/.test(lower)) return "problem";
+  return "unknown";
 }
 
-function buildPremiumResponse(profile: { firstName: string; role: string; expertise: string[]; creativityLevel: number; communicationStyle: string; tone: string; strengths: string[]; avatarEmoji: string }, lower: string): string {
-  const name = profile.firstName;
+export function buildAgentSystemPrompt(agentId: ParticipantRole, thread: ConversationThread): string {
+  const profile = getProfile(agentId as AgentId);
+  const exec = agentId !== "custom_agent" ? EXECUTIVES[agentId as ExecutiveId] : null;
+  const name = profile?.firstName ?? exec?.name?.split(" ")[0] ?? "Agent";
+
+  const parts: string[] = [];
+
+  if (profile) {
+    parts.push(`You are ${profile.firstName} ${profile.lastName}, ${profile.title}.`);
+    parts.push(`Personality: ${profile.personality}`);
+    parts.push(`Tone: ${profile.tone}`);
+    parts.push(`Communication style: ${profile.communicationStyle}`);
+    parts.push(`Specialization: ${profile.specialization}`);
+    parts.push(`Expertise: ${profile.expertise.join(", ")}`);
+    parts.push(`Creative level: ${profile.creativityLevel}/100`);
+    if (profile.visualStyle) parts.push(`Visual style: ${profile.visualStyle}`);
+  } else if (exec) {
+    parts.push(`You are ${exec.name}, ${exec.title}.`);
+    parts.push(`Specialty: ${exec.specialty}`);
+    parts.push(`Personality: ${exec.personality}`);
+  }
+
+  // Thread context
+  const recentMsgs = thread.messages.slice(-6);
+  if (recentMsgs.length > 0) {
+    parts.push("\nRecent conversation:");
+    for (const m of recentMsgs) {
+      const who = m.role === "user" ? "User" : (profile?.firstName ?? exec?.name?.split(" ")[0] ?? m.role);
+      parts.push(`  ${who}: ${m.text.slice(0, 120)}`);
+    }
+  }
+
+  if (thread.linkedMissionId) {
+    parts.push(`\nThis thread is linked to mission: ${thread.linkedMissionId}`);
+  }
+
+  parts.push("\nRules:");
+  parts.push("- Never say 'Je suis sur ton projet. Dis-moi ce dont tu as besoin.' or any generic template.");
+  parts.push("- Be specific, proactive, and show real expertise.");
+  parts.push("- If the user asks for something actionable, propose next steps or take action immediately.");
+  parts.push("- Match the user's language (French/English).");
+  parts.push("- Keep responses concise but expert-level. Under 4 sentences unless explaining something complex.");
+
+  return parts.join("\n");
+}
+
+function buildIntelligentFallback(agentId: ParticipantRole, userText: string, thread: ConversationThread): string {
+  const profile = getProfile(agentId as AgentId);
+  const exec = agentId !== "custom_agent" ? EXECUTIVES[agentId as ExecutiveId] : null;
+  const name = profile?.firstName ?? exec?.name?.split(" ")[0] ?? "Agent";
+  const role = profile?.role ?? exec?.title?.split(" — ")[0] ?? "Agent";
+  const lower = userText.toLowerCase();
+  const recentMsgs = thread.messages.slice(-4);
+  const hasContext = recentMsgs.length > 1;
+
+  // CEO responses — strategic and action-oriented
+  if (agentId === "ceo") {
+    if (lower.includes("logo") || lower.includes("branding") || lower.includes("identité")) {
+      return `Je lance la direction branding. On vise du niveau Apple/Dribbble top 1%. ${hasContext ? "Vu notre discussion, " : ""}Dis-moi l'émotion que tu veux transmettre et je crée la mission tout de suite.`;
+    }
+    if (lower.includes("site") || lower.includes("website") || lower.includes("plateforme")) {
+      return `Architecture en route. Next.js 15 + Tailwind, performance-first. ${hasContext ? "En lien avec notre projet, " : ""}Quel type — landing, SaaS, e-commerce?`;
+    }
+    if (lower.includes("facture") || lower.includes("invoice")) {
+      return `Diana prépare la facture avec TPS/TVQ. Je lui délègue immédiatement. Client et montant?`;
+    }
+    if (lower.includes("flyer") || lower.includes("affiche")) {
+      return `Sophie lance le concept créatif. Style premium Nike/Apple. Quel est l'événement?`;
+    }
+    if (lower.includes("mission") || lower.includes("projet") || lower.includes("lancer")) {
+      return `Mission en cours de création. ${hasContext ? "En lien avec notre discussion, " : ""}Je définis le scope et je délègue aux bons directeurs. Objectif principal?`;
+    }
+    if (lower.includes("statut") || lower.includes("status") || lower.includes("avancement")) {
+      return `Je vérifie l'état des missions actives et je te fais un rapport rapide.`;
+    }
+    return `Je prends en charge. ${hasContext ? "Dans la continuité de notre discussion, " : ""}Je coordonne l'équipe et on avance. Précise l'objectif si nécessaire, sinon je lance avec ce qu'on a.`;
+  }
 
   // CMO — Sophie
-  if (profile.role === "CMO") {
-    if (lower.includes("logo") || lower.includes("branding") || lower.includes("identité visuelle") || lower.includes("charte")) {
-      return `${name}: Je vais diriger la direction créative. On vise du niveau Apple/Dribbble top 1%. Sportif, premium, ou luxe — dis-moi l'émotion que tu veux transmettre et je lance le design immédiatement.`;
+  if (profile?.role === "CMO" || agentId === "cmo") {
+    if (lower.includes("logo") || lower.includes("branding") || lower.includes("identité") || lower.includes("charte")) {
+      return `${name}: Direction créative en route. Apple/Dribbble quality. ${hasContext ? "En lien avec notre travail, " : ""}Quelle émotion — sportive, premium, luxe, fun? Je lance le design.`;
     }
     if (lower.includes("flyer") || lower.includes("affiche") || lower.includes("campagne") || lower.includes("promotion")) {
-      return `${name}: Concept créatif en préparation. Impact visuel maximal, style Nike. Quel est le call-to-action et le public cible? Je peux lancer la production tout de suite.`;
+      return `${name}: Concept premium en préparation. Impact visuel Nike-level. ${hasContext ? "En continuité, " : ""}Call-to-action et public cible?`;
     }
-    if (lower.includes("marketing") || lower.includes("growth") || lower.includes("stratégie")) {
-      return `${name}: Stratégie marketing en route. On va combiner branding premium et growth data-driven. Apple quality + métriques. Quel segment on cible?`;
-    }
-    return `${name}: Stratégie créative et marketing premium. Branding niveau Apple/Nike, campagnes data-driven, growth hacking. On fait quoi?`;
+    return `${name}: Stratégie créative et branding premium. ${hasContext ? "Vu notre discussion, " : ""}On vise quel segment et quelle émotion?`;
   }
 
   // CTO — Raj
-  if (profile.role === "CTO") {
-    if (lower.includes("site") || lower.includes("website") || lower.includes("plateforme") || lower.includes("app")) {
-      return `${name}: Architecture en préparation. Next.js 15 + TypeScript + Tailwind + PostgreSQL. Performance-first, Vercel-quality deploy. Quel type — landing, SaaS, e-commerce?`;
+  if (profile?.role === "CTO" || agentId === "cto") {
+    if (lower.includes("site") || lower.includes("website") || lower.includes("api") || lower.includes("architecture")) {
+      return `${name}: Architecture en préparation. Next.js 15 + TypeScript + Tailwind + PostgreSQL. Vercel-quality deploy. ${hasContext ? "En lien avec notre projet, " : ""}Type — landing, SaaS, e-commerce?`;
     }
-    if (lower.includes("stack") || lower.includes("api") || lower.includes("backend") || lower.includes("architecture")) {
-      return `${name}: Stack moderne et scalable. API Stripe-quality, docs Vercel-grade. Je recommande REST + Edge Functions. Tu veux quoi côté tech?`;
-    }
-    return `${name}: Architecture technique scalable et moderne. Stack 2026, performance-first. Qu'est-ce qu'on construit?`;
+    return `${name}: Stack technique et architecture scalable. ${hasContext ? "Dans la continuité, " : ""}Qu'est-ce qu'on construit?`;
   }
 
   // CFO — Diana
-  if (profile.role === "CFO") {
+  if (profile?.role === "CFO" || agentId === "cfo") {
     if (lower.includes("facture") || lower.includes("invoice")) {
-      return `${name}: Facture en préparation avec TPS 5% + TVQ 9.975%. Donne-moi le client et les items, je génère ça tout de suite.`;
+      return `${name}: Facture en préparation. TPS 5% + TVQ 9.975%. Client et items?`;
     }
     if (lower.includes("budget") || lower.includes("coût") || lower.includes("roi")) {
-      return `${name}: Analyse budgétaire en cours. ROI, marges, optimisation. Quelles dépenses on évalue — ops, marketing, dev?`;
+      return `${name}: Analyse budgétaire en cours. ${hasContext ? "Vu nos échanges, " : ""}Quelles dépenses — ops, marketing, dev?`;
     }
-    if (lower.includes("taxe") || lower.includes("tps") || lower.includes("tvq")) {
-      return `${name}: TPS 5% fédéral, TVQ 9.975% Québec. Je calcule sur n'importe quel montant. Quel sous-total?`;
-    }
-    return `${name}: Finances et stratégie fiscale. Budgets, ROI, facturation TPS/TVQ. Chiffres?`;
+    return `${name}: Finances et stratégie fiscale. ${hasContext ? "En lien avec notre discussion, " : ""}Chiffres ou décision à prendre?`;
   }
 
   // COO — Marcus
-  if (profile.role === "COO") {
-    if (lower.includes("processus") || lower.includes("workflow") || lower.includes("ops")) {
-      return `${name}: Process optimisation en route. On identifie les goulots et on automatise. Quel flux on améliore?`;
-    }
-    if (lower.includes("délai") || lower.includes("deadline") || lower.includes("livraison")) {
-      return `${name}: Coordination équipes pour respecter les délais. Quelle mission est concernée?`;
-    }
-    return `${name}: Opérations et exécution. Process optimisation, livraison on time. On fait quoi?`;
+  if (profile?.role === "COO" || agentId === "coo") {
+    return `${name}: Opérations et exécution. ${hasContext ? "Dans la continuité de notre travail, " : ""}Process à optimiser ou délai à respecter?`;
   }
 
   // Logistics — Emma
-  if (profile.role === "Logistics" || profile.avatarEmoji === "📦") {
-    if (lower.includes("dropshipping") || lower.includes("fournisseur") || lower.includes("supplier")) {
-      return `${name}: Workflow fournisseurs/commandes en préparation. Shopify-quality fulfillment. Quel type de produits et zone de livraison?`;
-    }
-    return `${name}: Supply chain et logistique. Fulfillment fiable, coût optimisé. C'est quoi le besoin?`;
+  if (profile?.role === "Logistics" || agentId === "logistics") {
+    return `${name}: Supply chain et logistique. ${hasContext ? "Vu nos échanges, " : ""}Fournisseurs, commandes, ou livraison?`;
   }
 
   // Sales — Rachel
-  if (profile.role === "Sales" || profile.avatarEmoji === "🎯") {
-    if (lower.includes("lead") || lower.includes("pipeline") || lower.includes("prospect")) {
-      return `${name}: Pipeline analysis en route. Salesforce-quality tracking. Combien de leads actifs?`;
-    }
-    return `${name}: Ventes et revenue. Pipeline, closing, growth. Objectif?`;
+  if (profile?.role === "Sales" || agentId === "sales") {
+    return `${name}: Pipeline et revenue. ${hasContext ? "En lien avec notre discussion, " : ""}Leads, deals, ou objectifs?`;
   }
 
   // HR — James
-  if (profile.role === "HR" || profile.avatarEmoji === "👥") {
-    return `${name}: Culture et équipes. Google-quality people ops. Comment je peux aider?`;
+  if (profile?.role === "HR" || agentId === "hr") {
+    return `${name}: Culture et équipes. ${hasContext ? "Dans la continuité, " : ""}Recrutement, performance, ou bien-être?`;
   }
 
   // Support — Carlos
-  if (profile.role === "Support" || profile.avatarEmoji === "🎧") {
-    return `${name}: Support client. Intercom-quality, Apple-level care. Quel problème?`;
+  if (profile?.role === "Support" || agentId === "support") {
+    return `${name}: Support client. ${hasContext ? "Vu notre discussion, " : ""}Problème ou escalade?`;
   }
 
-  // Default
-  return `${name}: Je suis sur ton projet. Dis-moi ce dont tu as besoin et je m'en occupe.`;
+  // Generic intelligent fallback using profile
+  return `${name}: ${role}. ${hasContext ? "En lien avec notre discussion, " : ""}Je m'en occupe. Donne-moi le détail et je lance le travail.`;
 }
 
-function buildFallbackResponse(agentId: ParticipantRole, lower: string): string {
-  if (agentId === "cfo") {
-    if (lower.includes("facture") || lower.includes("invoice")) {
-      return "Oui. J'ai besoin du client, des items et du montant. Je peux créer un brouillon de facture avec TPS/TVQ. Voulez-vous que je prépare ça maintenant?";
-    }
-    if (lower.includes("budget") || lower.includes("coût") || lower.includes("cost")) {
-      return "Je vais analyser le budget. Quelles sont les dépenses à considérer — opérations, marketing, ou développement?";
-    }
-    if (lower.includes("taxe") || lower.includes("tps") || lower.includes("tvq")) {
-      return "TPS est à 5% (fédéral) et TVQ à 9.975% (Québec). Je peux calculer les taxes sur n'importe quel montant. Quel est le sous-total?";
-    }
-    if (lower.includes("revenue") || lower.includes("revenu") || lower.includes("profit")) {
-      return "Laissez-moi vérifier les revenus récents et les marges. Je recommande de regarder le pipeline et les factures en attente.";
-    }
-    return "Je suis Diana Park, votre CFO. Je gère les finances, budgets et facturation. Que puis-je faire pour vous côté financier?";
+async function generateAgentResponse(agentId: ParticipantRole, userText: string, thread: ConversationThread): Promise<string> {
+  const apiKey = process.env.NVIDIA_API_KEY ?? "";
+
+  // CEO thread — use the full CEO engine (intent detection + proactive response)
+  if (agentId === "ceo" && thread.id === "ceo-main-thread") {
+    try {
+      const intent = classifyIntent(userText);
+      updateCeoMemory(intent, userText);
+      const { text, mode } = await generateSmartResponseAsync(intent, userText);
+      if (mode === "nvidia" && text) return text;
+    } catch { /* fall through to intelligent fallback */ }
   }
 
-  if (agentId === "coo") {
-    if (lower.includes("processus") || lower.includes("opération") || lower.includes("workflow")) {
-      return "Je vais optimiser ce processus. Quel est le flux actuel et où voyez-vous le goulot d'étranglement?";
-    }
-    if (lower.includes("délai") || lower.includes("deadline") || lower.includes("livraison")) {
-      return "Je vais coordonner les équipes pour respecter les délais. Quelle mission est concernée?";
-    }
-    return "Je suis Marcus Torres, votre COO. J'optimise les opérations et la livraison des missions. Comment puis-je améliorer l'exécution?";
+  // NVIDIA call for any agent when API key is available
+  if (apiKey && apiKey.length >= 8) {
+    try {
+      const profile = getProfile(agentId as AgentId);
+      const systemPrompt = buildAgentSystemPrompt(agentId, thread);
+
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch(NVIDIA_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: process.env.NVIDIA_MODEL ?? "nvidia/llama-3.1-nemotron-70b-instruct",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userText },
+          ],
+          temperature: profile ? (profile.creativityLevel / 100) * 0.5 + 0.3 : 0.5,
+          max_tokens: 180,
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timer);
+
+      if (res.ok) {
+        const payload = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+        const content = payload.choices?.[0]?.message?.content?.trim() ?? "";
+        if (content) return content;
+      }
+    } catch { /* fall through to intelligent fallback */ }
   }
 
-  if (agentId === "cmo") {
-    if (lower.includes("campagne") || lower.includes("marketing") || lower.includes("branding")) {
-      return "Excellente idée! Je vais préparer une stratégie marketing. Quel est le message clé et le public cible?";
-    }
-    if (lower.includes("flyer") || lower.includes("affiche") || lower.includes("promotion")) {
-      return "Je vais créer un concept créatif. Quel est l'événement ou le produit à promouvoir? Je peux aussi recommander d'escalader au CEO pour validation.";
-    }
-    return "Je suis Sophie Laurent, votre CMO. Stratégie marketing, branding et croissance — quel est votre objectif?";
-  }
-
-  if (agentId === "cto") {
-    if (lower.includes("site web") || lower.includes("website") || lower.includes("architecture")) {
-      return "Je vais définir l'architecture technique. Quel type de site — landing page, e-commerce, SaaS? Je recommande Next.js + Tailwind pour la rapidité.";
-    }
-    if (lower.includes("stack") || lower.includes("techno") || lower.includes("intégration")) {
-      return "Laissez-moi évaluer les options techniques. Je privilégie toujours scalabilité et maintenabilité.";
-    }
-    return "Je suis Raj Patel, votre CTO. Architecture système et innovation technique — que souhaitez-vous construire?";
-  }
-
-  if (agentId === "logistics") {
-    if (lower.includes("dropshipping") || lower.includes("fournisseur") || lower.includes("supplier")) {
-      return "Je vais préparer un workflow fournisseurs/commandes/livraison. Quel type de produits et quelle zone de livraison?";
-    }
-    if (lower.includes("commande") || lower.includes("order") || lower.includes("expédition")) {
-      return "Je vais suivre la commande. Donnez-moi le numéro ou les détails du client et je vérifie le statut.";
-    }
-    return "Je suis Emma Whitfield, directrice logistique. Supply chain, fournisseurs et livraison — comment puis-je optimiser vos flux?";
-  }
-
-  if (agentId === "support") {
-    if (lower.includes("problème") || lower.includes("issue") || lower.includes("bug")) {
-      return "Je vais documenter et escalader ce problème. Quelle est la priorité — critique, majeure ou mineure?";
-    }
-    return "Je suis Carlos Rivera, directeur support. Satisfaction client et résolution de problèmes — que puis-je faire?";
-  }
-
-  if (agentId === "sales") {
-    if (lower.includes("lead") || lower.includes("prospect") || lower.includes("pipeline")) {
-      return "Je vais analyser le pipeline commercial. Combien de leads actifs et quel est le taux de conversion cible?";
-    }
-    if (lower.includes("deal") || lower.includes("contrat") || lower.includes("négociation")) {
-      return "Je peux vous aider à closer ce deal. Quels sont les termes proposés et les objections du client?";
-    }
-    return "Je suis Rachel Kim, directrice commerciale. Pipeline, deals et revenue — quel est votre objectif de vente?";
-  }
-
-  if (agentId === "hr") {
-    if (lower.includes("équipe") || lower.includes("team") || lower.includes("recrutement")) {
-      return "Je vais évaluer les besoins en personnel. Quel rôle et quelles compétences recherchez-vous?";
-    }
-    return "Je suis James Okafor, directeur RH. Équipes, culture et performance — comment puis-je soutenir vos équipes?";
-  }
-
-  // CEO fallback
-  return "Je comprends votre demande. Je peux m'en occuper ou recommander de déléguer au bon directeur. Que préférez-vous?";
+  // Intelligent fallback — never a generic template
+  return buildIntelligentFallback(agentId, userText, thread);
 }
 
 // ─── Public API: Folders ──────────────────────────────────────────────────
@@ -369,7 +400,7 @@ export function getThread(threadId: string): ConversationThread | null {
   return readData().threads.find((t) => t.id === threadId) ?? null;
 }
 
-export function addMessage(threadId: string, role: "user" | ParticipantRole, text: string, metadata?: ConversationMessage["metadata"]): ConversationMessage | null {
+export async function addMessage(threadId: string, role: "user" | ParticipantRole, text: string, metadata?: ConversationMessage["metadata"]): Promise<ConversationMessage | null> {
   const data = readData();
   const idx = data.threads.findIndex((t) => t.id === threadId);
   if (idx === -1) return null;
@@ -384,26 +415,38 @@ export function addMessage(threadId: string, role: "user" | ParticipantRole, tex
 
   data.threads[idx].messages.push(msg);
   data.threads[idx].updatedAt = new Date().toISOString();
+  writeData(data); // persist user message first
 
-  // If user message, auto-respond from primary participant
+  // If user message, auto-respond from primary participant via real AI engine
   if (role === "user" && data.threads[idx].participants.length > 0) {
     const primaryAgent = data.threads[idx].participants[0].id;
-    const response = buildAgentResponse(primaryAgent, text);
+    const response = await generateAgentResponse(primaryAgent, text, data.threads[idx]);
     const agentMsg: ConversationMessage = {
       id: nextId("cmsg"),
       role: primaryAgent,
       text: response,
       timestamp: new Date().toISOString(),
     };
-    data.threads[idx].messages.push(agentMsg);
+    // Re-read data (may have changed) and append agent response
+    const freshData = readData();
+    const freshIdx = freshData.threads.findIndex((t) => t.id === threadId);
+    if (freshIdx !== -1) {
+      freshData.threads[freshIdx].messages.push(agentMsg);
+      freshData.threads[freshIdx].updatedAt = new Date().toISOString();
+      writeData(freshData);
+    }
   }
 
   // If agent message, increment unread
   if (role !== "user") {
-    data.threads[idx].unread = (data.threads[idx].unread ?? 0) + 1;
+    const freshData2 = readData();
+    const freshIdx2 = freshData2.threads.findIndex((t) => t.id === threadId);
+    if (freshIdx2 !== -1) {
+      freshData2.threads[freshIdx2].unread = (freshData2.threads[freshIdx2].unread ?? 0) + 1;
+      writeData(freshData2);
+    }
   }
 
-  writeData(data);
   return msg;
 }
 
@@ -447,7 +490,7 @@ export function moveThreadToFolder(threadId: string, folderId: string | null): C
   return data.threads[idx];
 }
 
-export function continueThread(threadId: string, userText: string): ConversationMessage | null {
+export async function continueThread(threadId: string, userText: string): Promise<ConversationMessage | null> {
   return addMessage(threadId, "user", userText);
 }
 
