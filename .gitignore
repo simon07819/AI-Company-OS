@@ -33,3 +33,6 @@ data/
 
 # Generated project workspaces (autopilot output)
 generated/
+.env
+.env.local
+.env.*
