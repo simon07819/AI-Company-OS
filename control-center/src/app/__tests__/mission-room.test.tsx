@@ -41,8 +41,8 @@ describe("Mission Room experience", () => {
   it("renders Recent Missions navigation", async () => {
     render(React.createElement(MissionsPage));
 
-    await waitFor(() => expect(screen.getByText("Recent Missions")).toBeInTheDocument());
-    expect(screen.getByText("Guided Mission Rooms for CEO supervision, approvals, and generated results.")).toBeInTheDocument();
-    expect(screen.getByText(/Resume Mission/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Mission Rooms")).toBeInTheDocument());
+    expect(screen.getByText("Suivez les objectifs, agents, resultats et decisions sans logs techniques.")).toBeInTheDocument();
+    expect(screen.getByText(/Voir l'activite/)).toBeInTheDocument();
   });
 });

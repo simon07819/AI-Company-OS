@@ -1,12 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CheckCircle2, Clock3, Rocket } from "lucide-react";
-import { EmptyState, PageHeader, PrimaryButton, StatusBadge } from "@/components/ui";
 
-type MissionStatus = "draft" | "running" | "paused" | "completed" | "failed";
+type MissionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 
 interface MissionSummary {
   sessionId: string;
@@ -18,91 +16,82 @@ interface MissionSummary {
   updatedAt: string;
 }
 
-const STATUS: Record<MissionStatus, { label: string; color: string; bg: string }> = {
-  draft: { label: "Draft", color: "#8b97b2", bg: "rgba(139,151,178,0.1)" },
-  running: { label: "Running", color: "#34d399", bg: "rgba(16,185,129,0.12)" },
-  paused: { label: "Paused", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  completed: { label: "Completed", color: "#38bdf8", bg: "rgba(59,130,246,0.12)" },
-  failed: { label: "Failed", color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
+const STATUS: Record<MissionStatus, { label: string; pill: string; action: string }> = {
+  draft: { label: "En preparation", pill: "neutral", action: "Ouvrir" },
+  running: { label: "Agents au travail", pill: "working", action: "Voir l'activite" },
+  paused: { label: "En pause", pill: "neutral", action: "Reprendre" },
+  waiting_approval: { label: "Resultat pret - approbation requise", pill: "ready", action: "Approuver" },
+  completed: { label: "Termine", pill: "approved", action: "Voir le resultat" },
+  failed: { label: "A verifier", pill: "warning", action: "Verifier" },
 };
 
 export default function MissionsPage() {
   const [missions, setMissions] = useState<MissionSummary[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     void fetch("/api/autopilot/sessions", { cache: "no-store" })
       .then((res) => res.json())
       .then((payload) => setMissions(payload.sessions ?? []))
-      .catch(() => setMissions([]));
+      .catch(() => setMissions([]))
+      .finally(() => setLoading(false));
   }, []);
 
   return (
-    <main className="page" style={{ maxWidth: 980 }}>
-      <PageHeader
-        icon={<Rocket size={20} color="#34d399" />}
-        title="Recent Missions"
-        description="Guided Mission Rooms for CEO supervision, approvals, and generated results."
-        actions={
-          <Link href="/ceo">
-            <PrimaryButton color="#f59e0b">Talk to CEO</PrimaryButton>
-          </Link>
-        }
-      />
+    <main className="os-page">
+      <section className="os-hero">
+        <div>
+          <span className="os-eyebrow">Mission Rooms</span>
+          <h1>Projets en cours</h1>
+          <p>Suivez les objectifs, agents, resultats et decisions sans logs techniques.</p>
+        </div>
+        <div className="os-hero-actions">
+          <Link className="os-button primary" href="/ceo">Parler au CEO</Link>
+          <Link className="os-button subtle" href="/ceo/expert">Mode expert</Link>
+        </div>
+      </section>
 
-      {missions.length === 0 ? (
-        <EmptyState
-          icon={<Rocket />}
-          title="No missions yet"
-          description="Start from the CEO Cockpit. A Mission Room is created automatically."
-          action={
-            <Link href="/ceo">
-              <PrimaryButton color="#f59e0b">Open CEO Cockpit</PrimaryButton>
-            </Link>
-          }
-        />
+      {loading ? (
+        <div className="os-loading-grid">
+          <div className="os-skeleton" />
+          <div className="os-skeleton" />
+          <div className="os-skeleton" />
+        </div>
+      ) : missions.length === 0 ? (
+        <div className="os-empty">
+          <div className="os-empty-icon"><Rocket size={20} /></div>
+          <h3>Aucune mission pour le moment</h3>
+          <p>Dites au CEO ce que vous voulez lancer. Une Mission Room sera creee automatiquement.</p>
+          <Link className="os-button primary" href="/ceo">Ouvrir le CEO</Link>
+        </div>
       ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          <AnimatePresence initial={false}>
-            {missions.map((mission, index) => {
-              const cfg = STATUS[mission.status];
+        <section className="os-section">
+          <div className="os-section-title">
+            <div><span className="os-eyebrow">Activite</span><h2>Mission Rooms actives</h2></div>
+            <Link href="/approvals">Decisions</Link>
+          </div>
+          <div className="os-grid cards">
+            {missions.map((mission) => {
+              const status = STATUS[mission.status] ?? STATUS.draft;
+              const progress = mission.status === "waiting_approval" ? 100 : mission.progress;
               return (
-                <motion.div key={mission.sessionId} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.04 }}>
-                  <Link
-                    href={`/mission/${mission.sessionId}`}
-                    style={{
-                      display: "block",
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      padding: "16px 18px",
-                      color: "inherit",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                      <Rocket size={17} style={{ color: cfg.color }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <strong style={{ color: "var(--text)" }}>{mission.projectName}</strong>
-                          <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
-                        </div>
-                        <div style={{ fontSize: 12, color: "var(--text-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {mission.projectIdea}
-                        </div>
-                      </div>
-                      <span style={{ display: "flex", alignItems: "center", gap: 5, color: mission.status === "completed" ? "#38bdf8" : "#34d399", fontSize: 12, fontWeight: 800 }}>
-                        {mission.status === "completed" ? <CheckCircle2 size={13} /> : <Clock3 size={13} />}
-                        {mission.status === "completed" ? "Open Mission" : "Resume Mission"}
-                      </span>
-                    </div>
-                    <div style={{ height: 5, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
-                      <motion.div animate={{ width: `${mission.progress}%` }} style={{ height: "100%", background: cfg.color }} />
-                    </div>
-                  </Link>
-                </motion.div>
+                <Link key={mission.sessionId} href={`/mission/${mission.sessionId}`} className="os-card os-project-card" style={{ color: "inherit" }}>
+                  <div className="os-card-top">
+                    <span className={`os-pill ${status.pill}`}>{status.label}</span>
+                    <span className="os-muted">{mission.currentPhase?.replace(/_/g, " ") || "Projet"}</span>
+                  </div>
+                  <h3>{mission.projectName}</h3>
+                  <p>{mission.projectIdea || "Projet gere par les agents AI."}</p>
+                  <div className="os-progress" aria-label={`${progress}%`}><span style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} /></div>
+                  <div className="os-meta-line">
+                    <span>{status.action}</span>
+                    <span>{mission.status === "completed" ? <CheckCircle2 size={13} /> : <Clock3 size={13} />}</span>
+                  </div>
+                </Link>
               );
             })}
-          </AnimatePresence>
-        </div>
+          </div>
+        </section>
       )}
     </main>
   );

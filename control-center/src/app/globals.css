@@ -2245,6 +2245,28 @@ tr:hover td { background: rgba(255,255,255,0.015); }
   box-shadow: var(--shadow);
 }
 
+.os-loading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.os-skeleton {
+  min-height: 170px;
+  border: 1px solid rgba(222,216,204,0.8);
+  border-radius: 18px;
+  background:
+    linear-gradient(90deg, rgba(255,255,255,0.52), rgba(255,255,255,0.94), rgba(255,255,255,0.52)),
+    #f3f1ea;
+  background-size: 220% 100%;
+  animation: os-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes os-shimmer {
+  from { background-position: 120% 0; }
+  to { background-position: -120% 0; }
+}
+
 .os-metric-card {
   display: grid;
   grid-template-columns: 36px 1fr;

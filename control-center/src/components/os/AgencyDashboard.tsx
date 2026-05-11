@@ -15,7 +15,7 @@ import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 
-type PageVariant = "dashboard" | "companies" | "projects" | "agents" | "approvals";
+type PageVariant = "dashboard" | "companies" | "projects" | "agents" | "outputs" | "approvals";
 type SessionStatus = "draft" | "running" | "paused" | "waiting_approval" | "completed" | "failed";
 
 interface CeoProject {
@@ -135,6 +135,11 @@ const PAGE_COPY: Record<PageVariant, { eyebrow: string; title: string; subtitle:
     eyebrow: "Equipe AI",
     title: "Agents au travail",
     subtitle: "Une equipe lisible: qui travaille, qui a livre, et qui attend votre decision.",
+  },
+  outputs: {
+    eyebrow: "Resultats",
+    title: "Resultats produits",
+    subtitle: "Les directions creatives, concepts, palettes et recommandations livres par vos agents.",
   },
   approvals: {
     eyebrow: "Approvals",
@@ -554,6 +559,20 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici des que les agents livrent un output." />
           ) : (
             <div className="os-grid results">{view.outputs.slice(0, 4).map((output) => <ResultCard key={output.id} output={output} />)}</div>
+          )}
+        </section>
+      )}
+
+      {variant === "outputs" && (
+        <section className="os-section">
+          <div className="os-section-title">
+            <div><span className="os-eyebrow">Resultats</span><h2>Resultats recents</h2></div>
+            <Link href="/approvals">Voir les decisions</Link>
+          </div>
+          {view.outputs.length === 0 ? (
+            <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici avec une preview des que les agents livrent un output." />
+          ) : (
+            <div className="os-grid results">{view.outputs.map((output) => <ResultCard key={output.id} output={output} />)}</div>
           )}
         </section>
       )}

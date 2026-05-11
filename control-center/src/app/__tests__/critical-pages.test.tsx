@@ -7,11 +7,14 @@ import DashboardPage from "@/app/page";
 import CompaniesPage from "@/app/companies/page";
 import ProjectsPage from "@/app/projects/page";
 import ApprovalsPage from "@/app/approvals/page";
+import OutputsPage from "@/app/outputs/page";
+import WorkspacesPage from "@/app/workspaces/page";
 import FactoryPage from "@/app/factory/page";
 import LogsPage from "@/app/logs/page";
 import RuntimePage from "@/app/runtime/page";
 import SettingsPage from "@/app/settings/page";
 import CeoPage from "@/app/ceo/page";
+import CeoExpertPage from "@/app/ceo/expert/page";
 import ArchivePage from "@/app/archive/page";
 
 // Mock components that fetch data
@@ -76,6 +79,17 @@ describe("critical Control Center pages", () => {
     expect(screen.getByText("Demander des changements")).toBeInTheDocument();
   });
 
+  it("renders outputs and workspaces in the simple OS style", async () => {
+    const { unmount } = render(React.createElement(OutputsPage));
+    expect(await screen.findByRole("heading", { name: "Resultats produits" })).toBeInTheDocument();
+    expect(screen.getAllByText("Logo Concept").length).toBeGreaterThan(0);
+
+    unmount();
+    render(React.createElement(WorkspacesPage));
+    expect(await screen.findByRole("heading", { name: "Les entreprises que vous construisez" })).toBeInTheDocument();
+    expect(screen.queryByText("Company Workspaces")).not.toBeInTheDocument();
+  });
+
   it("renders Factory without crashing", () => {
     render(React.createElement(FactoryPage));
 
@@ -121,6 +135,12 @@ describe("critical Control Center pages", () => {
 
     expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText(/Ecris au CEO AI/)).toBeInTheDocument();
+  });
+
+  it("keeps CEO expert mode available", async () => {
+    render(React.createElement(CeoExpertPage));
+
+    expect((await screen.findAllByText("CEO Cockpit")).length).toBeGreaterThan(0);
   });
 
   it("renders waiting approval as ready to approve with visual action", async () => {

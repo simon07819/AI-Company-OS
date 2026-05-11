@@ -101,8 +101,8 @@ interface ApprovalCardData {
 
 const AGENT_META: Record<string, { name: string; role: string; avatar: string; color: string }> = {
   ceo: { name: "CEO AI", role: "Coordonne le projet", avatar: "AI", color: "#f59e0b" },
-  cmo: { name: "Brand Strategist", role: "Direction creative", avatar: "BS", color: "#8b5cf6" },
-  frontend_agent: { name: "Designer", role: "Prepare le concept visuel", avatar: "DS", color: "#ec4899" },
+  cmo: { name: "Brand Strategist", role: "Direction creative", avatar: "BS", color: "#2f6fed" },
+  frontend_agent: { name: "Designer", role: "Prepare le concept visuel", avatar: "DS", color: "#2f8f61" },
   qa_agent: { name: "Quality Agent", role: "Verifie le resultat", avatar: "QA", color: "#22c55e" },
   product_agent: { name: "Growth Agent", role: "Clarifie l'offre", avatar: "GA", color: "#06b6d4" },
   architect_agent: { name: "Systems Agent", role: "Structure le plan", avatar: "SA", color: "#38bdf8" },
@@ -191,8 +191,8 @@ function Avatar({ label, color, pulse = false }: { label: string; color: string;
         width: 36,
         height: 36,
         borderRadius: "50%",
-        background: `linear-gradient(135deg, ${color}, #ffffff22)`,
-        border: "1px solid rgba(255,255,255,0.5)",
+    background: `linear-gradient(135deg, ${color}, #172033)`,
+    border: "1px solid rgba(255,255,255,0.72)",
         display: "grid",
         placeItems: "center",
         color: "#fff",
@@ -632,24 +632,22 @@ function EmptyHint({ text }: { text: string }) {
 
 const styles = `
 .agency-root {
-  min-height: 100vh;
-  padding: 18px;
-  background:
-    radial-gradient(circle at 12% 8%, rgba(56,189,248,0.22), transparent 28%),
-    radial-gradient(circle at 92% 12%, rgba(245,158,11,0.18), transparent 24%),
-    linear-gradient(135deg, #eef7ff 0%, #f8fbff 42%, #fff7ed 100%);
-  color: #172033;
+  min-height: calc(100vh - 62px);
+  padding: 24px;
+  background: transparent;
+  color: var(--text);
 }
 .messenger-shell {
-  height: calc(100vh - 36px);
+  height: calc(100vh - 110px);
+  min-height: 680px;
   display: grid;
   grid-template-columns: 300px minmax(420px, 1fr) 340px;
   grid-template-rows: 58px 1fr;
-  border: 1px solid rgba(59,130,246,0.18);
+  border: 1px solid rgba(222,216,204,0.92);
   border-radius: 22px;
   overflow: hidden;
-  background: rgba(255,255,255,0.72);
-  box-shadow: 0 24px 70px rgba(31,41,55,0.16);
+  background: rgba(255,255,255,0.82);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(18px);
 }
 .topbar {
@@ -658,8 +656,8 @@ const styles = `
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(239,246,255,0.92));
-  border-bottom: 1px solid rgba(59,130,246,0.16);
+  background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(248,247,243,0.92));
+  border-bottom: 1px solid var(--border);
 }
 .brand-mark { display: inline-flex; align-items: center; gap: 8px; font-weight: 900; color: #0f172a; margin-right: auto; }
 .status-pill { display: inline-flex; align-items: center; gap: 7px; border: 1px solid rgba(34,197,94,0.24); background: rgba(34,197,94,0.09); color: #15803d; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; }
@@ -669,9 +667,9 @@ const styles = `
 .working-dot { animation: pulse-dot 1.2s infinite; }
 .idle-dot { background: #cbd5e1; }
 .expert-link { color: #64748b; text-decoration: none; font-size: 12px; font-weight: 800; display: inline-flex; align-items: center; gap: 3px; }
-.left-rail, .right-rail { overflow: auto; padding: 14px; background: rgba(248,250,252,0.82); }
-.left-rail { border-right: 1px solid rgba(59,130,246,0.14); }
-.right-rail { border-left: 1px solid rgba(59,130,246,0.14); }
+.left-rail, .right-rail { overflow: auto; padding: 14px; background: rgba(248,247,243,0.82); }
+.left-rail { border-right: 1px solid var(--border); }
+.right-rail { border-left: 1px solid var(--border); }
 .section-title { display: flex; align-items: center; gap: 7px; color: #475569; font-size: 11px; text-transform: uppercase; font-weight: 900; letter-spacing: 0.05em; margin: 12px 0 8px; }
 .contact-list, .project-list, .agent-list, .result-list { display: grid; gap: 8px; }
 .company-card, .project-row, .agent-row, .approval-card, .approval-mini, .result-card {
@@ -681,7 +679,7 @@ const styles = `
   box-shadow: 0 8px 22px rgba(15,23,42,0.06);
 }
 .company-card { display: flex; gap: 10px; padding: 10px; }
-.company-card.active { border-color: rgba(56,189,248,0.35); background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(224,242,254,0.55)); }
+.company-card.active { border-color: rgba(31,94,255,0.18); background: linear-gradient(135deg, rgba(255,255,255,0.94), rgba(238,244,255,0.72)); }
 .contact-copy, .agent-row div { min-width: 0; display: grid; gap: 2px; }
 .contact-copy strong, .project-row strong, .agent-row strong, .result-meta strong { font-size: 13px; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .contact-copy span, .project-row span, .agent-row span, .result-meta span, .approval-card span { font-size: 11px; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -692,7 +690,7 @@ const styles = `
 .project-row small { color: #94a3b8; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .progress-mini { display: grid; gap: 5px; }
 .progress-mini div { height: 5px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
-.progress-mini i { display: block; height: 100%; background: linear-gradient(90deg, #38bdf8, #8b5cf6); border-radius: inherit; }
+.progress-mini i { display: block; height: 100%; background: linear-gradient(90deg, #1f5eff, #2f8f61); border-radius: inherit; }
 .approval-mini { padding: 9px 10px; display: flex; gap: 7px; color: #92400e; text-decoration: none; font-size: 12px; font-weight: 800; background: rgba(254,243,199,0.72); }
 .conversation { min-width: 0; display: grid; grid-template-rows: auto 1fr auto; background: rgba(255,255,255,0.54); }
 .chat-header { display: flex; gap: 10px; align-items: center; padding: 14px 18px; border-bottom: 1px solid rgba(59,130,246,0.12); background: rgba(255,255,255,0.52); }
@@ -722,7 +720,7 @@ const styles = `
 .agent-update strong { margin-right: 6px; color: #0f172a; }
 .agent-update em { font-style: normal; }
 .agent-update small { color: #94a3b8; font-size: 10px; margin-left: 4px; }
-.timeline-output { max-width: 460px; align-self: flex-start; border: 1px solid rgba(139,92,246,0.18); background: rgba(255,255,255,0.78); border-radius: 16px; padding: 10px; }
+.timeline-output { max-width: 460px; align-self: flex-start; border: 1px solid rgba(31,94,255,0.14); background: rgba(255,255,255,0.78); border-radius: 16px; padding: 10px; }
 .agent-name { color: #7c3aed; display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; }
 .output-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
 .output-line strong { font-size: 12px; }
