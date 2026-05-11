@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getFileById } from "@/lib/ceoUploads";
+import fs from "fs";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { fileId: string } },
+) {
+  const file = getFileById(params.fileId);
+  if (!file) {
+    return NextResponse.json({ ok: false, message: "File not found" }, { status: 404 });
+  }
+  if (!fs.existsSync(file.storagePath)) {
+    return NextResponse.json({ ok: false, message: "File missing on disk" }, { status: 404 });
+  }
+
+  const buffer = fs.readFileSync(file.storagePath);
+  return new NextResponse(buffer, {
+    headers: {
+      "Content-Type": file.mimeType,
+      "Content-Disposition": `inline; filename="${file.name}"`,
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
+}

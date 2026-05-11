@@ -18,6 +18,7 @@ export type ConversationIntent =
   | "create_flyer"
   | "status_check"
   | "delegate"
+  | "file_analysis"
   | "unknown";
 
 export type ThinkingState = "analyzing" | "delegating" | "reviewing" | "concluding" | "idle";
@@ -89,6 +90,7 @@ const INTENT_MAP: Array<{ intent: ConversationIntent; patterns: string[] }> = [
   { intent: "greeting",         patterns: ["bonjour", "bonsoir", "salut", "hello", "hi ", "hey ", "coucou", "good morning", "good evening"] },
   { intent: "small_talk",       patterns: ["ça va", "comment tu", "how are you", "fatigue", "merci", "thanks", "thank you", "bien!", "super!"] },
   { intent: "question",         patterns: ["pourquoi", "why", "comment", "quand", "when", "qui ", "who ", "c'est quoi", "what is", "explique", "explain", "dis-moi"] },
+  { intent: "file_analysis",    patterns: ["[image]", "[pdf]", "[text]", "[data]", "[unknown]", "analyse ce fichier", "fichier reçu"] },
 ];
 
 export function detectConversationIntent(text: string): ConversationIntent {
@@ -186,6 +188,11 @@ const VARIANTS: Record<string, string[]> = {
     "Marcus va optimiser ça. Dis-moi ce qui est à déléguer et la priorité.",
     "Je lui passe la main. Quelle tâche tu veux assigner et à qui?",
     "Délégation notée. Marcus gère la répartition — dis-moi le scope.",
+  ],
+  file_analysis: [
+    "Fichier reçu. J'analyse le contenu et délègue au bon directeur maintenant.",
+    "J'ai le fichier. Analyse en cours — l'équipe executive s'en occupe.",
+    "Reçu. Je route ça vers le bon expert de l'équipe immédiatement.",
   ],
   // Old CeoIntent names for backward compatibility
   launch_mission: [

@@ -8,15 +8,21 @@ import {
   ChevronRight,
   Clock3,
   Crown,
+  Database,
   DollarSign,
+  FileText,
+  Image as ImageIcon,
   MessageSquare,
+  Paperclip,
   Pause,
   RefreshCw,
   RotateCcw,
   Send,
   Sparkles,
   TrendingUp,
+  Upload,
   Users,
+  X,
   XCircle,
   Zap,
 } from "lucide-react";
@@ -59,6 +65,24 @@ const EXEC_DEFS: ExecDef[] = [
 
 function getExec(id: ExecutiveId): ExecDef {
   return EXEC_DEFS.find((e) => e.id === id) ?? EXEC_DEFS[0];
+}
+
+// ─── File types ───────────────────────────────────────────────────────────
+
+type FileCategory = "image" | "pdf" | "text" | "data" | "unknown";
+
+interface ClientFile {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  category: FileCategory;
+  uploadedAt: string;
+  analysis?: {
+    summary: string;
+    delegateTo: string;
+    taskType: string;
+  };
 }
 
 // ─── Quick Suggestions ────────────────────────────────────────────────────
@@ -387,6 +411,7 @@ function WarRoom({
 }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isFileAnalysis = discussion?.intent === "file_analysis";
 
   // Reveal discussion messages progressively based on their delayMs
   useEffect(() => {
@@ -440,7 +465,7 @@ function WarRoom({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      {discussion && (
+      {discussion && !isFileAnalysis && (
         <div style={{
           flexShrink: 0, padding: "8px 12px",
           background: "rgba(245,158,11,0.05)",
@@ -463,6 +488,13 @@ function WarRoom({
             size="xs"
           />
         </div>
+      )}
+      {discussion && isFileAnalysis && (
+        <FileUploadTimeline
+          fileName={discussion.userRequest.replace("Analyse de fichier: ", "")}
+          visibleCount={visibleCount}
+          totalMessages={discussion.messages.length}
+        />
       )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 14px" }}>
@@ -686,6 +718,241 @@ function SupervisionPanel({
   );
 }
 
+// ─── File Icon ────────────────────────────────────────────────────────────
+
+function FileCategoryIcon({ category, size = 14 }: { category: FileCategory; size?: number }) {
+  const props = { size, style: { flexShrink: 0 } };
+  if (category === "image") return <ImageIcon {...props} style={{ color: "#8b5cf6", flexShrink: 0 }} />;
+  if (category === "pdf") return <FileText {...props} style={{ color: "#ef4444", flexShrink: 0 }} />;
+  if (category === "data") return <Database {...props} style={{ color: "#06b6d4", flexShrink: 0 }} />;
+  return <FileText {...props} style={{ color: "#6b7280", flexShrink: 0 }} />;
+}
+
+// ─── File Preview Chip ────────────────────────────────────────────────────
+
+function FilePreviewChip({
+  file,
+  previewUrl,
+  onRemove,
+}: {
+  file: File;
+  previewUrl: string | null;
+  onRemove: () => void;
+}) {
+  const isImage = file.type.startsWith("image/");
+  const sizeLabel = file.size < 1024 * 1024
+    ? `${(file.size / 1024).toFixed(1)} KB`
+    : `${(file.size / 1024 / 1024).toFixed(1)} MB`;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -4, scale: 0.95 }}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "6px 8px",
+        background: "rgba(139,92,246,0.08)",
+        border: "1px solid rgba(139,92,246,0.3)",
+        borderRadius: 8,
+        marginBottom: 6,
+      }}
+    >
+      {isImage && previewUrl ? (
+        <img
+          src={previewUrl}
+          alt={file.name}
+          style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 5, flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{
+          width: 36, height: 36, borderRadius: 5, flexShrink: 0,
+          background: "rgba(139,92,246,0.12)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <FileText size={16} style={{ color: "#8b5cf6" }} />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {file.name}
+        </div>
+        <div style={{ fontSize: 9, color: "var(--text-3)" }}>{sizeLabel}</div>
+      </div>
+      <button
+        onClick={onRemove}
+        style={{
+          background: "none", border: "none", padding: 2, cursor: "pointer",
+          color: "var(--text-3)", display: "flex", alignItems: "center",
+        }}
+      >
+        <X size={12} />
+      </button>
+    </motion.div>
+  );
+}
+
+// ─── Upload Progress Bar ──────────────────────────────────────────────────
+
+function UploadProgressBar({ progress }: { progress: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{ marginBottom: 6 }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+        <span style={{ fontSize: 9, color: "var(--text-3)" }}>Uploading…</span>
+        <span style={{ fontSize: 9, color: "#8b5cf6", fontWeight: 700 }}>{progress}%</span>
+      </div>
+      <div style={{ height: 3, background: "var(--border)", borderRadius: 99 }}>
+        <motion.div
+          style={{ height: "100%", background: "#8b5cf6", borderRadius: 99 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 0.2 }}
+        />
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Uploaded File Badge ──────────────────────────────────────────────────
+
+function UploadedFileBadge({ file }: { file: ClientFile }) {
+  const isImage = file.category === "image";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        display: "flex", alignItems: "center", gap: 7,
+        padding: "7px 10px", marginBottom: 8,
+        background: "rgba(139,92,246,0.06)",
+        border: "1px solid rgba(139,92,246,0.25)",
+        borderRadius: 8,
+      }}
+    >
+      {isImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={`/api/ceo/files/${file.id}`}
+          alt={file.name}
+          style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 6, flexShrink: 0 }}
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      ) : (
+        <div style={{
+          width: 40, height: 40, borderRadius: 6, flexShrink: 0,
+          background: "rgba(139,92,246,0.12)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <FileCategoryIcon category={file.category} size={18} />
+        </div>
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <Paperclip size={9} style={{ color: "#8b5cf6" }} />
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#8b5cf6", textTransform: "uppercase" }}>CEO analyzed</span>
+        </div>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {file.name}
+        </div>
+        {file.analysis?.summary && (
+          <div style={{ fontSize: 9, color: "var(--text-3)", marginTop: 1, lineHeight: 1.4 }}>
+            {file.analysis.summary.slice(0, 80)}{file.analysis.summary.length > 80 ? "…" : ""}
+          </div>
+        )}
+      </div>
+      <CheckCircle2 size={12} style={{ color: "#22c55e", flexShrink: 0 }} />
+    </motion.div>
+  );
+}
+
+// ─── File Upload Timeline (Phase 4) ──────────────────────────────────────
+
+function FileUploadTimeline({ fileName, visibleCount, totalMessages }: {
+  fileName: string;
+  visibleCount: number;
+  totalMessages: number;
+}) {
+  const stages = [
+    { label: "Upload", icon: "📎", done: true },
+    { label: "Analyse CEO", icon: "🔍", done: visibleCount >= 1 },
+    { label: "Délégation", icon: "👥", done: visibleCount >= 2 },
+    { label: "Résultats", icon: "✅", done: visibleCount >= totalMessages },
+  ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      style={{
+        display: "flex", alignItems: "center", gap: 0,
+        padding: "8px 14px",
+        background: "rgba(139,92,246,0.04)",
+        borderBottom: "1px solid var(--border)",
+        overflowX: "auto",
+      }}
+    >
+      <Paperclip size={9} style={{ color: "#8b5cf6", flexShrink: 0, marginRight: 6 }} />
+      <span style={{ fontSize: 9, color: "#8b5cf6", fontWeight: 700, marginRight: 10, flexShrink: 0, textTransform: "uppercase" }}>
+        {fileName.slice(0, 24)}{fileName.length > 24 ? "…" : ""}
+      </span>
+      {stages.map((stage, i) => (
+        <div key={stage.label} style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          {i > 0 && (
+            <div style={{
+              width: 20, height: 1,
+              background: stage.done ? "#22c55e" : "var(--border)",
+              margin: "0 4px",
+              transition: "background 300ms",
+            }} />
+          )}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 3,
+            padding: "2px 6px", borderRadius: 99,
+            background: stage.done ? "rgba(34,197,94,0.1)" : "var(--bg-2)",
+            border: `1px solid ${stage.done ? "rgba(34,197,94,0.3)" : "var(--border)"}`,
+            transition: "all 300ms",
+          }}>
+            <span style={{ fontSize: 9 }}>{stage.icon}</span>
+            <span style={{ fontSize: 8, fontWeight: 600, color: stage.done ? "#22c55e" : "var(--text-3)" }}>
+              {stage.label}
+            </span>
+          </div>
+        </div>
+      ))}
+    </motion.div>
+  );
+}
+
+// ─── Drag & Drop Overlay ──────────────────────────────────────────────────
+
+function DragOverlay({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        position: "absolute", inset: 0, zIndex: 50,
+        background: "rgba(139,92,246,0.12)",
+        border: "2px dashed #8b5cf6",
+        borderRadius: 10,
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        pointerEvents: "none",
+      }}
+    >
+      <Upload size={24} style={{ color: "#8b5cf6", marginBottom: 8 }} />
+      <span style={{ fontSize: 13, fontWeight: 700, color: "#8b5cf6" }}>Drop to upload</span>
+      <span style={{ fontSize: 10, color: "var(--text-3)", marginTop: 2 }}>Image, PDF, TXT, MD, JSON</span>
+    </motion.div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function CeoPage() {
@@ -699,6 +966,14 @@ export default function CeoPage() {
   const [activeExecs, setActiveExecs] = useState<Set<ExecutiveId>>(new Set());
   const [typingExecs, setTypingExecs] = useState<Set<ExecutiveId>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Upload state ──
+  const [isDragging, setIsDragging] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<ClientFile[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -784,6 +1059,86 @@ export default function CeoPage() {
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const selectPendingFile = (file: File) => {
+    setPendingFile(file);
+    if (file.type.startsWith("image/")) {
+      const url = URL.createObjectURL(file);
+      setPendingPreviewUrl(url);
+    } else {
+      setPendingPreviewUrl(null);
+    }
+  };
+
+  const clearPendingFile = () => {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
+    setPendingFile(null);
+    setPendingPreviewUrl(null);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setDiscussion(null);
+    setUploadProgress(10);
+    setCeoTyping(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      setUploadProgress(40);
+      const res = await fetch("/api/ceo/upload", { method: "POST", body: formData });
+      setUploadProgress(80);
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Upload failed" }));
+        setError(err.message ?? "Upload failed");
+        return;
+      }
+
+      const data = await res.json();
+      setUploadProgress(100);
+
+      setUploadedFiles((prev) => [data.file, ...prev].slice(0, 20));
+      if (data.discussion) setDiscussion(data.discussion);
+      clearPendingFile();
+      await loadData();
+    } catch {
+      setError("Upload failed — check your connection.");
+    } finally {
+      setCeoTyping(false);
+      setTimeout(() => setUploadProgress(null), 800);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) selectPendingFile(file);
+    e.target.value = "";
+  };
+
+  const handleSendWithFile = async () => {
+    if (pendingFile) {
+      await handleFileUpload(pendingFile);
+    } else {
+      handleSend();
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) selectPendingFile(file);
   };
 
   const handleDecision = async (decisionId: string, action: "approve" | "reject") => {
@@ -875,13 +1230,47 @@ export default function CeoPage() {
       <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 300px", gap: 10, flex: 1, minHeight: 0 }}>
 
         {/* ── LEFT: CEO Chat ── */}
-        <Panel style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0 }}>
+        <div
+          style={{ position: "relative", minHeight: 0 }}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <AnimatePresence>
+            {isDragging && <DragOverlay active={isDragging} />}
+          </AnimatePresence>
+        <Panel
+          style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0, height: "100%" }}
+        >
+
           <div style={{ flexShrink: 0, marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <MessageSquare size={10} style={{ color: "#f59e0b" }} />
               <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
                 CEO Direct Line
               </span>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={sending || !!uploadProgress}
+                title="Attach file (image, PDF, TXT, MD, JSON)"
+                style={{
+                  display: "flex", alignItems: "center", gap: 3,
+                  padding: "2px 6px", fontSize: 9, fontWeight: 600,
+                  background: "rgba(139,92,246,0.08)",
+                  border: "1px solid rgba(139,92,246,0.3)",
+                  borderRadius: 99, color: "#8b5cf6", cursor: "pointer",
+                }}
+              >
+                <Paperclip size={9} /> Attach
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*,.pdf,.txt,.md,.json"
+                style={{ display: "none" }}
+                onChange={handleFileInputChange}
+              />
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
               {QUICK_SUGGESTIONS.map((s) => (
@@ -903,11 +1292,11 @@ export default function CeoPage() {
 
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
             <AnimatePresence>
-              {messages.length === 0 && !ceoTyping && (
+              {messages.length === 0 && uploadedFiles.length === 0 && !ceoTyping && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  style={{ textAlign: "center", padding: "40px 16px", color: "var(--text-3)" }}
+                  style={{ textAlign: "center", padding: "30px 16px", color: "var(--text-3)" }}
                 >
                   <div style={{
                     width: 48, height: 48, borderRadius: "50%",
@@ -920,11 +1309,24 @@ export default function CeoPage() {
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-2)", marginBottom: 4 }}>
                     Alexandra Chen — CEO AI
                   </div>
-                  <div style={{ fontSize: 10, lineHeight: 1.5 }}>
-                    Ready to lead. Tell me your vision and I&apos;ll mobilize the executive team.
+                  <div style={{ fontSize: 10, lineHeight: 1.5, marginBottom: 10 }}>
+                    Ready to lead. Tell me your vision or drop a file to analyze.
+                  </div>
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 6, justifyContent: "center",
+                    padding: "8px 12px",
+                    background: "rgba(139,92,246,0.06)",
+                    border: "1px dashed rgba(139,92,246,0.3)",
+                    borderRadius: 8,
+                  }}>
+                    <Upload size={12} style={{ color: "#8b5cf6" }} />
+                    <span style={{ fontSize: 10, color: "#8b5cf6" }}>Drag & drop a file here</span>
                   </div>
                 </motion.div>
               )}
+              {uploadedFiles.map((f) => (
+                <UploadedFileBadge key={f.id} file={f} />
+              ))}
               {messages.map((msg) => (
                 <CeoMessageBubble key={msg.id} msg={msg} />
               ))}
@@ -933,28 +1335,43 @@ export default function CeoPage() {
             <div ref={chatEndRef} />
           </div>
 
-          <div style={{ flexShrink: 0, display: "flex", gap: 6 }}>
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Talk to the CEO…"
-              disabled={sending}
-              style={{
-                flex: 1, padding: "8px 12px", fontSize: 12,
-                background: "var(--bg-2)", border: "1px solid var(--border)",
-                borderRadius: 8, color: "var(--text)", outline: "none",
-              }}
-            />
-            <PrimaryButton
-              onClick={() => handleSend()}
-              disabled={sending || !input.trim()}
-              color="#f59e0b"
-            >
-              <Send size={11} />
-            </PrimaryButton>
+          <div style={{ flexShrink: 0 }}>
+            <AnimatePresence>
+              {pendingFile && (
+                <FilePreviewChip
+                  file={pendingFile}
+                  previewUrl={pendingPreviewUrl}
+                  onRemove={clearPendingFile}
+                />
+              )}
+              {uploadProgress !== null && (
+                <UploadProgressBar progress={uploadProgress} />
+              )}
+            </AnimatePresence>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={pendingFile ? `Send "${pendingFile.name}" to CEO…` : "Talk to the CEO…"}
+                disabled={sending || !!uploadProgress}
+                style={{
+                  flex: 1, padding: "8px 12px", fontSize: 12,
+                  background: "var(--bg-2)", border: "1px solid var(--border)",
+                  borderRadius: 8, color: "var(--text)", outline: "none",
+                }}
+              />
+              <PrimaryButton
+                onClick={handleSendWithFile}
+                disabled={sending || !!uploadProgress || (!input.trim() && !pendingFile)}
+                color={pendingFile ? "#8b5cf6" : "#f59e0b"}
+              >
+                {pendingFile ? <Upload size={11} /> : <Send size={11} />}
+              </PrimaryButton>
+            </div>
           </div>
         </Panel>
+        </div>
 
         {/* ── CENTER: Executive War Room ── */}
         <Panel style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0, padding: 0, overflow: "hidden" }}>

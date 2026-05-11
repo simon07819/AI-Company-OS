@@ -480,3 +480,110 @@ export function updateDiscussionStatus(
   writeStore(store);
   return { ok: true };
 }
+
+// ─── File Analysis Discussion ─────────────────────────────────────────────
+
+export interface FileDiscussionParams {
+  fileName: string;
+  fileId: string;
+  category: string;
+  delegateTo: string;
+  delegationMessage: string;
+  taskType: string;
+}
+
+const FILE_EXEC_RESPONSES: Record<string, string[]> = {
+  design_review: [
+    "Logo analysé. Points clés: cohérence des couleurs, lisibilité sur fond sombre et clair, scalabilité en petit format. Rapport de recommandations branding prêt.",
+    "Analyse visuelle complète. Palette définie, formes distinctives. Recommandation: valider déclinaisons (monochrome, inversé, favicon) avant déploiement.",
+  ],
+  competitive_analysis: [
+    "Screenshot analysé. Observations: dark branding dominant, urgency CTA visible, social proof highlighted. Concurrent mise sur la FOMO — je recommande de contrer avec notre différenciation qualité.",
+    "3 patterns identifiés: preuve sociale en header, CTA contrastant, pricing affiché upfront. Analyse positionnement comparative disponible.",
+  ],
+  product_review: [
+    "Photo produit évaluée. Éclairage correct, angle principal bon. Recommandations: 3 angles supplémentaires (détail, lifestyle, taille en contexte). Potentiel e-commerce: fort.",
+    "Image utilisable pour ads et listing. Je recommande une série lifestyle en plus pour augmenter le CVR. Disponibilité fournisseur à confirmer.",
+  ],
+  visual_review: [
+    "Image analysée. Usage recommandé: assets social media et landing page hero. Qualité suffisante pour digital, vérifier droits avant usage commercial.",
+    "Image adaptée pour: header site, vignette blog, social posts. Version haute résolution requise pour print.",
+  ],
+  finance_review: [
+    "Document financier analysé. Termes vérifiés, montants cohérents. Intégration au tracker de paiement en cours. Rappel automatique configuré à J+15.",
+    "Facture/devis examiné. Tout est conforme. Suivi configuré: Net-30, reminders à J+15 et J+28. Aucun red flag identifié.",
+  ],
+  legal_review: [
+    "Document juridique révisé. Points d'attention: clauses de responsabilité, délais de préavis, conditions de renouvellement. Vérification externe recommandée avant signature.",
+    "Contrat analysé. Risques identifiés: clause d'exclusivité large à négocier, pénalités asymétriques en section 4. Liste de points à renégocier prête.",
+  ],
+  strategy_review: [
+    "Brief analysé. Objectifs clairs, ressources estimées correctement. Plan proposé: Phase 1 (S1-2) recherche et validation, Phase 2 (S3-4) implémentation, Phase 3 optimisation.",
+    "Faisabilité: haute. Ressources: 2 agents + 1 directeur lead. Timeline: 3 semaines. Points critiques: dépendances API et validation marché.",
+  ],
+  document_review: [
+    "Document analysé. 3 points d'action extraits — ajoutés à la queue de tâches. Résumé exécutif disponible.",
+    "PDF examiné. Contenu structuré, actions identifiées et intégrées dans le backlog opérationnel. Briefing résumé en cours.",
+  ],
+  data_analysis: [
+    "Données analysées. 5 champs principaux identifiés, 2% d'entrées nulles à corriger. 3 patterns significatifs détectés — rapport complet disponible.",
+    "Structure valide et cohérente. Dashboard de visualisation en cours de construction. Anomalies identifiées et documentées. Délai: 2h.",
+  ],
+  content_review: [
+    "Document texte analysé. 4 points d'action identifiés. Plan d'implémentation priorisé en cours de rédaction.",
+    "Texte synthétisé. Objectifs, contraintes et livrables documentés. Plan d'action disponible.",
+  ],
+  general_review: [
+    "Fichier analysé. Action déterminée. Prochaines étapes documentées.",
+    "Reçu et traité. Recommandation disponible dans les minutes à venir.",
+  ],
+};
+
+function buildFileAnalysisMessages(params: FileDiscussionParams): DiscussionMessage[] {
+  const now = Date.now();
+  const msg = makeMessageBuilder(now);
+  const { fileName, category, delegateTo, delegationMessage, taskType } = params;
+  const delegateId = delegateTo as ExecutiveId;
+
+  const categoryLabels: Record<string, string> = {
+    image: "image",
+    pdf: "document PDF",
+    text: "document texte",
+    data: "fichier de données",
+    unknown: "fichier",
+  };
+  const label = categoryLabels[category] ?? "fichier";
+
+  const responses = FILE_EXEC_RESPONSES[taskType] ?? FILE_EXEC_RESPONSES["general_review"];
+  const execResponse = responses[Math.floor(Math.random() * responses.length)];
+
+  return [
+    msg("ceo", `Fichier reçu: "${fileName}" (${label}). Analyse immédiate — délégation à l'équipe en cours.`, "delegation", "all"),
+    msg(delegateId, delegationMessage, "analysis", "ceo"),
+    msg(delegateId, execResponse, "analysis", "ceo"),
+    msg("ceo", `Analyse de "${fileName}" complète. Recommandations documentées — tu peux procéder selon le rapport.`, "synthesis", "all"),
+  ];
+}
+
+export function createFileDiscussion(params: FileDiscussionParams): ExecutiveDiscussion {
+  const store = readStore();
+  const involvedExecutives: ExecutiveId[] = ["ceo", params.delegateTo as ExecutiveId];
+  const messages = buildFileAnalysisMessages(params);
+  const now = new Date().toISOString();
+
+  const discussion: ExecutiveDiscussion = {
+    id: nextId("disc"),
+    userRequest: `Analyse de fichier: ${params.fileName}`,
+    intent: "file_analysis",
+    status: "concluded",
+    involvedExecutives,
+    messages,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  store.discussions.push(discussion);
+  if (store.discussions.length > 20) store.discussions = store.discussions.slice(-20);
+  writeStore(store);
+  return discussion;
+}
