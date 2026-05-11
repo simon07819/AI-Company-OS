@@ -28,7 +28,7 @@ import {
   XCircle,
   Activity,
 } from "lucide-react";
-import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge } from "@/components/ui";
+import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge, TypingBubble, ExpertiseBadge } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 
@@ -534,6 +534,18 @@ export default function MissionRoomPage() {
                   {completedCount === 0 && !runningTask && (
                     <div style={{ fontSize: 11, color: "var(--text-3)" }}>Démarrage de la mission...</div>
                   )}
+                  {/* Live typing indicator for active agent */}
+                  {runningTask && activeAgent && (
+                    <div style={{ marginTop: 8 }}>
+                      <TypingBubble
+                        firstName={activeAgent.role?.split(" ").slice(0, 1).join(" ") ?? runningTask.agent}
+                        avatarEmoji={runningTask.agent === "cmo" ? "📣" : runningTask.agent === "frontend_agent" ? "🎨" : runningTask.agent === "cto" ? "🔧" : runningTask.agent === "qa_agent" ? "🔍" : runningTask.agent === "cfo" ? "💰" : runningTask.agent === "coo" ? "⚙️" : runningTask.agent === "backend_agent" ? "🗄️" : "🤖"}
+                        avatarColor={activeColor}
+                        message={`Working on: ${runningTask.title}`}
+                        size="sm"
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -624,11 +636,16 @@ export default function MissionRoomPage() {
             <div style={{ display: "grid", gap: 8 }}>
               {session.assignedAgents.map((agent) => {
                 const running = session.tasks.some((task) => task.agent === agent.agentId && task.status === "running");
+                const agentColor = AGENT_COLORS[agent.agentId] ?? "#8b97b2";
+                const agentEmojiMap: Record<string, string> = { cmo: "📣", cto: "🔧", cfo: "💰", coo: "⚙️", frontend_agent: "🎨", backend_agent: "🗄️", qa_agent: "🔍", devops_agent: "🚀", logistics: "📦", sales: "🎯", hr: "👥", support: "🎧", product_agent: "📋", architect_agent: "🏗️", ecommerce_operator: "🛒" };
                 return (
-                  <div key={agent.agentId} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: `1px solid ${AGENT_COLORS[agent.agentId] ?? "#8b97b2"}30`, background: running ? "rgba(52,211,153,0.07)" : "var(--bg-2)", borderRadius: 8 }}>
-                    <Bot size={14} style={{ color: AGENT_COLORS[agent.agentId] ?? "#8b97b2" }} />
+                  <div key={agent.agentId} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: `1px solid ${agentColor}30`, background: running ? "rgba(52,211,153,0.07)" : "var(--bg-2)", borderRadius: 8 }}>
+                    <div style={{ fontSize: 16, lineHeight: 1 }}>{agentEmojiMap[agent.agentId] ?? "🤖"}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 800 }}>{executiveLabel(agent.agentId)}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                        <span style={{ fontSize: 12, color: "var(--text)", fontWeight: 800 }}>{executiveLabel(agent.agentId)}</span>
+                        {running && <ExpertiseBadge label="Working" color="#34d399" size="xs" />}
+                      </div>
                       <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{agent.role}</div>
                     </div>
                     <StatusBadge label={running ? "active" : agent.status} color={running ? "#34d399" : "#8b97b2"} size="xs" />

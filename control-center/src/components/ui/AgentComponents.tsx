@@ -350,3 +350,94 @@ export function LiveStatus({ online = true, status = "available", label, size = 
     </div>
   );
 }
+
+// ─── TypingBubble ────────────────────────────────────────────────────────
+
+interface TypingBubbleProps {
+  firstName: string;
+  avatarEmoji: string;
+  avatarColor: string;
+  message?: string;
+  size?: "sm" | "md";
+}
+
+export function TypingBubble({ firstName, avatarEmoji, avatarColor, message, size = "sm" }: TypingBubbleProps) {
+  const fontSize = size === "sm" ? 10 : 12;
+  const dotSize = size === "sm" ? 4 : 5;
+  const padding = size === "sm" ? "6px 10px" : "8px 14px";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        padding,
+        background: `linear-gradient(135deg, ${avatarColor}06, ${avatarColor}03)`,
+        border: `1px solid ${avatarColor}18`,
+        borderRadius: 10,
+        maxWidth: 280,
+      }}
+    >
+      <span style={{ fontSize: fontSize + 4, lineHeight: 1 }}>{avatarEmoji}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: fontSize - 1, fontWeight: 600, color: avatarColor, marginBottom: 2 }}>
+          {firstName}
+        </div>
+        {message ? (
+          <div style={{ fontSize: fontSize - 2, color: "var(--text-3)" }}>{message}</div>
+        ) : (
+          <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                style={{ width: dotSize, height: dotSize, borderRadius: "50%", background: avatarColor }}
+                animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
+                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── ExpertiseBadge ──────────────────────────────────────────────────────
+
+interface ExpertiseBadgeProps {
+  label: string;
+  color: string;
+  level?: number;
+  size?: "xs" | "sm";
+}
+
+export function ExpertiseBadge({ label, color, level, size = "sm" }: ExpertiseBadgeProps) {
+  const fs = size === "xs" ? 7 : 9;
+  const px = size === "xs" ? 4 : 7;
+  const py = size === "xs" ? 1 : 2;
+
+  return (
+    <span style={{
+      fontSize: fs, fontWeight: 600, color,
+      background: `${color}12`, border: `1px solid ${color}20`,
+      padding: `${py}px ${px}px`, borderRadius: 5,
+      display: "inline-flex", alignItems: "center", gap: 3,
+    }}>
+      {label}
+      {level != null && (
+        <span style={{ display: "inline-flex", gap: 1 }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <span key={i} style={{
+              width: 3, height: 3, borderRadius: "50%",
+              background: i < level ? color : `${color}30`,
+            }} />
+          ))}
+        </span>
+      )}
+    </span>
+  );
+}
