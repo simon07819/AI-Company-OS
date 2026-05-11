@@ -1213,19 +1213,28 @@ export default function CeoPage() {
   };
 
   const handleNewChat = async () => {
-    await openDirectThread(activeParticipant, true);
+    setMessages([]);
     setInput("");
     setUploadedFiles([]);
+    setDiscussion(null);
+    await openDirectThread(activeParticipant, true);
   };
 
   const handleArchiveChat = async () => {
     if (!activeThread) return;
-    await fetch(`/api/conversations/threads/${activeThread.id}/archive`, {
+    const archivedId = activeThread.id;
+    await fetch(`/api/conversations/threads/${archivedId}/archive`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ archived: true }),
     });
+    // Clear all chat state before opening new thread
     setActiveThread(null);
+    setMessages([]);
+    setDiscussion(null);
+    setInput("");
+    setUploadedFiles([]);
+    // Create a fresh thread with the same participant
     await openDirectThread(activeParticipant, true);
   };
 
@@ -1564,7 +1573,7 @@ export default function CeoPage() {
           <AnimatePresence>
             {isDragging && <DragOverlay active={isDragging} />}
           </AnimatePresence>
-        <Panel
+        <GlassPanel
           style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0, height: "100%" }}
         >
 
@@ -1801,15 +1810,16 @@ export default function CeoPage() {
               </a>
             </div>
           </div>
-        </Panel>
+        </GlassPanel>
         </div>
 
         {/* ── CENTER: Executive War Room ── */}
-        <Panel style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0, padding: 0, overflow: "hidden" }}>
+        <GlassPanel style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0, padding: 0, overflow: "hidden" }}>
           <div style={{
             flexShrink: 0, padding: "10px 14px",
             borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", gap: 6,
+            background: "linear-gradient(135deg, rgba(139,92,246,0.06), transparent)",
           }}>
             <Users size={11} style={{ color: "#8b5cf6" }} />
             <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
@@ -1831,6 +1841,18 @@ export default function CeoPage() {
                 })}
               </div>
             )}
+            {/* CEO Typing indicator */}
+            {ceoTyping && (
+              <div style={{ marginLeft: "auto" }}>
+                <TypingBubble
+                  firstName="Alexandra"
+                  avatarEmoji="👑"
+                  avatarColor="#f59e0b"
+                  message="Thinking..."
+                  size="sm"
+                />
+              </div>
+            )}
           </div>
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
             <WarRoom
@@ -1839,7 +1861,7 @@ export default function CeoPage() {
               onAction={handleDiscussionAction}
             />
           </div>
-        </Panel>
+        </GlassPanel>
 
         {/* ── RIGHT: Executive Team + Supervision + Outputs ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0, overflowY: "auto" }}>
