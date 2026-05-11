@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Crown, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
 import NavSidebar, { getActiveNavItem } from "@/components/NavSidebar";
+import ThemeToggle from "@/components/ThemeToggle";
 
 function formatSegment(segment: string) {
   return segment
@@ -72,6 +73,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <ShieldCheck size={13} />
               {expertMode ? "Mode expert" : "Mode simple"}
             </div>
+            <ThemeToggle />
             <Link className="top-header-link" href="/ceo"><Crown size={14} /> Parler au CEO</Link>
             <Link className="top-header-link subtle" href="/ceo/expert">Mode expert</Link>
           </div>

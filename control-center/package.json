@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
-    "lint": "next lint"
+    "lint": "next lint",
+    "reset:company-os": "node scripts/reset-ai-company-os.mjs"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.2",

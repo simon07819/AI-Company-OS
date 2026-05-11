@@ -105,7 +105,7 @@ export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
         lastResult: missionOutputs[0],
       };
     })
-    .filter((company, index) => index === 0 || company.projectsCount > 0 || company.lastResult);
+    .filter((company) => company.projectsCount > 0 || company.lastResult || company.hasPendingApproval);
 
   const logs = sessions
     .flatMap((session) => session.logs.map((log) => ({ ...log, message: log.message || session.runtime.lastEvent })))

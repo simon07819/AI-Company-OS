@@ -1103,6 +1103,9 @@ export default function CeoPage() {
   const [clipHovered, setClipHovered] = useState(false);
   const [recentOutputs, setRecentOutputs] = useState<{ id: string; title: string; type: string; status: string; assignedAgent: string; preview: string; updatedAt: string }[]>([]);
   const [activeRevisions, setActiveRevisions] = useState<{ id: string; comment: string; direction: string; agentId: string; status: string; createdAt: string }[]>([]);
+  const [resetConfirmation, setResetConfirmation] = useState("");
+  const [resetStatus, setResetStatus] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversationMessages: CeoMessage[] = activeThread
@@ -1117,6 +1120,31 @@ export default function CeoPage() {
   const currentParticipant = getExec(activeParticipant);
   const currentThreadTitle = activeThread?.title ?? "CEO Cockpit";
   const isCeoThread = activeParticipant === "ceo";
+
+  const handleCompanyOsReset = async () => {
+    setResetting(true);
+    setResetStatus(null);
+    try {
+      const res = await fetch("/api/admin/reset-company-os", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirmation: resetConfirmation }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload.ok) {
+        setResetStatus(payload.message ?? "Reset refuse.");
+        return;
+      }
+      setResetConfirmation("");
+      setResetStatus("Reset termine. Le mode simple est revenu a un etat neuf.");
+      await loadData();
+      router.refresh();
+    } catch {
+      setResetStatus("Reset impossible pour le moment.");
+    } finally {
+      setResetting(false);
+    }
+  };
 
   const loadData = useCallback(async () => {
     try {
@@ -1992,6 +2020,58 @@ export default function CeoPage() {
 
           {/* Agent Questions */}
           <AgentQuestionsSection />
+
+          {/* Danger Zone */}
+          <div style={{
+            background: "linear-gradient(180deg, rgba(239,68,68,0.06), transparent)",
+            border: "1px solid rgba(239,68,68,0.22)",
+            borderRadius: 10,
+            padding: 12,
+          }}>
+            <SectionHeader title="Danger Zone" icon={<AlertTriangle size={11} style={{ color: "#ef4444" }} />} />
+            <p style={{ margin: "4px 0 10px", color: "var(--text-3)", fontSize: 10, lineHeight: 1.45 }}>
+              Reinitialise uniquement les donnees utilisateur: entreprises, projets, missions, conversations, resultats, decisions et logs de mission. Les agents, la config et NVIDIA restent conserves.
+            </p>
+            <input
+              value={resetConfirmation}
+              onChange={(event) => setResetConfirmation(event.target.value)}
+              placeholder="SUPPRIMER LES DONNÉES"
+              style={{
+                width: "100%",
+                marginBottom: 8,
+                padding: "8px 9px",
+                borderRadius: 8,
+                border: "1px solid rgba(239,68,68,0.28)",
+                background: "var(--bg-2)",
+                color: "var(--text)",
+                fontSize: 11,
+                outline: "none",
+              }}
+            />
+            <button
+              type="button"
+              disabled={resetting || resetConfirmation !== "SUPPRIMER LES DONNÉES"}
+              onClick={handleCompanyOsReset}
+              style={{
+                width: "100%",
+                minHeight: 32,
+                borderRadius: 8,
+                border: "1px solid rgba(239,68,68,0.34)",
+                background: resetConfirmation === "SUPPRIMER LES DONNÉES" ? "rgba(239,68,68,0.14)" : "transparent",
+                color: resetConfirmation === "SUPPRIMER LES DONNÉES" ? "#ef4444" : "var(--text-3)",
+                cursor: resetConfirmation === "SUPPRIMER LES DONNÉES" && !resetting ? "pointer" : "not-allowed",
+                fontSize: 11,
+                fontWeight: 900,
+              }}
+            >
+              {resetting ? "Reinitialisation..." : "Reinitialiser AI Company OS"}
+            </button>
+            {resetStatus && (
+              <div style={{ marginTop: 8, color: resetStatus.includes("termine") ? "#22c55e" : "#ef4444", fontSize: 10, fontWeight: 700, lineHeight: 1.4 }}>
+                {resetStatus}
+              </div>
+            )}
+          </div>
 
         </div>
       </div>

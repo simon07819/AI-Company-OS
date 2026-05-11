@@ -16,6 +16,7 @@ import SettingsPage from "@/app/settings/page";
 import CeoPage from "@/app/ceo/page";
 import CeoExpertPage from "@/app/ceo/expert/page";
 import ArchivePage from "@/app/archive/page";
+import AppShell from "@/components/AppShell";
 
 // Mock components that fetch data
 vi.mock("@/components/AutopilotPanel", () => ({
@@ -131,6 +132,28 @@ describe("critical Control Center pages", () => {
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
     expect(screen.getByText("Mes entreprises")).toBeInTheDocument();
     expect(screen.getByText("Agents au travail")).toBeInTheDocument();
+  });
+
+  it("renders the global dark mode toggle and stores the preference", () => {
+    const store = new Map<string, string>();
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => store.set(key, value),
+        clear: () => store.clear(),
+      },
+    });
+    render(React.createElement(AppShell, null, React.createElement("main", null, "Theme test")));
+
+    const toggle = screen.getByRole("button", { name: /mode sombre/i });
+    fireEvent.click(toggle);
+
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(store.get("ai-company-os-theme")).toBe("dark");
+    expect(screen.getByRole("button", { name: /mode clair/i })).toBeInTheDocument();
+    store.clear();
+    document.documentElement.dataset.theme = "light";
   });
 
   it("renders global archive page", async () => {
