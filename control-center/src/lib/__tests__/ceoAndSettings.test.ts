@@ -179,6 +179,8 @@ function resetStore() {
     "settings.json": JSON.stringify({
       companyName: "Test Corp",
       businessEmail: "test@test.com",
+      phone: "",
+      address: "",
       currency: "CAD",
       taxRegion: "quebec",
       tpsRate: 5,
@@ -187,6 +189,13 @@ function resetStore() {
       defaultPaymentTerms: 30,
       logoUrl: null,
       nvidiaKeyPresent: false,
+      runtimeMode: "simulation",
+      approvalMode: "manual",
+      autoPublish: false,
+      autoInvoice: false,
+      loopAggressiveness: "medium",
+      defaultWorkspace: "",
+      defaultMissionType: "saas_project",
       updatedAt: new Date().toISOString(),
     }),
   };
@@ -296,6 +305,33 @@ describe("settingsStore", () => {
     // Ensure the key value is never in the persisted file
     const raw = fileStore["settings.json"];
     expect(raw).not.toContain(process.env.NVIDIA_API_KEY ?? "should-not-appear");
+  });
+
+  it("saves new automation and company fields", async () => {
+    const { saveSettings, getSettings } = await import("@/lib/settingsStore");
+    const updated = saveSettings({
+      phone: "+1 514-000-0000",
+      address: "123 Rue Test, Montréal, QC",
+      runtimeMode: "hybrid",
+      approvalMode: "supervised",
+      autoPublish: true,
+      autoInvoice: true,
+      loopAggressiveness: "high",
+      defaultMissionType: "ecommerce_store",
+    });
+
+    expect(updated.phone).toBe("+1 514-000-0000");
+    expect(updated.address).toBe("123 Rue Test, Montréal, QC");
+    expect(updated.runtimeMode).toBe("hybrid");
+    expect(updated.approvalMode).toBe("supervised");
+    expect(updated.autoPublish).toBe(true);
+    expect(updated.autoInvoice).toBe(true);
+    expect(updated.loopAggressiveness).toBe("high");
+    expect(updated.defaultMissionType).toBe("ecommerce_store");
+
+    const loaded = getSettings();
+    expect(loaded.runtimeMode).toBe("hybrid");
+    expect(loaded.autoPublish).toBe(true);
   });
 
   it("testNvidia returns connected false when no key", async () => {

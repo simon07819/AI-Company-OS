@@ -1,41 +1,89 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Activity,
   AlertTriangle,
-  ArrowRight,
   Bot,
   CheckCircle2,
   ChevronRight,
   Clock3,
   Crown,
   DollarSign,
-  MessageSquare,
+  Headphones,
+  Layers,
+  Megaphone,
+  Package,
   RefreshCw,
-  Rocket,
   Send,
+  Settings,
   Sparkles,
   Target,
+  TestTube2,
+  TrendingUp,
   XCircle,
+  Zap,
 } from "lucide-react";
 import {
-  PageHeader,
-  StatusBadge,
-  MetricCard,
-  Panel,
-  SectionHeader,
-  GhostButton,
-  PrimaryButton,
-  LocalBadge,
-  SimBadge,
-  Row,
   ErrorBanner,
+  GhostButton,
+  LocalBadge,
+  Panel,
+  PrimaryButton,
+  Row,
+  SectionHeader,
+  SimBadge,
+  StatusBadge,
 } from "@/components/ui";
 
-// ─── Types ────────────────────────────────────────────────────────────────
+// ─── Business Agent Definitions ───────────────────────────────────────────
 
-type CeoIntent = "launch_mission" | "create_invoice" | "create_flyer" | "create_website" | "create_dropshipping_business" | "review_business" | "delegate_tasks" | "greeting" | "status_check" | "unknown";
+interface BusinessAgent {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  abbr: string;
+  description: string;
+}
+
+const BUSINESS_AGENTS: BusinessAgent[] = [
+  { id: "ops_agent",       label: "Operations",  icon: <Settings size={10} />,    color: "#3b82f6", abbr: "OPS", description: "Infra, logistics, processes" },
+  { id: "finance_agent",   label: "Finance",     icon: <DollarSign size={10} />,  color: "#22c55e", abbr: "FIN", description: "Invoices, revenue, expenses" },
+  { id: "marketing_agent", label: "Marketing",   icon: <Megaphone size={10} />,   color: "#8b5cf6", abbr: "MKT", description: "Campaigns, content, growth" },
+  { id: "product_agent",   label: "Product",     icon: <Package size={10} />,     color: "#f59e0b", abbr: "PRD", description: "Roadmap, features, design" },
+  { id: "dev_agent",       label: "Developer",   icon: <Zap size={10} />,         color: "#06b6d4", abbr: "DEV", description: "Code, APIs, integrations" },
+  { id: "support_agent",   label: "Support",     icon: <Headphones size={10} />,  color: "#ec4899", abbr: "SUP", description: "Client comms, issues" },
+  { id: "qa_agent",        label: "QA",          icon: <TestTube2 size={10} />,   color: "#f43f5e", abbr: "QA",  description: "Testing, validation, review" },
+];
+
+// ─── Intent → agents that get activated ──────────────────────────────────
+
+const INTENT_AGENTS: Record<string, string[]> = {
+  launch_mission:               ["ops_agent", "product_agent", "dev_agent"],
+  create_invoice:               ["finance_agent"],
+  create_flyer:                 ["marketing_agent", "product_agent"],
+  create_website:               ["dev_agent", "product_agent", "qa_agent"],
+  create_dropshipping_business: ["ops_agent", "finance_agent", "marketing_agent"],
+  review_business:              ["finance_agent", "ops_agent"],
+  delegate_tasks:               ["ops_agent"],
+  status_check:                 ["ops_agent"],
+};
+
+// ─── Quick Suggestions ────────────────────────────────────────────────────
+
+const QUICK_SUGGESTIONS = [
+  { label: "Créer une boutique dropshipping", icon: <Package size={10} />, color: "#8b5cf6" },
+  { label: "Créer un flyer",                  icon: <Sparkles size={10} />, color: "#f59e0b" },
+  { label: "Créer un site web",               icon: <Zap size={10} />,     color: "#06b6d4" },
+  { label: "Créer une facture",               icon: <DollarSign size={10} />, color: "#22c55e" },
+  { label: "Lancer une campagne marketing",   icon: <Megaphone size={10} />, color: "#8b5cf6" },
+  { label: "Analyser mes revenus",            icon: <TrendingUp size={10} />, color: "#f59e0b" },
+  { label: "Vérifie l'état de la compagnie",  icon: <Activity size={10} />, color: "#3b82f6" },
+];
+
+// ─── Types ────────────────────────────────────────────────────────────────
 
 interface CeoAction {
   type: string;
@@ -48,7 +96,7 @@ interface CeoMessage {
   id: string;
   role: "user" | "ceo";
   text: string;
-  intent?: CeoIntent;
+  intent?: string;
   sessionId?: string;
   actions?: CeoAction[];
   timestamp: string;
@@ -78,32 +126,246 @@ interface CeoOverview {
   pendingDecisions: PendingDecision[];
 }
 
-const QUICK_SUGGESTIONS = [
-  { label: "Créer une entreprise dropshipping", intent: "create_dropshipping_business", icon: <Rocket size={12} /> },
-  { label: "Créer un flyer", intent: "create_flyer", icon: <Sparkles size={12} /> },
-  { label: "Créer un site web", intent: "create_website", icon: <Target size={12} /> },
-  { label: "Créer une facture", intent: "create_invoice", icon: <DollarSign size={12} /> },
-  { label: "Lancer une campagne marketing", intent: "launch_mission", icon: <Rocket size={12} /> },
-  { label: "Vérifie l'état de ma compagnie", intent: "review_business", icon: <Bot size={12} /> },
-];
+// ─── Typing Indicator ─────────────────────────────────────────────────────
 
-const AGENT_ICONS: Record<string, string> = {
-  product_agent: "PM",
-  architect_agent: "AR",
-  frontend_agent: "FE",
-  backend_agent: "BE",
-  qa_agent: "QA",
-  devops_agent: "DO",
-};
+function TypingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
+      style={{
+        display: "flex", alignItems: "center", gap: 8,
+        padding: "8px 10px", background: "rgba(245,158,11,0.06)",
+        border: "1px solid rgba(245,158,11,0.15)", borderRadius: 8, marginBottom: 6,
+      }}
+    >
+      <Crown size={10} style={{ color: "#f59e0b" }} />
+      <div style={{ display: "flex", gap: 3 }}>
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            style={{ width: 5, height: 5, borderRadius: "50%", background: "#f59e0b" }}
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+          />
+        ))}
+      </div>
+      <span style={{ fontSize: 10, color: "var(--text-3)" }}>CEO AI is thinking...</span>
+    </motion.div>
+  );
+}
 
-const AGENT_COLORS: Record<string, string> = {
-  product_agent: "#3b82f6",
-  architect_agent: "#8b5cf6",
-  frontend_agent: "#22c55e",
-  backend_agent: "#f59e0b",
-  qa_agent: "#ef4444",
-  devops_agent: "#06b6d4",
-};
+// ─── Activity Item ────────────────────────────────────────────────────────
+
+function ActivityItem({ msg, products }: { msg: CeoMessage; products: { icon: React.ReactNode; color: string; label: string } | null }) {
+  const isUser = msg.role === "user";
+  const activatedAgents = msg.intent ? (INTENT_AGENTS[msg.intent] ?? []) : [];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -8 }}
+      animate={{ opacity: 1, x: 0 }}
+      style={{
+        padding: "8px 10px", borderRadius: 8, marginBottom: 6,
+        background: isUser ? "rgba(59,130,246,0.06)" : "rgba(245,158,11,0.06)",
+        borderLeft: `2px solid ${isUser ? "#3b82f6" : "#f59e0b"}`,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 3 }}>
+        <span style={{ fontSize: 9, fontWeight: 700, color: isUser ? "#3b82f6" : "#f59e0b" }}>
+          {isUser ? "YOU" : "CEO AI"}
+        </span>
+        <span style={{ fontSize: 9, color: "var(--text-3)" }}>
+          {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {!isUser && msg.intent && msg.intent !== "unknown" && msg.intent !== "greeting" && (
+          <span style={{
+            fontSize: 8, fontWeight: 600, color: "#f59e0b",
+            background: "rgba(245,158,11,0.12)", padding: "1px 6px", borderRadius: 99,
+          }}>
+            {msg.intent.replace(/_/g, " ")}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 12, color: "var(--text)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{msg.text}</div>
+
+      {/* Activated agents */}
+      {!isUser && activatedAgents.length > 0 && (
+        <div style={{ display: "flex", gap: 3, marginTop: 5, flexWrap: "wrap" }}>
+          {activatedAgents.map((aid) => {
+            const agent = BUSINESS_AGENTS.find((a) => a.id === aid);
+            if (!agent) return null;
+            return (
+              <span key={aid} style={{
+                fontSize: 8, fontWeight: 700, padding: "1px 6px", borderRadius: 99,
+                background: `${agent.color}22`, color: agent.color,
+              }}>
+                {agent.abbr} activated
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Actions */}
+      {msg.actions && msg.actions.length > 0 && (
+        <div style={{ marginTop: 5, display: "flex", flexDirection: "column", gap: 2 }}>
+          {msg.actions.map((a, i) => (
+            <a key={i} href={a.href ?? "#"} style={{
+              fontSize: 10, color: "#3b82f6", display: "flex", alignItems: "center", gap: 4,
+            }}>
+              <ChevronRight size={9} /> {a.label}
+            </a>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Agent Card ───────────────────────────────────────────────────────────
+
+function AgentCard({
+  agent,
+  runtimeAgent,
+  isActivated,
+}: {
+  agent: BusinessAgent;
+  runtimeAgent: AgentState | undefined;
+  isActivated: boolean;
+}) {
+  const status = runtimeAgent?.status ?? "idle";
+  const isWorking = isActivated || (status !== "idle" && status !== "done");
+  const progress = runtimeAgent?.progress ?? 0;
+
+  const statusColor = isWorking ? agent.color : "var(--text-3)";
+
+  return (
+    <motion.div
+      animate={isWorking ? { boxShadow: [`0 0 0px ${agent.color}00`, `0 0 8px ${agent.color}33`, `0 0 0px ${agent.color}00`] } : {}}
+      transition={isWorking ? { duration: 2, repeat: Infinity } : {}}
+      style={{
+        padding: "8px 10px",
+        background: isWorking ? `${agent.color}08` : "var(--bg-2)",
+        border: `1px solid ${isWorking ? `${agent.color}30` : "var(--border)"}`,
+        borderRadius: 8, cursor: "default",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+        <div style={{
+          width: 22, height: 22, borderRadius: "50%",
+          background: `${agent.color}22`, display: "flex", alignItems: "center", justifyContent: "center",
+          color: agent.color,
+        }}>
+          {agent.icon}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text)", lineHeight: 1 }}>{agent.label}</div>
+          <div style={{ fontSize: 9, color: "var(--text-3)" }}>{agent.description}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {isWorking && (
+            <motion.div
+              style={{ width: 5, height: 5, borderRadius: "50%", background: agent.color }}
+              animate={{ opacity: [1, 0.2, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            />
+          )}
+          <StatusBadge
+            label={isWorking ? "working" : status}
+            color={statusColor}
+            size="xs"
+          />
+        </div>
+      </div>
+      {progress > 0 && (
+        <div style={{ height: 2, background: "var(--border)", borderRadius: 1 }}>
+          <motion.div
+            style={{ height: "100%", background: agent.color, borderRadius: 1 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Mission Step Timeline ────────────────────────────────────────────────
+
+function MissionTimeline({ messages }: { messages: CeoMessage[] }) {
+  const missions = messages.filter((m) =>
+    m.role === "ceo" && m.intent && !["greeting", "unknown", "status_check"].includes(m.intent)
+  );
+
+  if (missions.length === 0) {
+    return (
+      <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--text-3)" }}>
+        <Clock3 size={20} style={{ margin: "0 auto 8px", opacity: 0.4 }} />
+        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>No missions yet</div>
+        <div style={{ fontSize: 10 }}>Send a command to the CEO AI to start</div>
+      </div>
+    );
+  }
+
+  const STEPS = ["Received", "Planned", "Delegated", "Working", "Review", "Done"];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {missions.slice(-5).map((msg, i) => {
+        const doneSteps = msg.sessionId ? 4 : msg.actions && msg.actions.length > 0 ? 3 : 2;
+        return (
+          <div key={msg.id} style={{
+            padding: "10px 12px", background: "var(--bg-2)",
+            border: "1px solid var(--border)", borderRadius: 8,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+              <Target size={9} />
+              {msg.intent?.replace(/_/g, " ")}
+              <span style={{ color: "var(--text-3)", fontWeight: 400 }}>
+                — {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+              {STEPS.map((step, j) => (
+                <div key={step} style={{ display: "flex", alignItems: "center", flex: j < STEPS.length - 1 ? 1 : undefined }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                    background: j < doneSteps ? "#22c55e" : "var(--border)",
+                    transition: "background 300ms",
+                  }} />
+                  {j < STEPS.length - 1 && (
+                    <div style={{
+                      flex: 1, height: 2, minWidth: 8,
+                      background: j < doneSteps - 1 ? "#22c55e" : "var(--border)",
+                      transition: "background 300ms",
+                    }} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3 }}>
+              {STEPS.map((step, j) => (
+                <span key={step} style={{
+                  fontSize: 7, color: j < doneSteps ? "var(--text-2)" : "var(--text-3)",
+                  textAlign: "center", flex: j < STEPS.length - 1 ? 1 : undefined,
+                }}>
+                  {step}
+                </span>
+              ))}
+            </div>
+            {msg.text && (
+              <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 5, lineHeight: 1.4 }}>
+                {msg.text.slice(0, 80)}{msg.text.length > 80 ? "…" : ""}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Page ─────────────────────────────────────────────────────────────────
 
@@ -112,10 +374,12 @@ export default function CeoPage() {
   const [overview, setOverview] = useState<CeoOverview | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [ceoTyping, setCeoTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activatedAgents, setActivatedAgents] = useState<string[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [mRes, oRes] = await Promise.all([
         fetch("/api/ceo/messages"),
@@ -124,22 +388,24 @@ export default function CeoPage() {
       if (mRes.ok) { const d = await mRes.json(); setMessages(d.messages ?? []); }
       if (oRes.ok) { const d = await oRes.json(); setOverview(d.overview ?? null); }
       setError(null);
-    } catch (e) {
+    } catch {
       setError("Failed to load CEO data");
     }
-  };
+  }, []);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [loadData]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, ceoTyping]);
 
   const handleSend = async (text?: string) => {
     const msg = text ?? input;
-    if (!msg.trim()) return;
+    if (!msg.trim() || sending) return;
     setInput("");
     setSending(true);
+    setCeoTyping(true);
+
     try {
       const res = await fetch("/api/ceo/chat", {
         method: "POST",
@@ -148,15 +414,21 @@ export default function CeoPage() {
       });
       if (res.ok) {
         const d = await res.json();
+        // Animate typing for at least 800ms
+        await new Promise((r) => setTimeout(r, 800));
+        setCeoTyping(false);
         if (d.response) {
-          // Reload messages
-          const mRes = await fetch("/api/ceo/messages");
-          if (mRes.ok) { const md = await mRes.json(); setMessages(md.messages ?? []); }
+          const intent: string = d.response.intent ?? "";
+          const agents = INTENT_AGENTS[intent] ?? [];
+          setActivatedAgents(agents);
+          setTimeout(() => setActivatedAgents([]), 4000);
+          await loadData();
         }
       }
     } catch { /* */ }
+
+    setCeoTyping(false);
     setSending(false);
-    // Refresh overview
     try {
       const oRes = await fetch("/api/ceo/overview");
       if (oRes.ok) { const d = await oRes.json(); setOverview(d.overview ?? null); }
@@ -181,164 +453,233 @@ export default function CeoPage() {
     } catch { /* */ }
   };
 
-  const AGENT_STATUS_COLOR = (s: string) => s === "idle" ? "#94a3b8" : s === "executing" || s === "planning" ? "#22c55e" : "#f59e0b";
+  const runtimeAgentsMap = new Map(
+    (overview?.agents ?? []).map((a) => [a.agentId, a])
+  );
+
+  // Map runtime agent IDs to business agent IDs
+  const RUNTIME_TO_BUSINESS: Record<string, string> = {
+    product_agent: "product_agent",
+    architect_agent: "product_agent",
+    frontend_agent: "dev_agent",
+    backend_agent: "dev_agent",
+    qa_agent: "qa_agent",
+    devops_agent: "ops_agent",
+  };
+
+  const getBusinessAgentRuntime = (businessId: string): AgentState | undefined => {
+    for (const [runtimeId, bizId] of Object.entries(RUNTIME_TO_BUSINESS)) {
+      if (bizId === businessId) {
+        const runtime = runtimeAgentsMap.get(runtimeId);
+        if (runtime) return runtime;
+      }
+    }
+    return undefined;
+  };
+
+  const metrics = [
+    { label: "Missions", value: overview?.activeMissions ?? 0, color: "#3b82f6" },
+    { label: "Revenue", value: `$${overview?.totalRevenue ?? 0}`, color: "#22c55e" },
+    { label: "Pending", value: overview?.pendingApprovals ?? 0, color: "#f59e0b" },
+    { label: "Agents", value: `${overview?.agents?.filter((a) => a.status !== "idle").length ?? 0}/${overview?.agents?.length ?? 0}`, color: "#8b5cf6" },
+  ];
 
   return (
-    <div style={{ padding: "20px 24px", maxWidth: 1600, margin: "0 auto", height: "calc(100vh - 60px)", display: "flex", flexDirection: "column" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexShrink: 0 }}>
+    <div style={{
+      padding: "16px 20px",
+      maxWidth: 1600,
+      margin: "0 auto",
+      height: "calc(100vh - 60px)",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
+    }}>
+      {/* ── Header ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Crown size={20} style={{ color: "#f59e0b" }} />
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)" }}>CEO Cockpit</h1>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: "rgba(245,158,11,0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <Crown size={16} style={{ color: "#f59e0b" }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "var(--text)", lineHeight: 1 }}>CEO Cockpit</div>
+            <div style={{ fontSize: 10, color: "var(--text-3)" }}>AI-powered company command center</div>
+          </div>
           <LocalBadge />
           <SimBadge />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {overview && (
-            <>
-              <MetricCard label="Missions" value={overview.activeMissions} color="#3b82f6" />
-              <MetricCard label="Revenue" value={`$${overview.totalRevenue}`} color="#22c55e" />
-              <MetricCard label="Pending" value={overview.pendingApprovals} color="#f59e0b" />
-            </>
-          )}
-          <GhostButton onClick={loadData}><RefreshCw size={11} /> Refresh</GhostButton>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          {metrics.map((m) => (
+            <div key={m.label} style={{
+              padding: "5px 10px",
+              background: "var(--bg-2)", border: "1px solid var(--border)",
+              borderRadius: 6,
+            }}>
+              <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase" }}>{m.label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: m.color }}>{m.value}</div>
+            </div>
+          ))}
+          <GhostButton onClick={loadData}><RefreshCw size={11} /></GhostButton>
         </div>
       </div>
 
       {error && <ErrorBanner message={error} onRetry={loadData} />}
 
-      {/* 3-Column Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 300px", gap: 16, flex: 1, minHeight: 0 }}>
+      {/* ── 3-Column Layout ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "360px 1fr 320px", gap: 12, flex: 1, minHeight: 0 }}>
 
-        {/* ── LEFT: Chat ── */}
-        <Panel style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
-          <SectionHeader title="CEO AI Chat" icon={<MessageSquare size={12} />} />
-
-          {/* Quick Suggestions */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 8 }}>
-            {QUICK_SUGGESTIONS.map((s) => (
-              <button
-                key={s.intent}
-                onClick={() => handleSend(s.label)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "4px 8px", fontSize: 10, fontWeight: 600,
-                  background: "var(--bg-2)", border: "1px solid var(--border)",
-                  borderRadius: 6, color: "var(--text-2)", cursor: "pointer",
-                }}
-              >
-                {s.icon} {s.label}
-              </button>
-            ))}
+        {/* ── LEFT: Chat Panel ── */}
+        <Panel style={{ display: "flex", flexDirection: "column", minHeight: 0, gap: 0 }}>
+          {/* Suggestions */}
+          <div style={{ flexShrink: 0, marginBottom: 8 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 5 }}>
+              Quick Commands
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {QUICK_SUGGESTIONS.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => handleSend(s.label)}
+                  disabled={sending}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "3px 8px", fontSize: 9, fontWeight: 600,
+                    background: "var(--bg-2)", border: "1px solid var(--border)",
+                    borderRadius: 99, color: s.color, cursor: "pointer",
+                    transition: "all 120ms",
+                  }}
+                >
+                  <span style={{ color: s.color }}>{s.icon}</span>
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "4px 0", marginBottom: 8 }}>
-            <AnimatePresence mode="popLayout">
-              {messages.length === 0 && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>
-                  <Crown size={32} style={{ color: "#f59e0b", margin: "0 auto 12px" }} />
-                  <div style={{ fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>CEO AI Ready</div>
-                  Envoyez un message ou utilisez une suggestion rapide pour commencer.
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
+            <AnimatePresence>
+              {messages.length === 0 && !ceoTyping && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-3)" }}
+                >
+                  <div style={{
+                    width: 48, height: 48, borderRadius: "50%",
+                    background: "rgba(245,158,11,0.12)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    margin: "0 auto 12px",
+                  }}>
+                    <Crown size={20} style={{ color: "#f59e0b" }} />
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-2)", marginBottom: 4 }}>CEO AI Ready</div>
+                  <div style={{ fontSize: 11 }}>Tell me what you need. I&apos;ll delegate to the right agents.</div>
                 </motion.div>
               )}
               {messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{
-                    marginBottom: 8, padding: "8px 10px",
-                    borderRadius: 8, fontSize: 12, lineHeight: 1.5,
-                    background: msg.role === "user" ? "rgba(59,130,246,0.08)" : "rgba(245,158,11,0.08)",
-                    borderLeft: msg.role === "user" ? "2px solid #3b82f6" : "2px solid #f59e0b",
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: 10, marginBottom: 2, color: msg.role === "user" ? "#3b82f6" : "#f59e0b" }}>
-                    {msg.role === "user" ? "You" : "CEO AI"}
-                  </div>
-                  <div style={{ whiteSpace: "pre-wrap", color: "var(--text)" }}>{msg.text}</div>
-                  {msg.actions && msg.actions.length > 0 && (
-                    <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
-                      {msg.actions.map((a, i) => (
-                        <a key={i} href={a.href ?? "#"} style={{ fontSize: 10, color: "#3b82f6", textDecoration: "underline", display: "flex", alignItems: "center", gap: 4 }}>
-                          <ChevronRight size={10} /> {a.label}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
+                <ActivityItem key={msg.id} msg={msg} products={null} />
               ))}
+              {ceoTyping && <TypingIndicator />}
             </AnimatePresence>
             <div ref={chatEndRef} />
           </div>
 
           {/* Input */}
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <div style={{ flexShrink: 0, display: "flex", gap: 6 }}>
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask the CEO AI..."
+              placeholder="Ask the CEO AI anything..."
+              disabled={sending}
               style={{
                 flex: 1, padding: "8px 12px", fontSize: 12,
                 background: "var(--bg-2)", border: "1px solid var(--border)",
                 borderRadius: 8, color: "var(--text)", outline: "none",
               }}
             />
-            <PrimaryButton onClick={() => handleSend()} disabled={sending || !input.trim()} color="#f59e0b">
+            <PrimaryButton
+              onClick={() => handleSend()}
+              disabled={sending || !input.trim()}
+              color="#f59e0b"
+            >
               <Send size={11} />
             </PrimaryButton>
           </div>
         </Panel>
 
-        {/* ── CENTER: Mission Timeline + Org Chart ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
-          {/* Org Chart */}
+        {/* ── CENTER: Mission Timeline + Activity ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+
+          {/* Org Chart Visual */}
           <Panel style={{ flexShrink: 0 }}>
-            <SectionHeader title="Organization" icon={<Crown size={12} />} />
+            <SectionHeader title="Company Structure" icon={<Layers size={12} />} />
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-              {/* CEO */}
+              {/* CEO node */}
               <div style={{
                 display: "flex", alignItems: "center", gap: 8,
-                padding: "8px 16px", background: "rgba(245,158,11,0.1)",
-                border: "1px solid rgba(245,158,11,0.3)", borderRadius: 8,
+                padding: "8px 20px",
+                background: "rgba(245,158,11,0.1)",
+                border: "1px solid rgba(245,158,11,0.3)",
+                borderRadius: 8,
               }}>
                 <Crown size={14} style={{ color: "#f59e0b" }} />
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b" }}>CEO AI</span>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "#f59e0b" }}>CEO AI</div>
+                  <div style={{ fontSize: 9, color: "var(--text-3)" }}>Strategy, delegation, oversight</div>
+                </div>
+                <motion.div
+                  style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }}
+                  animate={{ opacity: [1, 0.3, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
               </div>
-              {/* Connector line */}
-              <div style={{ width: 1, height: 12, background: "var(--border)" }} />
-              {/* Agents */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-                {overview?.agents.map((agent) => (
-                  <div key={agent.agentId} style={{
-                    display: "flex", flexDirection: "column", alignItems: "center",
-                    padding: "6px 10px", background: "var(--bg-2)",
-                    border: `1px solid ${AGENT_COLORS[agent.agentId] ?? "var(--border)"}33`,
-                    borderRadius: 6, minWidth: 70,
-                  }}>
-                    <div style={{
-                      width: 22, height: 22, borderRadius: "50%",
-                      background: `${AGENT_COLORS[agent.agentId] ?? "#94a3b8"}22`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 8, fontWeight: 700, color: AGENT_COLORS[agent.agentId] ?? "#94a3b8",
-                      marginBottom: 3,
-                    }}>
-                      {AGENT_ICONS[agent.agentId] ?? "??"}
-                    </div>
-                    <div style={{ fontSize: 8, fontWeight: 600, color: "var(--text-2)", textAlign: "center" }}>
-                      {agent.agentId.replace("_agent", "")}
-                    </div>
-                    <StatusBadge
-                      label={agent.status}
-                      color={AGENT_STATUS_COLOR(agent.status)}
-                      size="xs"
-                    />
-                  </div>
-                )) ?? (
-                  <div style={{ fontSize: 11, color: "var(--text-3)" }}>Loading agents...</div>
-                )}
+
+              {/* Connector */}
+              <div style={{ width: 1, height: 8, background: "var(--border)" }} />
+
+              {/* Business agents grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, width: "100%" }}>
+                {BUSINESS_AGENTS.map((agent) => {
+                  const isAct = activatedAgents.includes(agent.id);
+                  const runtime = getBusinessAgentRuntime(agent.id);
+                  const isWorking = isAct || (runtime && runtime.status !== "idle");
+                  return (
+                    <motion.div
+                      key={agent.id}
+                      animate={isWorking ? { boxShadow: [`0 0 0px ${agent.color}00`, `0 0 6px ${agent.color}44`, `0 0 0px ${agent.color}00`] } : {}}
+                      transition={isWorking ? { duration: 1.8, repeat: Infinity } : {}}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        padding: "6px 4px",
+                        background: isWorking ? `${agent.color}0d` : "var(--bg-2)",
+                        border: `1px solid ${isWorking ? `${agent.color}30` : "var(--border)"}`,
+                        borderRadius: 6,
+                      }}
+                    >
+                      <div style={{
+                        width: 20, height: 20, borderRadius: "50%",
+                        background: `${agent.color}22`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: agent.color, marginBottom: 3,
+                      }}>
+                        {agent.icon}
+                      </div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color: "var(--text-2)", textAlign: "center" }}>{agent.label}</div>
+                      {isWorking && (
+                        <motion.div
+                          style={{ width: 4, height: 4, borderRadius: "50%", background: agent.color, marginTop: 2 }}
+                          animate={{ opacity: [1, 0.2, 1] }}
+                          transition={{ duration: 1.2, repeat: Infinity }}
+                        />
+                      )}
+                    </motion.div>
+                  );
+                })}
               </div>
             </div>
           </Panel>
@@ -346,147 +687,83 @@ export default function CeoPage() {
           {/* Mission Timeline */}
           <Panel style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <SectionHeader title="Mission Timeline" icon={<Clock3 size={12} />} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {messages.filter((m) => m.intent && m.intent !== "greeting" && m.intent !== "unknown").length === 0 ? (
-                <div style={{ textAlign: "center", padding: 24, color: "var(--text-3)", fontSize: 11 }}>
-                  <Clock3 size={20} style={{ margin: "0 auto 8px", opacity: 0.5 }} />
-                  No mission activity yet. Send a message to start!
-                </div>
-              ) : (
-                messages
-                  .filter((m) => m.intent && m.intent !== "greeting" && m.intent !== "unknown")
-                  .slice(-8)
-                  .map((msg, i) => {
-                    const steps = [
-                      { label: "Message reçu", done: true },
-                      { label: "Plan créé", done: msg.intent !== "unknown" },
-                      { label: "Tâches assignées", done: !!msg.sessionId || msg.intent === "create_invoice" },
-                      { label: "Agent travaille", done: !!msg.sessionId && msg.intent !== "create_invoice" },
-                      { label: "Résultat généré", done: false },
-                      { label: "Approbation requise", done: false },
-                    ];
-                    return (
-                      <div key={msg.id} style={{ padding: "8px 10px", background: "var(--bg-2)", borderRadius: 6, border: "1px solid var(--border)" }}>
-                        <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text-2)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                          <Target size={10} /> {msg.intent?.replace(/_/g, " ")} — {new Date(msg.timestamp).toLocaleTimeString()}
-                        </div>
-                        <div style={{ display: "flex", gap: 2, alignItems: "center" }}>
-                          {steps.map((step, j) => (
-                            <div key={j} style={{ display: "flex", alignItems: "center", gap: 2 }}>
-                              <div style={{
-                                width: 8, height: 8, borderRadius: "50%",
-                                background: step.done ? "#22c55e" : "var(--border)",
-                              }} />
-                              {j < steps.length - 1 && (
-                                <div style={{ width: 12, height: 2, background: step.done ? "#22c55e" : "var(--border)" }} />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
-                          {steps.map((step, j) => (
-                            <span key={j} style={{ fontSize: 7, color: step.done ? "var(--text-2)" : "var(--text-3)" }}>{step.label}</span>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })
-              )}
-            </div>
+            <MissionTimeline messages={messages} />
           </Panel>
         </div>
 
         {/* ── RIGHT: Agents + Decisions ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
-          {/* Pending Decisions */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minHeight: 0 }}>
+
+          {/* Decisions */}
           <Panel style={{ flexShrink: 0 }}>
-            <SectionHeader title="Decisions Required" icon={<AlertTriangle size={12} style={{ color: "#f59e0b" }} />} />
+            <SectionHeader
+              title="Decisions Required"
+              icon={<AlertTriangle size={12} style={{ color: "#f59e0b" }} />}
+            />
             {(!overview?.pendingDecisions || overview.pendingDecisions.length === 0) ? (
-              <div style={{ textAlign: "center", padding: 16, color: "var(--text-3)", fontSize: 11 }}>
-                <CheckCircle2 size={16} style={{ color: "#22c55e", margin: "0 auto 6px" }} />
-                No pending decisions
+              <div style={{ textAlign: "center", padding: "12px 8px", color: "var(--text-3)", fontSize: 11 }}>
+                <CheckCircle2 size={14} style={{ color: "#22c55e", margin: "0 auto 5px", display: "block" }} />
+                All clear — no pending decisions
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 {overview.pendingDecisions.map((dec) => (
-                  <Row key={dec.id}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)" }}>{dec.label}</div>
-                      <div style={{ fontSize: 9, color: "var(--text-3)" }}>{dec.type.replace(/_/g, " ")}</div>
-                    </div>
-                    <div style={{ display: "flex", gap: 3 }}>
-                      <PrimaryButton onClick={() => handleDecision(dec.id, "approve")} color="#22c55e" >
-                        <CheckCircle2 size={10} />
+                  <div key={dec.id} style={{
+                    padding: "8px 10px", background: "rgba(245,158,11,0.06)",
+                    border: "1px solid rgba(245,158,11,0.2)", borderRadius: 6,
+                  }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>{dec.label}</div>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      <PrimaryButton onClick={() => handleDecision(dec.id, "approve")} color="#22c55e">
+                        <CheckCircle2 size={10} /> Approve
                       </PrimaryButton>
                       <GhostButton onClick={() => handleDecision(dec.id, "reject")}>
-                        <XCircle size={10} />
+                        <XCircle size={10} /> Reject
                       </GhostButton>
                     </div>
-                  </Row>
+                  </div>
                 ))}
               </div>
             )}
           </Panel>
 
-          {/* Agent Tasks */}
+          {/* Agent Status */}
           <Panel style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <SectionHeader title="Agent Tasks" icon={<Bot size={12} />} />
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {overview?.agents.map((agent) => (
-                <div key={agent.agentId} style={{
-                  padding: "6px 8px", background: "var(--bg-2)",
-                  borderLeft: `2px solid ${AGENT_COLORS[agent.agentId] ?? "#94a3b8"}`,
-                  borderRadius: 4,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text)" }}>
-                      {AGENT_ICONS[agent.agentId] ?? "??"} {agent.agentId.replace("_agent", "")}
-                    </span>
-                    <StatusBadge label={agent.status} color={AGENT_STATUS_COLOR(agent.status)} size="xs" />
-                  </div>
-                  {agent.currentTaskId && (
-                    <div style={{ fontSize: 9, color: "var(--text-3)", marginTop: 2 }}>Task: {agent.currentTaskId}</div>
-                  )}
-                  {agent.progress > 0 && (
-                    <div style={{ marginTop: 3, height: 3, background: "var(--border)", borderRadius: 2 }}>
-                      <div style={{ width: `${agent.progress}%`, height: "100%", background: AGENT_COLORS[agent.agentId] ?? "#3b82f6", borderRadius: 2 }} />
-                    </div>
-                  )}
-                </div>
-              )) ?? (
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Loading agents...</div>
-              )}
+            <SectionHeader title="Agent Team" icon={<Bot size={12} />} />
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              {BUSINESS_AGENTS.map((agent) => (
+                <AgentCard
+                  key={agent.id}
+                  agent={agent}
+                  runtimeAgent={getBusinessAgentRuntime(agent.id)}
+                  isActivated={activatedAgents.includes(agent.id)}
+                />
+              ))}
             </div>
           </Panel>
 
-          {/* Results to See */}
-          <Panel style={{ flexShrink: 0 }}>
-            <SectionHeader title="Results" icon={<ArrowRight size={12} />} />
-            {messages.filter((m) => m.actions && m.actions.some((a) => a.type === "created_session" || a.type === "created_invoice")).length === 0 ? (
-              <div style={{ textAlign: "center", padding: 12, color: "var(--text-3)", fontSize: 11 }}>
-                No results yet
-              </div>
-            ) : (
+          {/* Results */}
+          {messages.some((m) => m.actions && m.actions.length > 0) && (
+            <Panel style={{ flexShrink: 0 }}>
+              <SectionHeader title="Generated Results" icon={<Sparkles size={12} style={{ color: "#f59e0b" }} />} />
               <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 {messages
                   .filter((m) => m.actions && m.actions.length > 0)
-                  .slice(-5)
-                  .map((msg) => (
-                    <div key={msg.id}>
-                      {msg.actions!.map((a, i) => (
-                        <a key={i} href={a.href ?? "#"} style={{
-                          display: "flex", alignItems: "center", gap: 4,
-                          fontSize: 10, color: "#3b82f6", textDecoration: "none",
-                          padding: "3px 0",
-                        }}>
-                          <ArrowRight size={9} /> {a.label}
-                        </a>
-                      ))}
-                    </div>
-                  ))}
+                  .slice(-4)
+                  .map((msg) =>
+                    (msg.actions ?? []).map((a, i) => (
+                      <a key={`${msg.id}-${i}`} href={a.href ?? "#"} style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        fontSize: 11, color: "#3b82f6",
+                        padding: "3px 0",
+                      }}>
+                        <ChevronRight size={9} /> {a.label}
+                      </a>
+                    ))
+                  )}
               </div>
-            )}
-          </Panel>
+            </Panel>
+          )}
         </div>
       </div>
     </div>

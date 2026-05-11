@@ -22,7 +22,7 @@ describe("critical Control Center pages", () => {
     render(React.createElement(SettingsPage));
 
     expect(screen.getByText("Settings")).toBeInTheDocument();
-    expect(screen.getByText("NVIDIA Connection")).toBeInTheDocument();
+    expect(screen.getByText("AI Runtime")).toBeInTheDocument();
   });
 
   it("renders Runtime without crashing", () => {

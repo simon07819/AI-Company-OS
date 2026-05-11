@@ -21,6 +21,7 @@ import {
   Rocket,
   Settings,
   Shield,
+  ShoppingBag,
   TerminalSquare,
   Users,
   Zap,
@@ -55,6 +56,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/autopilot", label: "Autopilot", description: "AI agency sessions", icon: <Rocket size={16} /> },
       { href: "/business", label: "Business Center", description: "Mission pipeline and revenue", icon: <BarChart3 size={16} /> },
+      { href: "/ecommerce", label: "E-Commerce", description: "Dropshipping products & orders", icon: <ShoppingBag size={16} /> },
       { href: "/crm", label: "Client CRM", description: "Leads and client management", icon: <Users size={16} /> },
       { href: "/revenue", label: "Revenue", description: "Proposals and invoices", icon: <FileText size={16} /> },
       { href: "/distribution", label: "Distribution", description: "Publishing and campaigns", icon: <Megaphone size={16} /> },

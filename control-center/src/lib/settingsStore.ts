@@ -10,16 +10,35 @@ const SETTINGS_PATH = path.join(DATA_DIR, "settings.json");
 // ─── Types ────────────────────────────────────────────────────────────────
 
 export interface AppSettings {
+  // Company Identity
   companyName: string;
   businessEmail: string;
+  phone: string;
+  address: string;
+  logoUrl: string | null;
+
+  // Invoice Settings
   currency: string;
   taxRegion: "none" | "canada" | "quebec" | "eu" | "us";
-  tpsRate: number;        // GST (Canada federal) — 5%
-  tvqRate: number;        // QST (Quebec provincial) — 9.975%
+  tpsRate: number;
+  tvqRate: number;
   invoicePrefix: string;
-  defaultPaymentTerms: number; // days
-  logoUrl: string | null;
-  nvidiaKeyPresent: boolean;   // read-only, never exposed
+  defaultPaymentTerms: number;
+
+  // AI Runtime
+  nvidiaKeyPresent: boolean;   // read-only, derived from env
+  runtimeMode: "nvidia" | "simulation" | "hybrid";
+
+  // Automation
+  approvalMode: "manual" | "auto" | "supervised";
+  autoPublish: boolean;
+  autoInvoice: boolean;
+  loopAggressiveness: "low" | "medium" | "high";
+
+  // Workspace Defaults
+  defaultWorkspace: string;
+  defaultMissionType: string;
+
   updatedAt: string;
 }
 
@@ -34,14 +53,23 @@ export interface NvidiaTestResult {
 const DEFAULT_SETTINGS: AppSettings = {
   companyName: "",
   businessEmail: "",
+  phone: "",
+  address: "",
+  logoUrl: null,
   currency: "CAD",
   taxRegion: "quebec",
   tpsRate: 5,
   tvqRate: 9.975,
   invoicePrefix: "INV",
   defaultPaymentTerms: 30,
-  logoUrl: null,
   nvidiaKeyPresent: false,
+  runtimeMode: "simulation",
+  approvalMode: "manual",
+  autoPublish: false,
+  autoInvoice: false,
+  loopAggressiveness: "medium",
+  defaultWorkspace: "",
+  defaultMissionType: "saas_project",
   updatedAt: new Date().toISOString(),
 };
 
@@ -69,7 +97,6 @@ function readSettings(): AppSettings {
 
 function writeSettings(data: AppSettings) {
   ensureDataDir();
-  // Never persist nvidiaKeyPresent — always derived from env
   const toSave = { ...data, nvidiaKeyPresent: !!process.env.NVIDIA_API_KEY, updatedAt: new Date().toISOString() };
   fs.writeFileSync(SETTINGS_PATH, JSON.stringify(toSave, null, 2) + "\n", "utf-8");
 }
@@ -92,7 +119,6 @@ export async function testNvidia(): Promise<NvidiaTestResult> {
   if (!keyPresent) {
     return { connected: false, provider: "NVIDIA API", message: "NVIDIA_API_KEY not set — simulation mode active" };
   }
-  // Verify the key looks like a valid NVIDIA key (starts with nvapi-)
   const key = process.env.NVIDIA_API_KEY ?? "";
   if (key.startsWith("nvapi-")) {
     return { connected: true, provider: "NVIDIA API", message: "NVIDIA API key detected and valid format (nvapi-*)" };
