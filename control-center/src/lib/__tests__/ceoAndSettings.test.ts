@@ -209,11 +209,11 @@ describe("ceoCommand", () => {
 
   it("saves user and CEO messages", async () => {
     const { sendMessage, getMessages } = await import("@/lib/ceoCommand");
-    const response = sendMessage("Bonjour!");
+    const { ceoMessage } = sendMessage("Bonjour!");
 
-    expect(response.role).toBe("ceo");
-    expect(response.intent).toBe("greeting");
-    expect(response.text).toContain("CEO AI");
+    expect(ceoMessage.role).toBe("ceo");
+    expect(ceoMessage.intent).toBe("greeting");
+    expect(ceoMessage.text).toContain("CEO");
 
     const messages = getMessages();
     const userMsg = messages.find((m) => m.role === "user" && m.text === "Bonjour!");
@@ -224,35 +224,35 @@ describe("ceoCommand", () => {
 
   it("detects launch_mission intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const response = sendMessage("Lancer une mission pour moi");
+    const { ceoMessage } = sendMessage("Lancer une mission pour moi");
 
-    expect(response.intent).toBe("launch_mission");
-    expect(response.actions).toBeDefined();
-    expect(response.actions!.some((a) => a.type === "created_session")).toBe(true);
+    expect(ceoMessage.intent).toBe("launch_mission");
+    expect(ceoMessage.actions).toBeDefined();
+    expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);
   });
 
   it("detects create_flyer intent and creates session", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const response = sendMessage("Créer un flyer pour mon entreprise");
+    const { ceoMessage } = sendMessage("Créer un flyer pour mon entreprise");
 
-    expect(response.intent).toBe("create_flyer");
-    expect(response.actions!.some((a) => a.type === "created_session")).toBe(true);
+    expect(ceoMessage.intent).toBe("create_flyer");
+    expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);
   });
 
   it("detects create_invoice intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const response = sendMessage("Créer une facture pour le client");
+    const { ceoMessage } = sendMessage("Créer une facture pour le client");
 
-    expect(response.intent).toBe("create_invoice");
-    expect(response.actions!.some((a) => a.type === "created_invoice")).toBe(true);
+    expect(ceoMessage.intent).toBe("create_invoice");
+    expect(ceoMessage.actions!.some((a) => a.type === "created_invoice")).toBe(true);
   });
 
   it("detects create_dropshipping_business intent", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
-    const response = sendMessage("Créer une entreprise dropshipping");
+    const { ceoMessage } = sendMessage("Créer une entreprise dropshipping");
 
-    expect(response.intent).toBe("create_dropshipping_business");
-    expect(response.actions!.some((a) => a.type === "created_session")).toBe(true);
+    expect(ceoMessage.intent).toBe("create_dropshipping_business");
+    expect(ceoMessage.actions!.some((a) => a.type === "created_session")).toBe(true);
   });
 
   it("getCeoOverview returns agents, tasks, decisions", async () => {

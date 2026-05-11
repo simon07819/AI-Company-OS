@@ -5,6 +5,7 @@ import { getAllAgentStates, type AgentRuntimeState } from "./agentRuntime";
 import { getBusinessOverview } from "./businessOps";
 import { getCrmOverview } from "./clientCrm";
 import { getRevenueOverview, createInvoice, type Invoice } from "./revenueSystem";
+import { createDiscussion, type ExecutiveDiscussion } from "./executiveDiscussion";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ export interface CeoMessage {
   intent?: CeoIntent;
   sessionId?: string;
   actions?: CeoAction[];
+  discussionId?: string;
   timestamp: string;
 }
 
@@ -195,7 +197,7 @@ export function getMessages(limit = 50): CeoMessage[] {
   return data.messages.slice(-limit);
 }
 
-export function sendMessage(text: string): CeoMessage {
+export function sendMessage(text: string): { ceoMessage: CeoMessage; discussion: ExecutiveDiscussion } {
   const data = readChat();
 
   // Save user message
@@ -241,7 +243,6 @@ export function sendMessage(text: string): CeoMessage {
   }
 
   if (intent === "review_business" || intent === "status_check") {
-    // Check for pending approvals
     try {
       const sessions = listSessions();
       for (const s of sessions) {
@@ -251,6 +252,9 @@ export function sendMessage(text: string): CeoMessage {
       }
     } catch { /* */ }
   }
+
+  // Generate executive discussion for this request
+  const discussion = createDiscussion(text, intent);
 
   // Build CEO response
   const responseText = buildCeoResponse(intent, text, actions);
@@ -262,12 +266,13 @@ export function sendMessage(text: string): CeoMessage {
     intent,
     sessionId,
     actions,
+    discussionId: discussion.id,
     timestamp: new Date().toISOString(),
   };
   data.messages.push(ceoMsg);
 
   writeChat(data);
-  return ceoMsg;
+  return { ceoMessage: ceoMsg, discussion };
 }
 
 export function getCeoOverview(): CeoOverview {

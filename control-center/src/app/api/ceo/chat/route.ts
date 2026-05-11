@@ -10,8 +10,8 @@ export async function POST(req: NextRequest) {
     if (!text || typeof text !== "string") {
       return NextResponse.json({ ok: false, message: "Missing text" }, { status: 400 });
     }
-    const response = sendMessage(text);
-    return NextResponse.json({ ok: true, response });
+    const { ceoMessage, discussion } = sendMessage(text);
+    return NextResponse.json({ ok: true, response: ceoMessage, discussion });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ ok: false, message }, { status: 500 });
