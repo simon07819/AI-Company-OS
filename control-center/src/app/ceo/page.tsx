@@ -32,6 +32,7 @@ import {
 import {
   ErrorBanner,
   GhostButton,
+  GlassPanel,
   LocalBadge,
   Panel,
   PrimaryButton,
@@ -40,6 +41,8 @@ import {
   SimBadge,
   NvidiaLiveBadge,
   StatusBadge,
+  TypingBubble,
+  ExpertiseBadge,
 } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
@@ -1098,8 +1101,8 @@ export default function CeoPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [createdMission, setCreatedMission] = useState<CeoAction | null>(null);
   const [clipHovered, setClipHovered] = useState(false);
-  const [recentOutputs, setRecentOutputs] = useState<unknown[]>([]);
-  const [, setActiveRevisions] = useState<unknown[]>([]);
+  const [recentOutputs, setRecentOutputs] = useState<{ id: string; title: string; type: string; status: string; assignedAgent: string; preview: string; updatedAt: string }[]>([]);
+  const [activeRevisions, setActiveRevisions] = useState<{ id: string; comment: string; direction: string; agentId: string; status: string; createdAt: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversationMessages: CeoMessage[] = activeThread
@@ -1838,26 +1841,32 @@ export default function CeoPage() {
           </div>
         </Panel>
 
-        {/* ── RIGHT: Executive Team + Supervision ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+        {/* ── RIGHT: Executive Team + Supervision + Outputs ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0, overflowY: "auto" }}>
 
-          {/* Org hierarchy */}
-          <Panel style={{ flexShrink: 0 }}>
+          {/* Org hierarchy — Premium */}
+          <div style={{
+            background: "linear-gradient(180deg, rgba(245,158,11,0.04), transparent)",
+            border: "1px solid rgba(245,158,11,0.12)",
+            borderRadius: 10, padding: 12,
+          }}>
             <SectionHeader title="Executive Team" icon={<Crown size={11} style={{ color: "#f59e0b" }} />} />
 
             {/* CEO node */}
             <div style={{
               display: "flex", alignItems: "center", gap: 8,
-              padding: "7px 10px", marginBottom: 8,
-              background: "rgba(245,158,11,0.08)",
-              border: "1px solid rgba(245,158,11,0.3)",
-              borderRadius: 8,
-              cursor: "pointer",
+              padding: "8px 10px", marginBottom: 8,
+              background: "linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.04))",
+              border: "1px solid rgba(245,158,11,0.25)",
+              borderRadius: 10, cursor: "pointer",
             }} role="button" tabIndex={0} onClick={() => { void openDirectThread("ceo"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") void openDirectThread("ceo"); }}>
-              <ExecAvatar id="ceo" size={28} pulse={ceoTyping} />
+              <ExecAvatar id="ceo" size={30} pulse={ceoTyping} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", lineHeight: 1 }}>Alexandra Chen</div>
-                <div style={{ fontSize: 8, color: "var(--text-3)" }}>CEO · Strategy & Oversight</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", lineHeight: 1 }}>Alexandra Chen</span>
+                  <ExpertiseBadge label="CEO" color="#f59e0b" size="xs" />
+                </div>
+                <div style={{ fontSize: 8, color: "var(--text-3)" }}>Strategy & Oversight</div>
               </div>
               <motion.div
                 style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e" }}
@@ -1865,12 +1874,6 @@ export default function CeoPage() {
                 transition={{ duration: 2, repeat: Infinity }}
               />
             </div>
-
-            {/* Connector */}
-            <div style={{
-              width: 1, height: 8, background: "var(--border)",
-              margin: "0 auto", marginBottom: 4,
-            }} />
 
             {/* Directors */}
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -1884,13 +1887,86 @@ export default function CeoPage() {
                 />
               ))}
             </div>
-          </Panel>
+          </div>
 
-          {/* Supervision Controls */}
-          <Panel style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-            <SectionHeader title="Supervision" icon={<AlertTriangle size={11} style={{ color: "#f59e0b" }} />} />
+          {/* Supervision — Approvals */}
+          <div style={{
+            background: "linear-gradient(180deg, rgba(245,158,11,0.04), transparent)",
+            border: "1px solid rgba(245,158,11,0.12)",
+            borderRadius: 10, padding: 12,
+          }}>
+            <SectionHeader title="Approvals" icon={<CheckCircle2 size={11} style={{ color: "#f59e0b" }} />} />
             <SupervisionPanel approvals={pendingApprovals} onPreview={handleApprovalPreview} onApprove={handleApprovalApprove} onReject={handleApprovalReject} />
-          </Panel>
+          </div>
+
+          {/* Recent Outputs */}
+          {recentOutputs.length > 0 && (
+            <div style={{
+              background: "linear-gradient(180deg, rgba(139,92,246,0.04), transparent)",
+              border: "1px solid rgba(139,92,246,0.12)",
+              borderRadius: 10, padding: 12,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <Eye size={11} style={{ color: "#a78bfa" }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-2)" }}>Latest Outputs</span>
+                <a href="/outputs" style={{ fontSize: 9, color: "#a78bfa", fontWeight: 600, marginLeft: "auto", textDecoration: "none" }}>View all →</a>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {recentOutputs.map((out) => {
+                  const typeColor: Record<string, string> = { creative_brief: "#a78bfa", logo_direction: "#8b5cf6", color_palette: "#f472b6", architecture_doc: "#38bdf8", invoice_preview: "#22c55e", hero_section: "#818cf8" };
+                  const color = typeColor[out.type] ?? "#64748b";
+                  return (
+                    <a key={out.id} href={`/outputs/${out.id}`} style={{ textDecoration: "none" }}>
+                      <div style={{
+                        padding: "8px 10px", borderRadius: 7,
+                        border: `1px solid ${color}18`, borderLeft: `3px solid ${color}`,
+                        background: `${color}04`,
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text)" }}>{out.title}</span>
+                          <span style={{ fontSize: 7, padding: "1px 4px", borderRadius: 3, background: `${color}12`, color, fontWeight: 600 }}>{out.type.replace(/_/g, " ")}</span>
+                        </div>
+                        <p style={{ fontSize: 9, color: "var(--text-3)", margin: 0, lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                          {out.preview || out.status}
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Active Revisions */}
+          {activeRevisions.length > 0 && (
+            <div style={{
+              background: "linear-gradient(180deg, rgba(245,158,11,0.04), transparent)",
+              border: "1px solid rgba(245,158,11,0.12)",
+              borderRadius: 10, padding: 12,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                <RefreshCw size={11} style={{ color: "#f59e0b" }} />
+                <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-2)" }}>Active Revisions</span>
+                <span style={{ fontSize: 9, color: "#f59e0b", fontWeight: 700 }}>{activeRevisions.length}</span>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {activeRevisions.map((rev) => (
+                  <div key={rev.id} style={{
+                    padding: "7px 10px", borderRadius: 7,
+                    border: "1px solid rgba(245,158,11,0.15)", borderLeft: "3px solid #f59e0b",
+                    background: "rgba(245,158,11,0.03)",
+                  }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>{rev.comment}</div>
+                    {rev.direction && <div style={{ fontSize: 8, color: "#f59e0b", marginBottom: 2 }}>→ {rev.direction}</div>}
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 8, color: "var(--text-3)" }}>{rev.agentId.replace(/_/g, " ")}</span>
+                      <span style={{ fontSize: 8, color: "var(--text-3)" }}>{new Date(rev.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Agent Questions */}
           <AgentQuestionsSection />
