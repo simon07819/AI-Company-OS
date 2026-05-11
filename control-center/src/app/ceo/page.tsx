@@ -238,7 +238,7 @@ export default function EasyAgencyOSPage() {
       setLogs(view.logs ?? []);
       setLoadError(null);
     } catch {
-      setLoadError("Connexion au runtime en attente. Nouvelle tentative automatique.");
+      setLoadError("Connexion aux agents en attente. Nouvelle tentative automatique.");
     } finally {
       setLoading(false);
     }
@@ -458,7 +458,7 @@ export default function EasyAgencyOSPage() {
 
           <div className="chat-stream">
             {loadError && <div className="system-note">{loadError}</div>}
-            {loading && <div className="system-note">Connexion au runtime...</div>}
+            {loading && <div className="system-note">Connexion aux agents...</div>}
             {primaryApproval && (
               <div className="primary-approval-banner">
                 <div>
@@ -721,10 +721,10 @@ const styles = `
 .agent-update em { font-style: normal; }
 .agent-update small { color: #94a3b8; font-size: 10px; margin-left: 4px; }
 .timeline-output { max-width: 460px; align-self: flex-start; border: 1px solid rgba(31,94,255,0.14); background: rgba(255,255,255,0.78); border-radius: 16px; padding: 10px; }
-.agent-name { color: #7c3aed; display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; }
+.agent-name { color: #1f5eff; display: flex; gap: 6px; align-items: center; font-size: 11px; font-weight: 900; text-transform: uppercase; margin-bottom: 8px; }
 .output-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; }
 .output-line strong { font-size: 12px; }
-.output-line a { font-size: 11px; font-weight: 900; color: #7c3aed; text-decoration: none; }
+.output-line a { font-size: 11px; font-weight: 900; color: #1f5eff; text-decoration: none; }
 .composer { margin: 12px 16px 16px; display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .composer input { border: 1px solid rgba(59,130,246,0.18); background: rgba(255,255,255,0.92); border-radius: 999px; padding: 13px 16px; color: #0f172a; outline: none; font-size: 14px; }
 .composer button { width: 46px; border: none; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #2563eb); color: #fff; display: grid; place-items: center; cursor: pointer; }
@@ -751,7 +751,7 @@ const styles = `
 .approval-card-head span { color: #64748b; font-size: 10px; text-align: right; }
 .approval-card strong { color: #0f172a; font-size: 12px; }
 .approval-card small { color: #b45309; font-size: 10px; font-weight: 800; }
-.approval-card em { color: #7c3aed; font-size: 11px; font-style: normal; font-weight: 900; }
+.approval-card em { color: #1f5eff; font-size: 11px; font-style: normal; font-weight: 900; }
 .change-request { display: grid; gap: 7px; border-top: 1px solid rgba(245,158,11,0.2); padding-top: 8px; }
 .change-request label { color: #92400e; font-size: 11px; font-weight: 900; }
 .change-request textarea { min-height: 74px; resize: vertical; border: 1px solid rgba(245,158,11,0.28); border-radius: 10px; padding: 9px; font: inherit; font-size: 12px; color: #0f172a; background: rgba(255,255,255,0.88); outline: none; }

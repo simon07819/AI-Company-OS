@@ -12,36 +12,36 @@ describe("Mission Room experience", () => {
   it("renders the guided mission room layout", async () => {
     render(React.createElement(MissionRoomPage));
 
-    await waitFor(() => expect(screen.getByText(/Mission Room: TestProject/)).toBeInTheDocument());
-    expect(screen.getByText("CEO Conversation")).toBeInTheDocument();
-    expect(screen.getByText("Live Timeline")).toBeInTheDocument();
-    expect(screen.getByText("Executive Team")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Mission: TestProject/)).toBeInTheDocument());
+    expect(screen.getByText("Conversation CEO")).toBeInTheDocument();
+    expect(screen.getByText("Activite recente")).toBeInTheDocument();
+    expect(screen.getByText("Equipe AI")).toBeInTheDocument();
   });
 
   it("shows approvals and results sections", async () => {
     render(React.createElement(MissionRoomPage));
 
-    await waitFor(() => expect(screen.getByText("Decisions Required")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /Approve/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reject/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ask Revision/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Change Direction/ })).toBeInTheDocument();
-    expect(screen.getByText("Results")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Decisions requises")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: /Approuver/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Refuser/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Demander une revision/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Changer la direction/ })).toBeInTheDocument();
+    expect(screen.getByText("Resultats")).toBeInTheDocument();
   });
 
   it("shows latest generated result controls", async () => {
     render(React.createElement(MissionRoomPage));
 
-    await waitFor(() => expect(screen.getByText("Latest generated result")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Dernier resultat")).toBeInTheDocument());
     expect(screen.getAllByText("Design Recommendation").length).toBeGreaterThan(0);
-    expect(screen.getByText("Next expected output")).toBeInTheDocument();
-    expect(screen.getByText("Open latest preview")).toBeInTheDocument();
+    expect(screen.getByText("Prochaine livraison")).toBeInTheDocument();
+    expect(screen.getByText("Ouvrir la preview")).toBeInTheDocument();
   });
 
   it("renders Recent Missions navigation", async () => {
     render(React.createElement(MissionsPage));
 
-    await waitFor(() => expect(screen.getByText("Mission Rooms")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Missions")).toBeInTheDocument());
     expect(screen.getByText("Suivez les objectifs, agents, resultats et decisions sans logs techniques.")).toBeInTheDocument();
     expect(screen.getByText(/Voir l'activite/)).toBeInTheDocument();
   });

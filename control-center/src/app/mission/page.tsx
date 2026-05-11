@@ -41,7 +41,7 @@ export default function MissionsPage() {
     <main className="os-page">
       <section className="os-hero">
         <div>
-          <span className="os-eyebrow">Mission Rooms</span>
+          <span className="os-eyebrow">Missions</span>
           <h1>Projets en cours</h1>
           <p>Suivez les objectifs, agents, resultats et decisions sans logs techniques.</p>
         </div>
@@ -61,13 +61,13 @@ export default function MissionsPage() {
         <div className="os-empty">
           <div className="os-empty-icon"><Rocket size={20} /></div>
           <h3>Aucune mission pour le moment</h3>
-          <p>Dites au CEO ce que vous voulez lancer. Une Mission Room sera creee automatiquement.</p>
+          <p>Dites au CEO ce que vous voulez lancer. Une mission sera creee automatiquement.</p>
           <Link className="os-button primary" href="/ceo">Ouvrir le CEO</Link>
         </div>
       ) : (
         <section className="os-section">
           <div className="os-section-title">
-            <div><span className="os-eyebrow">Activite</span><h2>Mission Rooms actives</h2></div>
+            <div><span className="os-eyebrow">Activite</span><h2>Missions actives</h2></div>
             <Link href="/approvals">Decisions</Link>
           </div>
           <div className="os-grid cards">

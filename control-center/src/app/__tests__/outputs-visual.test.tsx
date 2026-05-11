@@ -48,6 +48,6 @@ describe("Outputs visual gallery", () => {
 
     await waitFor(() => expect(screen.getAllByText("Logo Concept").length).toBeGreaterThan(0));
     expect(screen.getByText("PHOTO")).toBeInTheDocument();
-    expect(screen.getByText("Logo concept")).toBeInTheDocument();
+    expect(screen.getAllByText("Logo concept").length).toBeGreaterThan(0);
   });
 });

@@ -28,7 +28,7 @@ import {
   XCircle,
   Activity,
 } from "lucide-react";
-import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge, TypingBubble, ExpertiseBadge } from "@/components/ui";
+import { GhostButton, PrimaryButton, SectionHeader, StatusBadge, TypingBubble, ExpertiseBadge } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
 import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
@@ -95,30 +95,30 @@ interface MissionVisibleOutput {
 }
 
 const STATUS: Record<SessionStatus, { label: string; color: string; bg: string }> = {
-  draft: { label: "Draft", color: "#8b97b2", bg: "rgba(139,151,178,0.1)" },
-  running: { label: "Running", color: "#34d399", bg: "rgba(16,185,129,0.12)" },
-  paused: { label: "Paused", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  waiting_approval: { label: "Waiting Approval", color: "#f59e0b", bg: "rgba(245,158,11,0.12)" },
-  completed: { label: "Completed", color: "#38bdf8", bg: "rgba(59,130,246,0.12)" },
-  failed: { label: "Failed", color: "#f43f5e", bg: "rgba(244,63,94,0.12)" },
+  draft: { label: "En preparation", color: "#8a9099", bg: "rgba(138,144,153,0.1)" },
+  running: { label: "Agents au travail", color: "#2f8f61", bg: "rgba(47,143,97,0.12)" },
+  paused: { label: "En pause", color: "#b7791f", bg: "rgba(183,121,31,0.12)" },
+  waiting_approval: { label: "Resultat pret - approbation requise", color: "#b7791f", bg: "rgba(183,121,31,0.12)" },
+  completed: { label: "Termine", color: "#2f6fed", bg: "rgba(47,111,237,0.12)" },
+  failed: { label: "A verifier", color: "#c84a52", bg: "rgba(200,74,82,0.12)" },
 };
 
 const AGENT_LABELS: Record<string, string> = {
-  product_agent: "CEO delegation",
-  architect_agent: "Architecture Director",
+  product_agent: "Strategie produit",
+  architect_agent: "Structure projet",
   frontend_agent: "Designer",
-  backend_agent: "Engineering Director",
-  qa_agent: "QA Director",
-  devops_agent: "Runtime Director",
+  backend_agent: "Execution technique",
+  qa_agent: "Verification",
+  devops_agent: "Livraison",
 };
 
 const AGENT_COLORS: Record<string, string> = {
-  product_agent: "#a78bfa",
-  architect_agent: "#f59e0b",
-  frontend_agent: "#3b82f6",
-  backend_agent: "#22c55e",
-  qa_agent: "#ef4444",
-  devops_agent: "#6c63ff",
+  product_agent: "#2f6fed",
+  architect_agent: "#b7791f",
+  frontend_agent: "#2f6fed",
+  backend_agent: "#2f8f61",
+  qa_agent: "#c84a52",
+  devops_agent: "#172033",
 };
 
 function formatTime(value: string) {
@@ -135,11 +135,11 @@ function executiveLabel(agent: string) {
 
 function generatedKind(file: WorkspaceFile) {
   const lower = file.path.toLowerCase();
-  if (/\.(png|jpg|jpeg|webp|gif)$/.test(lower)) return { label: "Image preview", icon: <ImageIcon size={13} /> };
-  if (lower.startsWith("project/")) return { label: "Website preview", icon: <Monitor size={13} /> };
-  if (lower.includes("invoice")) return { label: "Invoice", icon: <FileText size={13} /> };
-  if (lower.includes("proposal")) return { label: "Proposal", icon: <FileText size={13} /> };
-  return { label: "Strategy doc", icon: <FileText size={13} /> };
+  if (/\.(png|jpg|jpeg|webp|gif)$/.test(lower)) return { label: "Image", icon: <ImageIcon size={13} /> };
+  if (lower.startsWith("project/")) return { label: "Apercu web", icon: <Monitor size={13} /> };
+  if (lower.includes("invoice")) return { label: "Facture", icon: <FileText size={13} /> };
+  if (lower.includes("proposal")) return { label: "Proposition", icon: <FileText size={13} /> };
+  return { label: "Document", icon: <FileText size={13} /> };
 }
 
 // ─── Mission Questions Component ──────────────────────────────────────────
@@ -178,7 +178,7 @@ function MissionQuestions({ missionId }: { missionId: string }) {
 
   return (
     <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-      <SectionHeader title="Questions / Decisions Needed" icon={<HelpCircle size={12} style={{ color: "#8b5cf6" }} />} />
+      <SectionHeader title="Questions et decisions" icon={<HelpCircle size={12} style={{ color: "#2f6fed" }} />} />
       <div style={{ display: "grid", gap: 8 }}>
         {pending.map((q) => (
           <div key={q.id} style={{ padding: 10, borderRadius: 6, background: `${q.agentColor}08`, border: `1px solid ${q.agentColor}30` }}>
@@ -186,7 +186,7 @@ function MissionQuestions({ missionId }: { missionId: string }) {
               <span style={{ fontSize: 12 }}>{q.agentAvatar}</span>
               <span style={{ fontSize: 10, fontWeight: 700, color: q.agentColor }}>{q.agentName}</span>
               <span style={{ fontSize: 9, color: "var(--text-3)" }}>{new Date(q.createdAt).toLocaleTimeString()}</span>
-              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#f59e0b", textTransform: "uppercase" }}>Pending</span>
+              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#b7791f", textTransform: "uppercase" }}>En attente</span>
             </div>
             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", marginBottom: 8 }}>{q.question}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -209,7 +209,7 @@ function MissionQuestions({ missionId }: { missionId: string }) {
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
               <span style={{ fontSize: 10 }}>{q.agentAvatar}</span>
               <span style={{ fontSize: 9, fontWeight: 600, color: q.agentColor }}>{q.agentName}</span>
-              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#22c55e", textTransform: "uppercase" }}>Answered</span>
+              <span style={{ marginLeft: "auto", fontSize: 8, fontWeight: 600, color: "#2f8f61", textTransform: "uppercase" }}>Repondu</span>
             </div>
             <div style={{ fontSize: 11, color: "var(--text-3)" }}>{q.question}</div>
             {q.answer && (
@@ -231,7 +231,6 @@ export default function MissionRoomPage() {
   const [session, setSession] = useState<MissionSession | null>(null);
   const [recent, setRecent] = useState<MissionSession[]>([]);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
-  const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
   const [missionApprovals, setMissionApprovals] = useState<ApprovalItem[]>([]);
   const [approvalPreview, setApprovalPreview] = useState<ApprovalPreview | null>(null);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
@@ -262,9 +261,6 @@ export default function MissionRoomPage() {
 
   useEffect(() => {
     void loadMission();
-    fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
-      if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
-    }).catch(() => {});
     fetch("/api/approvals").then((r) => r.json()).then((d) => {
       if (d.ok) {
         const all: ApprovalItem[] = d.pending ?? [];
@@ -320,8 +316,8 @@ export default function MissionRoomPage() {
     return (
       <main className="page" style={{ textAlign: "center", paddingTop: 80 }}>
         <AlertTriangle size={32} style={{ color: "#f59e0b", marginBottom: 12 }} />
-        <h1>Mission Room introuvable</h1>
-        <Link href="/mission">Recent Missions</Link>
+        <h1>Mission introuvable</h1>
+        <Link href="/mission">Missions recentes</Link>
       </main>
     );
   }
@@ -338,29 +334,30 @@ export default function MissionRoomPage() {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, marginBottom: 16 }}>
         <div>
           <Link href="/ceo" style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--text-3)", marginBottom: 8 }}>
-            <ArrowLeft size={13} /> CEO Cockpit
+            <ArrowLeft size={13} /> Retour au CEO
           </Link>
           <h1 style={{ margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
-            Mission Room: {session.projectName}
+            Mission: {session.projectName}
             <StatusBadge label={cfg.label} color={cfg.color} bg={cfg.bg} />
           </h1>
           <p style={{ color: "var(--text-2)", fontSize: 13, marginTop: 5 }}>{session.projectIdea}</p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
-          <LocalBadge />
-          {runtimeMode === "nvidia" ? <NvidiaLiveBadge /> : <SimBadge />}
+          <span style={{ fontSize: 10, fontWeight: 750, color: "#2f8f61", background: "rgba(47,143,97,0.1)", padding: "4px 9px", borderRadius: 999, border: "1px solid rgba(47,143,97,0.24)" }}>
+            Agence active
+          </span>
           {session.status === "running" && (
-            <span style={{ fontSize: 10, fontWeight: 600, color: "#34d399", background: "rgba(52,211,153,0.1)", padding: "3px 8px", borderRadius: 6, border: "1px solid rgba(52,211,153,0.3)" }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#2f8f61", background: "rgba(47,143,97,0.1)", padding: "3px 8px", borderRadius: 6, border: "1px solid rgba(47,143,97,0.25)" }}>
               Auto-exécution en cours
             </span>
           )}
           {session.status !== "running" && session.status !== "completed" && (
-            <PrimaryButton onClick={() => runMissionAction("run-step")} disabled={!!actionLoading} color="#34d399">
-              <Play size={13} /> {actionLoading === "run-step" ? "Running..." : "Resume"}
+            <PrimaryButton onClick={() => runMissionAction("run-step")} disabled={!!actionLoading} color="#2f8f61">
+              <Play size={13} /> {actionLoading === "run-step" ? "Reprise..." : "Reprendre"}
             </PrimaryButton>
           )}
           <GhostButton onClick={loadMission}>
-            <RefreshCw size={13} /> Refresh
+            <RefreshCw size={13} /> Actualiser
           </GhostButton>
         </div>
       </div>
@@ -373,39 +370,39 @@ export default function MissionRoomPage() {
       }}>
         <section style={{ display: "grid", gap: 12 }}>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="CEO Conversation" icon={<Sparkles size={12} style={{ color: "#f59e0b" }} />} />
+            <SectionHeader title="Conversation CEO" icon={<Sparkles size={12} style={{ color: "#b7791f" }} />} />
             <div style={{ display: "grid", gap: 10 }}>
               <div style={{ padding: 12, background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.22)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "#f59e0b", fontWeight: 800, marginBottom: 4 }}>CEO delegation</div>
-                <div style={{ fontSize: 13, color: "var(--text-2)" }}>Mission created and delegated to the executive team. The room now guides supervision, decisions, and results.</div>
+                <div style={{ fontSize: 11, color: "#b7791f", fontWeight: 800, marginBottom: 4 }}>Delegation CEO</div>
+                <div style={{ fontSize: 13, color: "var(--text-2)" }}>La mission est creee et les agents savent quoi produire. Cette page suit les decisions, resultats et prochaines actions.</div>
               </div>
               <div style={{ padding: 12, background: "var(--bg-2)", border: "1px solid var(--border)", borderRadius: 8 }}>
-                <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 5 }}>Current decision</div>
-                <div style={{ fontSize: 13, color: "var(--text)" }}>{runningTask ? runningTask.title : "Review generated results and approve the next direction."}</div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 5 }}>Prochaine decision</div>
+                <div style={{ fontSize: 13, color: "var(--text)" }}>{runningTask ? runningTask.title : "Verifier le resultat prepare et choisir la suite."}</div>
               </div>
             </div>
           </div>
 
           {/* Assumptions section */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Assumptions" icon={<Info size={12} style={{ color: "#3b82f6" }} />} />
+            <SectionHeader title="Contexte compris" icon={<Info size={12} style={{ color: "#2f6fed" }} />} />
             <div style={{ display: "grid", gap: 6 }}>
               {[
-                { field: "Project name", value: session.projectName },
-                { field: "Mission type", value: session.missionType || "saas_project" },
-                { field: "Status", value: session.status },
-                { field: "Client", value: "(auto — modifiable)" },
-                { field: "Objective", value: session.tasks[0]?.title || session.projectName },
+                { field: "Projet", value: session.projectName },
+                { field: "Type", value: session.missionType.replace(/_/g, " ") || "Projet" },
+                { field: "Statut", value: cfg.label },
+                { field: "Client", value: "A definir" },
+                { field: "Objectif", value: session.tasks[0]?.title || session.projectName },
               ].map((item) => (
                 <div key={item.field} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", background: "var(--bg-2)", borderRadius: 6, border: "1px solid var(--border)" }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: "var(--text-3)", minWidth: 90 }}>{item.field}</span>
                   <span style={{ fontSize: 12, color: "var(--text)", flex: 1 }}>{item.value}</span>
-                  <span style={{ fontSize: 8, color: "#3b82f6", textTransform: "uppercase", fontWeight: 600 }}>inferred</span>
+                  <span style={{ fontSize: 8, color: "#2f6fed", textTransform: "uppercase", fontWeight: 600 }}>compris</span>
                 </div>
               ))}
             </div>
             <div style={{ marginTop: 8, fontSize: 10, color: "var(--text-3)" }}>
-              These assumptions were auto-inferred from your CEO chat. You can modify them in the Mission Room settings.
+              Ce contexte vient de la conversation CEO et sert a guider les agents.
             </div>
           </div>
 
@@ -413,7 +410,7 @@ export default function MissionRoomPage() {
           <MissionQuestions missionId={session.sessionId} />
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Decisions Required" icon={<AlertTriangle size={12} style={{ color: "#f59e0b" }} />} />
+            <SectionHeader title="Decisions requises" icon={<AlertTriangle size={12} style={{ color: "#b7791f" }} />} />
             {missionApprovals.length > 0 ? (
               <div style={{ display: "grid", gap: 8 }}>
                 {missionApprovals.map((item) => (
@@ -446,20 +443,20 @@ export default function MissionRoomPage() {
                 {/* Show preview section before allow approve/reject */}
                 {visibleOutputs.length > 0 && (
                   <div style={{ padding: "8px 10px", borderRadius: 6, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)", fontSize: 10, color: "var(--text-2)" }}>
-                    Review the Visual Deliverables section below before making a decision.
+                    Verifiez les resultats visuels avant de prendre une decision.
                   </div>
                 )}
                 <button onClick={() => recordDecision("approve")} style={decisionButton("#22c55e")} disabled={visibleOutputs.length === 0 && session.progress < 20}>
-                  <ThumbsUp size={13} /> Approve
+                  <ThumbsUp size={13} /> Approuver
                 </button>
                 <button onClick={() => recordDecision("reject")} style={decisionButton("#ef4444")} disabled={visibleOutputs.length === 0 && session.progress < 20}>
-                  <ThumbsDown size={13} /> Reject
+                  <ThumbsDown size={13} /> Refuser
                 </button>
                 <button onClick={() => recordDecision("revision")} style={decisionButton("#f59e0b")}>
-                  <RotateCcw size={13} /> Ask Revision
+                  <RotateCcw size={13} /> Demander une revision
                 </button>
                 <button onClick={() => recordDecision("direction")} style={decisionButton("#38bdf8")}>
-                  <Sparkles size={13} /> Change Direction
+                  <Sparkles size={13} /> Changer la direction
                 </button>
               </div>
             )}
@@ -469,20 +466,20 @@ export default function MissionRoomPage() {
         <section style={{ display: "grid", gap: 12 }}>
           {/* What is happening now? */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="What is happening now?" icon={<Activity size={12} style={{ color: "#3b82f6" }} />} />
+            <SectionHeader title="Ce qui se passe maintenant" icon={<Activity size={12} style={{ color: "#2f6fed" }} />} />
             <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
               <div style={{ padding: "8px 10px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Currently working on</div>
+                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Travail en cours</div>
                 <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{runningTask ? runningTask.title : session.runtime.lastEvent}</div>
               </div>
-              <div style={{ padding: "8px 10px", borderRadius: 7, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.22)" }}>
+              <div style={{ padding: "8px 10px", borderRadius: 7, background: "rgba(47,111,237,0.06)", border: "1px solid rgba(47,111,237,0.18)" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 9, color: "#8b5cf6", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Latest generated result</div>
-                    <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{latestVisibleOutput ? latestVisibleOutput.title : "No visible result yet"}</div>
+                    <div style={{ fontSize: 9, color: "#2f6fed", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Dernier resultat</div>
+                    <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{latestVisibleOutput ? latestVisibleOutput.title : "Aucun resultat visible pour le moment"}</div>
                   </div>
                   {latestVisibleOutput && (
-                    <Link href={`/outputs/${latestVisibleOutput.id}`} style={{ fontSize: 10, color: "#8b5cf6", fontWeight: 800, whiteSpace: "nowrap" }}>Open latest preview</Link>
+                    <Link href={`/outputs/${latestVisibleOutput.id}`} style={{ fontSize: 10, color: "#2f6fed", fontWeight: 800, whiteSpace: "nowrap" }}>Ouvrir la preview</Link>
                   )}
                 </div>
                 {latestVisibleOutput && (
@@ -493,8 +490,8 @@ export default function MissionRoomPage() {
                 )}
               </div>
               <div style={{ padding: "8px 10px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Next expected output</div>
-                <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{nextExpectedOutput ? nextExpectedOutput.title : "Final review or approval"}</div>
+                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Prochaine livraison</div>
+                <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{nextExpectedOutput ? nextExpectedOutput.title : "Revision finale ou approbation"}</div>
               </div>
             </div>
             {session.status === "running" && (() => {
@@ -503,10 +500,10 @@ export default function MissionRoomPage() {
               const activeAgent = session.assignedAgents.find((a: { status: string }) => a.status === "active");
               const completedCount = session.tasks.filter((t: { status: string }) => t.status === "completed").length;
               const agentColorMap: Record<string, string> = {
-                ceo: "#f59e0b", cfo: "#22c55e", cmo: "#8b5cf6", cto: "#06b6d4", coo: "#3b82f6",
-                frontend_agent: "#ec4899", backend_agent: "#f97316", qa_agent: "#ef4444",
-                devops_agent: "#6366f1", logistics: "#f97316", sales: "#ef4444", hr: "#a78bfa",
-                support: "#ec4899", product_agent: "#3b82f6", architect_agent: "#6366f1",
+                ceo: "#b7791f", cfo: "#2f8f61", cmo: "#2f6fed", cto: "#2f6fed", coo: "#2f6fed",
+                frontend_agent: "#2f8f61", backend_agent: "#2f8f61", qa_agent: "#c84a52",
+                devops_agent: "#172033", logistics: "#b7791f", sales: "#c84a52", hr: "#2f6fed",
+                support: "#2f6fed", product_agent: "#2f6fed", architect_agent: "#172033",
                 ecommerce_operator: "#14b8a6",
               };
               const agentNameMap: Record<string, string> = {
@@ -515,7 +512,7 @@ export default function MissionRoomPage() {
                 devops_agent: "DevOps Kenji", logistics: "Emma Logistics", sales: "Rachel Sales", hr: "James HR",
                 support: "Carlos Support", product_agent: "Mia Product", architect_agent: "Architecte",
               };
-              const activeColor = activeAgent ? (agentColorMap[activeAgent.agentId] ?? "#3b82f6") : "#3b82f6";
+              const activeColor = activeAgent ? (agentColorMap[activeAgent.agentId] ?? "#2f6fed") : "#2f6fed";
 
               // Build delegation timeline from logs
               const delegationLogs = session.logs.filter((l: { source: string; message: string }) =>
@@ -541,17 +538,17 @@ export default function MissionRoomPage() {
                   {/* Next task preview */}
                   {nextTask && (
                     <div style={{ fontSize: 10, color: "var(--text-3)", marginBottom: 6, padding: "4px 8px", background: "var(--bg-2)", borderRadius: 5, border: "1px solid var(--border)" }}>
-                      Prochaine tâche: {nextTask.title} ({agentNameMap[nextTask.agent] ?? nextTask.agent})
+                      Prochaine tache: {nextTask.title} ({agentNameMap[nextTask.agent] ?? nextTask.agent})
                     </div>
                   )}
                   {/* Progress bar */}
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "var(--text-3)", marginBottom: 3 }}>
                       <span>Progression</span>
-                      <span>{completedCount}/{session.tasks.length} tâches</span>
+                      <span>{completedCount}/{session.tasks.length} taches</span>
                     </div>
                     <div style={{ height: 6, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${session.progress}%`, background: "linear-gradient(90deg, #3b82f6, #8b5cf6)", borderRadius: 99, transition: "width 0.5s ease" }} />
+                      <div style={{ height: "100%", width: `${session.progress}%`, background: "linear-gradient(90deg, #1f5eff, #2f8f61)", borderRadius: 99, transition: "width 0.5s ease" }} />
                     </div>
                   </div>
                   {/* Delegation timeline events */}
@@ -584,7 +581,7 @@ export default function MissionRoomPage() {
                         firstName={activeAgent.role?.split(" ").slice(0, 1).join(" ") ?? runningTask.agent}
                         avatarEmoji={runningTask.agent === "cmo" ? "📣" : runningTask.agent === "frontend_agent" ? "🎨" : runningTask.agent === "cto" ? "🔧" : runningTask.agent === "qa_agent" ? "🔍" : runningTask.agent === "cfo" ? "💰" : runningTask.agent === "coo" ? "⚙️" : runningTask.agent === "backend_agent" ? "🗄️" : "🤖"}
                         avatarColor={activeColor}
-                        message={`Working on: ${runningTask.title}`}
+                        message={`Travaille sur: ${runningTask.title}`}
                         size="sm"
                       />
                     </div>
@@ -593,10 +590,10 @@ export default function MissionRoomPage() {
               );
             })()}
             {session.status === "completed" && (
-              <div style={{ fontSize: 11, color: "#22c55e", fontWeight: 600 }}>Mission complétée — tous les livrables sont prêts.</div>
+              <div style={{ fontSize: 11, color: "#2f8f61", fontWeight: 600 }}>Mission terminee - tous les resultats sont prets.</div>
             )}
             {session.status === "paused" && (
-              <div style={{ fontSize: 11, color: "#f59e0b" }}>Mission en pause — clique Resume pour continuer.</div>
+              <div style={{ fontSize: 11, color: "#b7791f" }}>Mission en pause - cliquez Reprendre pour continuer.</div>
             )}
             {session.status === "draft" && (
               <div style={{ fontSize: 11, color: "var(--text-3)" }}>Mission en préparation...</div>
@@ -604,11 +601,11 @@ export default function MissionRoomPage() {
           </div>
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Live Timeline" icon={<Radio size={12} style={{ color: "#34d399" }} />} />
+            <SectionHeader title="Activite recente" icon={<Radio size={12} style={{ color: "#2f8f61" }} />} />
             <div style={{ display: "grid", gap: 12 }}>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--text-3)", marginBottom: 5 }}>
-                  <span>Mission progression</span>
+                  <span>Progression</span>
                   <strong style={{ color: cfg.color }}>{session.progress}%</strong>
                 </div>
                 <div style={{ height: 8, background: "var(--border)", borderRadius: 99, overflow: "hidden" }}>
@@ -643,7 +640,7 @@ export default function MissionRoomPage() {
                 {runningTask && (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid rgba(52,211,153,0.28)", background: "rgba(52,211,153,0.08)", borderRadius: 8 }}>
                     <TypingDots />
-                    <span style={{ fontSize: 12, color: "#34d399" }}>{executiveLabel(runningTask.agent)} travaille sur: {runningTask.title}</span>
+                    <span style={{ fontSize: 12, color: "#2f8f61" }}>{executiveLabel(runningTask.agent)} travaille sur: {runningTask.title}</span>
                   </div>
                 )}
               </div>
@@ -651,11 +648,11 @@ export default function MissionRoomPage() {
           </div>
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Results" icon={<FileText size={12} style={{ color: "#38bdf8" }} />} />
+            <SectionHeader title="Resultats" icon={<FileText size={12} style={{ color: "#2f6fed" }} />} />
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 10 }}>
               {outputs.length === 0 ? (
                 <div style={{ gridColumn: "1 / -1", padding: 16, textAlign: "center", color: "var(--text-3)", border: "1px dashed var(--border)", borderRadius: 8 }}>
-                  Generated files, previews, proposals, invoices, and strategy docs will appear here.
+                  Les fichiers, previews, propositions et documents apparaitront ici.
                 </div>
               ) : outputs.map((file) => {
                 const kind = generatedKind(file);
@@ -665,7 +662,7 @@ export default function MissionRoomPage() {
                       {kind.icon} {kind.label}
                     </div>
                     <div style={{ fontSize: 13, color: "var(--text)", fontWeight: 700, overflowWrap: "anywhere" }}>{file.name}</div>
-                    <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4 }}>{file.path}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 4 }}>{Math.max(1, Math.round(file.size / 1024))} KB</div>
                   </div>
                 );
               })}
@@ -675,7 +672,7 @@ export default function MissionRoomPage() {
 
         <section style={{ display: "grid", gap: 12 }}>
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Executive Team" icon={<Users size={12} style={{ color: "#a78bfa" }} />} />
+            <SectionHeader title="Equipe AI" icon={<Users size={12} style={{ color: "#2f6fed" }} />} />
             <div style={{ display: "grid", gap: 8 }}>
               {session.assignedAgents.map((agent) => {
                 const running = session.tasks.some((task) => task.agent === agent.agentId && task.status === "running");
@@ -687,17 +684,17 @@ export default function MissionRoomPage() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                         <span style={{ fontSize: 12, color: "var(--text)", fontWeight: 800 }}>{executiveLabel(agent.agentId)}</span>
-                        {running && <ExpertiseBadge label="Working" color="#34d399" size="xs" />}
+                        {running && <ExpertiseBadge label="Travaille" color="#2f8f61" size="xs" />}
                       </div>
                       <div style={{ fontSize: 10, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{agent.role}</div>
                     </div>
-                    <StatusBadge label={running ? "active" : agent.status} color={running ? "#34d399" : "#8b97b2"} size="xs" />
+                    <StatusBadge label={running ? "Actif" : agent.status.replace(/_/g, " ")} color={running ? "#2f8f61" : "#8a9099"} size="xs" />
                   </div>
                 );
               })}
               {/* Direct Employee Chat buttons */}
               <div style={{ marginTop: 6, padding: "8px 0", borderTop: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 6 }}>Direct Chat</div>
+                <div style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", marginBottom: 6 }}>Message direct</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                   {[
                     { id: "cfo", label: "CFO", emoji: "💰" },
@@ -707,7 +704,7 @@ export default function MissionRoomPage() {
                   ].map((p) => (
                     <a
                       key={p.id}
-                      href={`/conversations?newThread=true&participant=${p.id}&missionId=${session.sessionId}&title=Mission ${session.projectName} - Chat with ${p.label}`}
+                      href={`/conversations?newThread=true&participant=${p.id}&missionId=${session.sessionId}&title=Mission ${session.projectName} - Message ${p.label}`}
                       style={{
                         padding: "3px 8px", fontSize: 9, fontWeight: 600,
                         background: "var(--bg-2)", border: "1px solid var(--border)",
@@ -726,7 +723,7 @@ export default function MissionRoomPage() {
           {/* Visual Outputs — Design/Branding deliverables */}
           {visibleOutputs.length > 0 && (
             <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-              <SectionHeader title="Visual Deliverables" icon={<Palette size={12} style={{ color: "#8b5cf6" }} />} />
+              <SectionHeader title="Previews visuelles" icon={<Palette size={12} style={{ color: "#2f6fed" }} />} />
               <div style={{ display: "grid", gap: 8 }}>
                 {visibleOutputs.map((vo) => {
                   const typeLabel: Record<string, string> = {
@@ -752,7 +749,8 @@ export default function MissionRoomPage() {
                     page_preview: "Page Preview",
                     ux_recommendation: "UX Notes",
                   };
-                  const statusColors: Record<string, string> = { draft: "#94a3b8", in_progress: "#3b82f6", review: "#f59e0b", approved: "#22c55e", delivered: "#8b5cf6" };
+                  const statusColors: Record<string, string> = { draft: "#8a9099", in_progress: "#2f6fed", review: "#b7791f", approved: "#2f8f61", delivered: "#2f6fed" };
+                  const statusLabels: Record<string, string> = { draft: "En preparation", in_progress: "En cours", review: "A approuver", approved: "Approuve", delivered: "Livre" };
                   const statusColor = statusColors[vo.status] ?? "#94a3b8";
                   return (
                     <Link key={vo.id} href={`/outputs/${vo.id}`} style={{ textDecoration: "none" }}>
@@ -761,14 +759,14 @@ export default function MissionRoomPage() {
                           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{vo.title}</div>
                           <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                             <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{typeLabel[vo.type] ?? vo.type}</span>
-                            <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{vo.status}</span>
+                            <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColor}22`, color: statusColor, fontWeight: 600 }}>{statusLabels[vo.status] ?? vo.status.replace(/_/g, " ")}</span>
                           </div>
                         </div>
                         <VisualOutputPreview visualPreview={vo.visualPreview} title={vo.title} summary={vo.summary ?? vo.preview} compact />
                         <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden", marginTop: vo.visualPreview ? 8 : 0 }}>{vo.preview}</div>
                         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-                          <span style={{ fontSize: 9, color: "#8b5cf6" }}>→ {vo.assignedAgent}</span>
-                          <span style={{ fontSize: 8, color: "var(--text-3)" }}>View details →</span>
+                          <span style={{ fontSize: 9, color: "#2f6fed" }}>→ {executiveLabel(vo.assignedAgent)}</span>
+                          <span style={{ fontSize: 8, color: "var(--text-3)" }}>Voir details →</span>
                         </div>
                       </div>
                     </Link>
@@ -779,18 +777,18 @@ export default function MissionRoomPage() {
           )}
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Active Tasks" icon={<Clock3 size={12} style={{ color: "#f59e0b" }} />} />
+            <SectionHeader title="Taches actives" icon={<Clock3 size={12} style={{ color: "#b7791f" }} />} />
             <div style={{ display: "grid", gap: 8 }}>
-              <div style={{ fontSize: 12, color: "var(--text-2)" }}>{completedTasks}/{session.tasks.length} tasks completed</div>
+              <div style={{ fontSize: 12, color: "var(--text-2)" }}>{completedTasks}/{session.tasks.length} taches terminees</div>
               {session.tasks.slice(0, 6).map((task) => (
                 <div key={task.id} style={{ padding: 9, borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
                   <div style={{ display: "flex", gap: 6, justifyContent: "space-between" }}>
                     <span style={{ fontSize: 11, color: "var(--text)", fontWeight: 700 }}>{task.title}</span>
-                    <span style={{ fontSize: 10, color: task.status === "running" ? "#34d399" : "var(--text-3)" }}>{task.status}</span>
+                    <span style={{ fontSize: 10, color: task.status === "running" ? "#2f8f61" : "var(--text-3)" }}>{task.status.replace(/_/g, " ")}</span>
                   </div>
                   {task.status === "running" && (
                     <div style={{ height: 4, background: "var(--border)", borderRadius: 99, marginTop: 7, overflow: "hidden" }}>
-                      <motion.div animate={{ width: `${Math.max(task.progress, 10)}%` }} style={{ height: "100%", background: "#34d399" }} />
+                      <motion.div animate={{ width: `${Math.max(task.progress, 10)}%` }} style={{ height: "100%", background: "#2f8f61" }} />
                     </div>
                   )}
                 </div>
@@ -799,10 +797,10 @@ export default function MissionRoomPage() {
           </div>
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Blockers" icon={<XCircle size={12} style={{ color: "#ef4444" }} />} />
+            <SectionHeader title="Points a verifier" icon={<XCircle size={12} style={{ color: "#c84a52" }} />} />
             {blockedTasks.length === 0 ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#34d399", fontSize: 12 }}>
-                <CheckCircle2 size={13} /> No blockers
+              <div style={{ display: "flex", alignItems: "center", gap: 7, color: "#2f8f61", fontSize: 12 }}>
+                <CheckCircle2 size={13} /> Aucun blocage
               </div>
             ) : blockedTasks.map((task) => (
               <div key={task.id} style={{ fontSize: 12, color: "#ef4444", marginBottom: 6 }}>{task.title}</div>
@@ -810,11 +808,11 @@ export default function MissionRoomPage() {
           </div>
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
-            <SectionHeader title="Recent Missions" icon={<Clock3 size={12} style={{ color: "#38bdf8" }} />} />
+            <SectionHeader title="Missions recentes" icon={<Clock3 size={12} style={{ color: "#2f6fed" }} />} />
             <div style={{ display: "grid", gap: 6 }}>
               {recent.map((item) => (
-                <Link key={item.sessionId} href={`/mission/${item.sessionId}`} style={{ fontSize: 12, color: item.sessionId === missionId ? "#34d399" : "var(--text-2)", padding: "7px 8px", border: "1px solid var(--border)", borderRadius: 8 }}>
-                  {item.sessionId === missionId ? "Open Mission" : "Resume Mission"}: {item.projectName}
+                <Link key={item.sessionId} href={`/mission/${item.sessionId}`} style={{ fontSize: 12, color: item.sessionId === missionId ? "#2f8f61" : "var(--text-2)", padding: "7px 8px", border: "1px solid var(--border)", borderRadius: 8 }}>
+                  {item.sessionId === missionId ? "Mission ouverte" : "Reprendre"}: {item.projectName}
                 </Link>
               ))}
             </div>

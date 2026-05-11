@@ -90,6 +90,16 @@ describe("critical Control Center pages", () => {
     expect(screen.queryByText("Company Workspaces")).not.toBeInTheDocument();
   });
 
+  it("keeps simple mode free of raw technical identifiers", async () => {
+    const pages = [DashboardPage, CompaniesPage, ProjectsPage, AgentsPage, OutputsPage, ApprovalsPage, WorkspacesPage];
+    for (const Page of pages) {
+      const { unmount, container } = render(React.createElement(Page));
+      await screen.findByText("Parler au CEO");
+      expect(container.textContent ?? "").not.toMatch(/sessionId|projectId|workspaceId|\{|\}/);
+      unmount();
+    }
+  });
+
   it("renders Factory without crashing", () => {
     render(React.createElement(FactoryPage));
 

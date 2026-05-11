@@ -139,13 +139,38 @@ const PAGE_COPY: Record<PageVariant, { eyebrow: string; title: string; subtitle:
   outputs: {
     eyebrow: "Resultats",
     title: "Resultats produits",
-    subtitle: "Les directions creatives, concepts, palettes et recommandations livres par vos agents.",
+    subtitle: "Les directions creatives, concepts, palettes et recommandations prepares par vos agents.",
   },
   approvals: {
-    eyebrow: "Approvals",
+    eyebrow: "Decisions",
     title: "Decisions a prendre",
-    subtitle: "Approuvez un resultat ou demandez une iteration directement depuis l'inbox.",
+    subtitle: "Approuvez un resultat ou demandez une iteration sans quitter le mode simple.",
   },
+};
+
+const OUTPUT_TYPE_LABELS: Record<string, string> = {
+  creative_brief: "Direction creative",
+  logo_direction: "Logo concept",
+  style_direction: "Style de marque",
+  color_palette: "Palette couleurs",
+  typography: "Typographie",
+  moodboard: "Moodboard",
+  concept_card: "Concept",
+  marketing_plan: "Plan marketing",
+  financial_projection: "Plan financier",
+  hero_section: "Section hero",
+  page_preview: "Apercu de page",
+  copywriting: "Copywriting",
+  business_plan: "Plan d'affaires",
+  recommendations: "Recommandations",
+};
+
+const OUTPUT_STATUS_LABELS: Record<string, string> = {
+  draft: "En preparation",
+  in_progress: "En cours",
+  review: "A approuver",
+  approved: "Approuve",
+  delivered: "Livre",
 };
 
 function simpleStatus(project: CeoProject, session?: AutopilotSession, approval?: SimpleApproval | null) {
@@ -185,6 +210,18 @@ function cleanType(value?: string | null) {
   return value.replace(/_/g, " ");
 }
 
+function outputTypeLabel(type: string) {
+  return OUTPUT_TYPE_LABELS[type] ?? type.replace(/_/g, " ");
+}
+
+function outputStatusLabel(status: string) {
+  return OUTPUT_STATUS_LABELS[status] ?? status.replace(/_/g, " ");
+}
+
+function agentLabel(agentId: string) {
+  return AGENT_NAMES[agentId]?.name ?? agentId.replace(/_/g, " ");
+}
+
 function displayDate(value?: string | null) {
   if (!value) return "Recent";
   try {
@@ -204,7 +241,7 @@ function previewForApproval(approval: SimpleApproval): OutputVisualPreview {
     typography: { heading: "Inter SemiBold", body: "Inter Regular" },
     mockup: {
       title: approval.item.title || "Logo Concept",
-      subtitle: approval.item.summary || "Brand board",
+      subtitle: approval.item.summary || "Apercu de marque",
       blocks: ["Premium", "Clair", "Moderne"],
     },
   };
@@ -253,6 +290,11 @@ function EmptyState({ title, description }: { title: string; description: string
       <div className="os-empty-icon"><MessageSquare size={20} /></div>
       <h3>{title}</h3>
       <p>{description}</p>
+      <div className="os-prompt-list" aria-label="Exemples de demandes">
+        <span>Je veux lancer une compagnie de photo</span>
+        <span>Je veux creer une marque de vetements</span>
+        <span>Je veux batir une agence marketing AI</span>
+      </div>
       <Link className="os-button primary" href="/ceo">Parler au CEO</Link>
     </div>
   );
@@ -303,7 +345,7 @@ function ProjectCard({ project, view }: { project: CeoProject; view: SimpleAgenc
         <span>{output?.title ?? "Resultat en preparation"}</span>
       </div>
       <div className="os-card-actions">
-        {project.sessionId && <Link className="os-button subtle" href={`/mission/${project.sessionId}`}>Mission Room</Link>}
+        {project.sessionId && <Link className="os-button subtle" href={`/mission/${project.sessionId}`}>Voir mission</Link>}
         <Link className="os-button subtle" href="/ceo">CEO</Link>
       </div>
     </article>
@@ -317,17 +359,25 @@ function ResultCard({ output }: { output: VisibleOutput }) {
         <VisualOutputPreview visualPreview={output.visualPreview} title={output.title} compact />
       ) : (
         <div className="os-structured-preview">
-          <span>{output.type.replace(/_/g, " ")}</span>
+          <span>{outputTypeLabel(output.type)}</span>
           <strong>{output.title}</strong>
           <p>{output.summary || output.preview}</p>
         </div>
       )}
       <div className="os-card-top">
-        <span className="os-pill neutral">{output.status.replace(/_/g, " ")}</span>
+        <span className="os-pill neutral">{outputStatusLabel(output.status)}</span>
         <span className="os-muted">{displayDate(output.updatedAt)}</span>
       </div>
       <h3>{output.title}</h3>
+      <div className="os-meta-line">
+        <span>{outputTypeLabel(output.type)}</span>
+        <span>{agentLabel(output.assignedAgent)}</span>
+      </div>
       <p>{output.summary || output.preview}</p>
+      <div className="os-card-actions">
+        <Link className="os-button subtle" href={`/outputs/${output.id}`}>Voir</Link>
+        {output.status === "review" && <Link className="os-button ghost" href="/approvals">Decider</Link>}
+      </div>
     </article>
   );
 }
@@ -405,6 +455,7 @@ function ApprovalCard({ approval, onDone }: { approval: SimpleApproval; onDone: 
           <button className="os-button primary" type="button" onClick={reject} disabled={busy || !note.trim()}>
             Envoyer la demande
           </button>
+          {busy && <span className="os-muted">Demande envoyee. Le CEO va preparer une nouvelle version.</span>}
         </div>
       )}
     </article>
@@ -462,6 +513,11 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
           <button className="os-button subtle" type="button" onClick={() => void load()}>
             <RefreshCw size={14} /> Actualiser
           </button>
+          {variant === "dashboard" && (
+            <Link className="os-button subtle" href="/companies">
+              Gerer mes entreprises
+            </Link>
+          )}
           <Link className="os-button primary" href="/ceo">
             Parler au CEO <ArrowRight size={14} />
           </Link>
@@ -491,8 +547,8 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
                   <p>{activeState.label}</p>
                   <div className="os-progress large"><span style={{ width: `${activeState.progress}%` }} /></div>
                   <div className="os-card-actions">
-                    {activeProject.sessionId && <Link className="os-button subtle" href={`/mission/${activeProject.sessionId}`}>Mission Room</Link>}
-                    <Link className="os-button primary" href="/approvals">Voir actions</Link>
+                    {activeProject.sessionId && <Link className="os-button subtle" href={`/mission/${activeProject.sessionId}`}>Voir mission</Link>}
+                    <Link className="os-button primary" href="/approvals">Voir decisions</Link>
                   </div>
                 </>
               ) : (
@@ -504,7 +560,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
               <h2>{pendingApprovals[0] ? "Un resultat attend votre decision" : "Parlez au CEO pour lancer la suite"}</h2>
               <p>{pendingApprovals[0] ? "Les agents ont prepare un premier resultat. Approuvez-le ou demandez des changements." : "Le CEO peut creer l'entreprise, le projet et demarrer la mission automatiquement."}</p>
               <Link className="os-button primary" href={pendingApprovals[0] ? "/approvals" : "/ceo"}>
-                {pendingApprovals[0] ? "Ouvrir l'inbox" : "Demarrer"}
+                {pendingApprovals[0] ? "Voir la decision" : "Demarrer"}
               </Link>
             </div>
           </section>
@@ -556,7 +612,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             <Link href="/outputs">Tout voir</Link>
           </div>
           {view.outputs.length === 0 ? (
-            <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici des que les agents livrent un output." />
+            <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici des que les agents preparent une livraison." />
           ) : (
             <div className="os-grid results">{view.outputs.slice(0, 4).map((output) => <ResultCard key={output.id} output={output} />)}</div>
           )}
@@ -570,7 +626,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             <Link href="/approvals">Voir les decisions</Link>
           </div>
           {view.outputs.length === 0 ? (
-            <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici avec une preview des que les agents livrent un output." />
+            <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici avec une preview des que les agents preparent une livraison." />
           ) : (
             <div className="os-grid results">{view.outputs.map((output) => <ResultCard key={output.id} output={output} />)}</div>
           )}
@@ -580,7 +636,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
       {(variant === "dashboard" || variant === "approvals") && (
         <section className="os-section">
           <div className="os-section-title">
-            <div><span className="os-eyebrow">Approvals</span><h2>{pendingApprovals.length > 0 ? "A approuver maintenant" : "Inbox approvals"}</h2></div>
+            <div><span className="os-eyebrow">Decisions</span><h2>{pendingApprovals.length > 0 ? "A approuver maintenant" : "Aucune decision en attente"}</h2></div>
             <Link href="/approvals">Ouvrir</Link>
           </div>
           {pendingApprovals.length === 0 ? (
