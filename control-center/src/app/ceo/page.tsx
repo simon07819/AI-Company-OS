@@ -39,6 +39,8 @@ import {
   NvidiaLiveBadge,
   StatusBadge,
 } from "@/components/ui";
+import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
+import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { ExecutiveDiscussion, DiscussionMessage } from "@/lib/executiveDiscussion";
 import type { ExecutiveId } from "@/lib/executiveTeam";
 
@@ -681,13 +683,17 @@ function CeoTypingIndicator() {
 // ─── Supervision Panel ────────────────────────────────────────────────────
 
 function SupervisionPanel({
-  overview,
-  onDecision,
+  approvals,
+  onPreview,
+  onApprove,
+  onReject,
 }: {
-  overview: CeoOverview | null;
-  onDecision: (id: string, action: "approve" | "reject") => void;
+  approvals: ApprovalItem[];
+  onPreview: (id: string) => void;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
 }) {
-  if (!overview?.pendingDecisions || overview.pendingDecisions.length === 0) {
+  if (approvals.length === 0) {
     return (
       <div style={{ textAlign: "center", padding: "16px 8px", color: "var(--text-3)" }}>
         <CheckCircle2 size={14} style={{ color: "#22c55e", display: "block", margin: "0 auto 6px" }} />
@@ -697,24 +703,15 @@ function SupervisionPanel({
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      {overview.pendingDecisions.map((dec) => (
-        <div key={dec.id} style={{
-          padding: "8px 10px",
-          background: "rgba(245,158,11,0.06)",
-          border: "1px solid rgba(245,158,11,0.2)",
-          borderRadius: 6,
-        }}>
-          <div style={{ fontSize: 10, fontWeight: 600, color: "var(--text)", marginBottom: 5, lineHeight: 1.3 }}>{dec.label}</div>
-          <div style={{ display: "flex", gap: 4 }}>
-            <PrimaryButton onClick={() => onDecision(dec.id, "approve")} color="#22c55e">
-              <CheckCircle2 size={10} /> Approve
-            </PrimaryButton>
-            <GhostButton onClick={() => onDecision(dec.id, "reject")}>
-              <XCircle size={10} /> Reject
-            </GhostButton>
-          </div>
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {approvals.map((item) => (
+        <ApprovalCard
+          key={item.id}
+          item={item}
+          onPreview={onPreview}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
       ))}
     </div>
   );
@@ -1045,6 +1042,9 @@ export default function CeoPage() {
   const [ceoTyping, setCeoTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
+  const [pendingApprovals, setPendingApprovals] = useState<ApprovalItem[]>([]);
+  const [approvalPreview, setApprovalPreview] = useState<ApprovalPreview | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [activeExecs, setActiveExecs] = useState<Set<ExecutiveId>>(new Set());
   const [typingExecs, setTypingExecs] = useState<Set<ExecutiveId>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -1079,6 +1079,9 @@ export default function CeoPage() {
   useEffect(() => {
     fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
       if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
+    }).catch(() => {});
+    fetch("/api/approvals").then((r) => r.json()).then((d) => {
+      if (d.ok) setPendingApprovals(d.pending ?? []);
     }).catch(() => {});
   }, []);
 
@@ -1249,6 +1252,41 @@ export default function CeoPage() {
         body: JSON.stringify({ decisionId }),
       });
       loadData();
+    } catch { /* */ }
+  };
+
+  const handleApprovalPreview = async (approvalId: string) => {
+    try {
+      const res = await fetch(`/api/approvals/${approvalId}/preview`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d.ok && d.preview) {
+          setApprovalPreview(d.preview);
+          setShowPreviewModal(true);
+        }
+      }
+    } catch { /* */ }
+  };
+
+  const handleApprovalApprove = async (approvalId: string) => {
+    try {
+      await fetch(`/api/approvals/${approvalId}/approve`, { method: "POST" });
+      setShowPreviewModal(false);
+      setApprovalPreview(null);
+      fetch("/api/approvals").then((r) => r.json()).then((d) => {
+        if (d.ok) setPendingApprovals(d.pending ?? []);
+      }).catch(() => {});
+    } catch { /* */ }
+  };
+
+  const handleApprovalReject = async (approvalId: string) => {
+    try {
+      await fetch(`/api/approvals/${approvalId}/reject`, { method: "POST" });
+      setShowPreviewModal(false);
+      setApprovalPreview(null);
+      fetch("/api/approvals").then((r) => r.json()).then((d) => {
+        if (d.ok) setPendingApprovals(d.pending ?? []);
+      }).catch(() => {});
     } catch { /* */ }
   };
 
@@ -1668,7 +1706,7 @@ export default function CeoPage() {
           {/* Supervision Controls */}
           <Panel style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
             <SectionHeader title="Supervision" icon={<AlertTriangle size={11} style={{ color: "#f59e0b" }} />} />
-            <SupervisionPanel overview={overview} onDecision={handleDecision} />
+            <SupervisionPanel approvals={pendingApprovals} onPreview={handleApprovalPreview} onApprove={handleApprovalApprove} onReject={handleApprovalReject} />
           </Panel>
 
           {/* Agent Questions */}
@@ -1676,6 +1714,15 @@ export default function CeoPage() {
 
         </div>
       </div>
+
+      {/* Approval Preview Modal */}
+      <ApprovalPreviewModal
+        preview={approvalPreview}
+        open={showPreviewModal}
+        onClose={() => { setShowPreviewModal(false); setApprovalPreview(null); }}
+        onApprove={handleApprovalApprove}
+        onReject={handleApprovalReject}
+      />
     </div>
   );
 }

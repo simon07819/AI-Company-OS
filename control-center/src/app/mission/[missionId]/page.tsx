@@ -28,6 +28,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { GhostButton, LocalBadge, NvidiaLiveBadge, PrimaryButton, SectionHeader, SimBadge, StatusBadge } from "@/components/ui";
+import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
+import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 
 type SessionStatus = "draft" | "running" | "paused" | "completed" | "failed";
 type TaskStatus = "queued" | "running" | "completed" | "blocked" | "failed";
@@ -215,6 +217,9 @@ export default function MissionRoomPage() {
   const [recent, setRecent] = useState<MissionSession[]>([]);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [runtimeMode, setRuntimeMode] = useState<"nvidia" | "simulation">("simulation");
+  const [missionApprovals, setMissionApprovals] = useState<ApprovalItem[]>([]);
+  const [approvalPreview, setApprovalPreview] = useState<ApprovalPreview | null>(null);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [visibleOutputs, setVisibleOutputs] = useState<{ id: string; title: string; type: string; preview: string; status: string; assignedAgent: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -244,6 +249,12 @@ export default function MissionRoomPage() {
     void loadMission();
     fetch("/api/runtime-mode").then((r) => r.json()).then((d) => {
       if (d.ok) setRuntimeMode(d.mode === "nvidia" ? "nvidia" : "simulation");
+    }).catch(() => {});
+    fetch("/api/approvals").then((r) => r.json()).then((d) => {
+      if (d.ok) {
+        const all: ApprovalItem[] = d.pending ?? [];
+        setMissionApprovals(all.filter((a: ApprovalItem) => a.sessionId === missionId));
+      }
     }).catch(() => {});
     const timer = window.setInterval(() => void loadMission(), 4000);
     return () => window.clearInterval(timer);
@@ -379,20 +390,49 @@ export default function MissionRoomPage() {
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="Decisions Required" icon={<AlertTriangle size={12} style={{ color: "#f59e0b" }} />} />
-            <div style={{ display: "grid", gap: 8 }}>
-              <button onClick={() => recordDecision("approve")} style={decisionButton("#22c55e")}>
-                <ThumbsUp size={13} /> Approve
-              </button>
-              <button onClick={() => recordDecision("reject")} style={decisionButton("#ef4444")}>
-                <ThumbsDown size={13} /> Reject
-              </button>
-              <button onClick={() => recordDecision("revision")} style={decisionButton("#f59e0b")}>
-                <RotateCcw size={13} /> Ask Revision
-              </button>
-              <button onClick={() => recordDecision("direction")} style={decisionButton("#38bdf8")}>
-                <Sparkles size={13} /> Change Direction
-              </button>
-            </div>
+            {missionApprovals.length > 0 ? (
+              <div style={{ display: "grid", gap: 8 }}>
+                {missionApprovals.map((item) => (
+                  <ApprovalCard
+                    key={item.id}
+                    item={item}
+                    onPreview={async (id) => {
+                      const res = await fetch(`/api/approvals/${id}/preview`);
+                      if (res.ok) { const d = await res.json(); if (d.ok && d.preview) { setApprovalPreview(d.preview); setShowApprovalModal(true); } }
+                    }}
+                    onApprove={async (id) => {
+                      await fetch(`/api/approvals/${id}/approve`, { method: "POST" });
+                      setShowApprovalModal(false);
+                      fetch("/api/approvals").then((r) => r.json()).then((d) => {
+                        if (d.ok) setMissionApprovals((d.pending ?? []).filter((a: ApprovalItem) => a.sessionId === missionId));
+                      }).catch(() => {});
+                    }}
+                    onReject={async (id) => {
+                      await fetch(`/api/approvals/${id}/reject`, { method: "POST" });
+                      setShowApprovalModal(false);
+                      fetch("/api/approvals").then((r) => r.json()).then((d) => {
+                        if (d.ok) setMissionApprovals((d.pending ?? []).filter((a: ApprovalItem) => a.sessionId === missionId));
+                      }).catch(() => {});
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                <button onClick={() => recordDecision("approve")} style={decisionButton("#22c55e")}>
+                  <ThumbsUp size={13} /> Approve
+                </button>
+                <button onClick={() => recordDecision("reject")} style={decisionButton("#ef4444")}>
+                  <ThumbsDown size={13} /> Reject
+                </button>
+                <button onClick={() => recordDecision("revision")} style={decisionButton("#f59e0b")}>
+                  <RotateCcw size={13} /> Ask Revision
+                </button>
+                <button onClick={() => recordDecision("direction")} style={decisionButton("#38bdf8")}>
+                  <Sparkles size={13} /> Change Direction
+                </button>
+              </div>
+            )}
           </div>
         </section>
 
@@ -600,6 +640,29 @@ export default function MissionRoomPage() {
           </div>
         </section>
       </div>
+
+      {/* Approval Preview Modal */}
+      <ApprovalPreviewModal
+        preview={approvalPreview}
+        open={showApprovalModal}
+        onClose={() => { setShowApprovalModal(false); setApprovalPreview(null); }}
+        onApprove={async (id) => {
+          await fetch(`/api/approvals/${id}/approve`, { method: "POST" });
+          setShowApprovalModal(false);
+          setApprovalPreview(null);
+          fetch("/api/approvals").then((r) => r.json()).then((d) => {
+            if (d.ok) setMissionApprovals((d.pending ?? []).filter((a: ApprovalItem) => a.sessionId === missionId));
+          }).catch(() => {});
+        }}
+        onReject={async (id) => {
+          await fetch(`/api/approvals/${id}/reject`, { method: "POST" });
+          setShowApprovalModal(false);
+          setApprovalPreview(null);
+          fetch("/api/approvals").then((r) => r.json()).then((d) => {
+            if (d.ok) setMissionApprovals((d.pending ?? []).filter((a: ApprovalItem) => a.sessionId === missionId));
+          }).catch(() => {});
+        }}
+      />
     </main>
   );
 }
