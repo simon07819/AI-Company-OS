@@ -1,5 +1,6 @@
 import { getAllProjects } from "@/lib/projects";
 import { listCeoProjects, type CeoProject } from "@/lib/ceoProjectStore";
+import { getOutputsForSession } from "@/lib/visibleOutputs";
 import Link from "next/link";
 
 function statusClass(status?: string) {
@@ -86,7 +87,9 @@ export default function ProjectsPage() {
           }}
         >
           {/* CEO-created projects — shown first */}
-          {ceoProjects.map((cp) => (
+          {ceoProjects.map((cp) => {
+            const latestOutput = cp.sessionId ? getOutputsForSession(cp.sessionId)[0] : null;
+            return (
             <Link key={cp.id} href={cp.sessionId ? `/mission/${cp.sessionId}` : `/projects/${cp.name}`} className="project-card-link">
               <div className="project-card" style={{ borderLeft: "3px solid #8b5cf6" }}>
                 <div className="project-card-header">
@@ -107,9 +110,17 @@ export default function ProjectsPage() {
                   )}
                   <div className="project-stat" style={{ marginLeft: "auto" }}><span className="project-stat-value" style={{ color: "var(--text-3)", fontSize: 10 }}>{new Date(cp.lastActivity).toLocaleDateString()}</span><span className="project-stat-label">Activité</span></div>
                 </div>
+                {latestOutput && (
+                  <div style={{ marginTop: 10, padding: "8px 10px", borderRadius: 6, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#8b5cf6", marginBottom: 3 }}>Latest output preview</div>
+                    <div style={{ fontSize: 11, color: "var(--text)", fontWeight: 700 }}>{latestOutput.title}</div>
+                    <div style={{ fontSize: 10, color: "var(--text-3)", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{latestOutput.preview}</div>
+                  </div>
+                )}
               </div>
             </Link>
-          ))}
+            );
+          })}
 
           {projects.map((p) => {
             const done = p.tasks.filter(

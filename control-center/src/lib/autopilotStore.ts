@@ -7,6 +7,7 @@ import { getMissionType, getDefaultMissionType, isSoftwareMission } from "./miss
 import { generateMissionDeliverables } from "./missionDeliverables";
 import { updateAgentState } from "./agentRuntime";
 import { emitEvent } from "./runtimeEvents";
+import { ensureFallbackVisibleOutput, getOutputCountForSession } from "./visibleOutputs";
 import type { LoopMode, LoopStatus, LoopHistoryEntry } from "./missionLoops";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1059,6 +1060,18 @@ export async function runAll(sessionId: string, maxSteps = MAX_RUN_ALL_STEPS): P
 
   session = getSession(sessionId);
 
+  if (session && session.progress >= 70 && getOutputCountForSession(sessionId) === 0) {
+    ensureFallbackVisibleOutput(sessionId, session.missionType);
+    appendLog(sessionId, {
+      timestamp: new Date().toISOString(),
+      level: "success",
+      agent: "autopilot",
+      message: "Generated visible output: Design Recommendation",
+      source: "visible_outputs",
+    });
+    session = getSession(sessionId);
+  }
+
   // Auto-generate project scaffold at 50% progress
   if (session && session.progress >= 50 && !projectScaffoldExists(sessionId)) {
     const scaffoldPaths = generateProjectScaffold(session);
@@ -1186,13 +1199,25 @@ export async function startMissionAutopilot(
   // 6. Generate visible outputs
   let outputsGenerated = 0;
   try {
-    const { generateVisibleOutputs, getOutputCountForSession } = await import("./visibleOutputs");
+    const { generateVisibleOutputs, getOutputCountForSession, ensureFallbackVisibleOutput } = await import("./visibleOutputs");
     const existing = getOutputCountForSession(session.sessionId);
     if (existing === 0) {
       const outputs = generateVisibleOutputs(session.sessionId, missionType);
       outputsGenerated = outputs.length;
     } else {
       outputsGenerated = existing;
+    }
+    const latest = getSession(session.sessionId);
+    if ((latest?.progress ?? 0) >= 70 && getOutputCountForSession(session.sessionId) === 0) {
+      ensureFallbackVisibleOutput(session.sessionId, missionType);
+      outputsGenerated = 1;
+      appendLog(session.sessionId, {
+        timestamp: new Date().toISOString(),
+        level: "success",
+        agent: "autopilot",
+        message: "Generated visible output: Design Recommendation",
+        source: "visible_outputs",
+      });
     }
     // Update output statuses based on steps completed
     const { updateOutputStatus } = await import("./visibleOutputs");

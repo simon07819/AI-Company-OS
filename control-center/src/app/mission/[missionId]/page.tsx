@@ -316,6 +316,8 @@ export default function MissionRoomPage() {
   const runningTask = session.tasks.find((task) => task.status === "running");
   const blockedTasks = session.tasks.filter((task) => task.status === "blocked" || task.status === "failed");
   const completedTasks = session.tasks.filter((task) => task.status === "completed").length;
+  const latestVisibleOutput = visibleOutputs[0] ?? null;
+  const nextExpectedOutput = visibleOutputs.find((output) => output.status === "draft" || output.status === "in_progress") ?? null;
 
   return (
     <main className="page" style={{ maxWidth: 1500, paddingTop: 22 }}>
@@ -454,6 +456,30 @@ export default function MissionRoomPage() {
           {/* What is happening now? */}
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="What is happening now?" icon={<Activity size={12} style={{ color: "#3b82f6" }} />} />
+            <div style={{ display: "grid", gap: 8, marginBottom: 10 }}>
+              <div style={{ padding: "8px 10px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Currently working on</div>
+                <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{runningTask ? runningTask.title : session.runtime.lastEvent}</div>
+              </div>
+              <div style={{ padding: "8px 10px", borderRadius: 7, background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.22)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 9, color: "#8b5cf6", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Latest generated result</div>
+                    <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{latestVisibleOutput ? latestVisibleOutput.title : "No visible result yet"}</div>
+                  </div>
+                  {latestVisibleOutput && (
+                    <Link href={`/outputs/${latestVisibleOutput.id}`} style={{ fontSize: 10, color: "#8b5cf6", fontWeight: 800, whiteSpace: "nowrap" }}>Open latest preview</Link>
+                  )}
+                </div>
+                {latestVisibleOutput && (
+                  <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, marginTop: 5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{latestVisibleOutput.preview}</div>
+                )}
+              </div>
+              <div style={{ padding: "8px 10px", borderRadius: 7, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 9, color: "var(--text-3)", fontWeight: 800, textTransform: "uppercase", marginBottom: 3 }}>Next expected output</div>
+                <div style={{ fontSize: 12, color: "var(--text)", fontWeight: 700 }}>{nextExpectedOutput ? nextExpectedOutput.title : "Final review or approval"}</div>
+              </div>
+            </div>
             {session.status === "running" && (() => {
               const runningTask = session.tasks.find((t: { status: string }) => t.status === "running");
               const nextTask = session.tasks.find((t: { status: string }) => t.status === "queued");

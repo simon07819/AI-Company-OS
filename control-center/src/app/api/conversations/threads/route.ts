@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listThreads, createThread } from "@/lib/conversationStore";
+import { listThreads, createThread, findOrCreateDirectThread } from "@/lib/conversationStore";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    if (body?.directParticipant) {
+      const thread = findOrCreateDirectThread(body.directParticipant);
+      return NextResponse.json({ ok: true, thread });
+    }
     const title = body?.title;
     if (!title) return NextResponse.json({ ok: false, message: "Missing title" }, { status: 400 });
     const thread = createThread({

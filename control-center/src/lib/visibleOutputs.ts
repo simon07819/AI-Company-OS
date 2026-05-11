@@ -123,6 +123,9 @@ const BRANDING_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "
   { title: "Concept identité visuelle", type: "logo_direction", summary: "3 propositions d'identité visuelle", preview: "Propositions identité: ① Premium minimaliste — monogramme + serif élégant ② Sportif dynamique — logotype bold + accent couleur ③ Luxe affirmé — emblème + or métallique + noir profond", status: "draft", assignedAgent: "frontend_agent", sourceFile: null, sourceFiles: [] },
   { title: "Charte graphique", type: "style_direction", summary: "Guide de charte graphique complet", preview: "Guide complet: logo déclinaisons, couleurs primaires/secondaires, typographie, iconographie, photography style, spacing, composants UI. Format: brand book PDF.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null, sourceFiles: [] },
   { title: "Palette couleurs branding", type: "color_palette", summary: "Palette de couleurs de la marque", preview: "Primaire: #0A0A0A (Noir absolu) | Accent: #C9A96E (Or premium) | Secondaire: #1A1A2E (Bleu nuit) | Surface: #F8F8F8 | Texte: #333333", status: "draft", assignedAgent: "frontend_agent", sourceFile: null, sourceFiles: [] },
+  { title: "Typography Direction", type: "typography", summary: "Direction typographique pour la marque", preview: "Headings: Inter Black 900 pour impact logo | Body: Inter Regular 400 pour lisibilité | Accent: Space Grotesk 700 pour détails premium.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null, sourceFiles: [] },
+  { title: "Design Recommendation", type: "style_direction", summary: "Recommandation design finale", preview: "Recommandation: direction premium minimaliste avec monogramme simple, palette sombre + accent or, typographie géométrique. Prêt pour approbation avant production des variantes.", status: "review", assignedAgent: "cmo", sourceFile: null, sourceFiles: [] },
+  { title: "Approval Preview", type: "concept_card", summary: "Aperçu à approuver", preview: "Aperçu approbation: logo concept + palette + typographie + recommandations de déclinaison. Aucun approval ne devrait être fait sans vérifier cette preview.", status: "review", assignedAgent: "qa_agent", sourceFile: null, sourceFiles: [] },
   { title: "Plan marketing", type: "marketing_plan", summary: "Stratégie de lancement branding", preview: "Stratégie de lancement branding: Phase 1 — Audit & recherche (semaine 1) | Phase 2 — Concepts & directions (semaine 2-3) | Phase 3 — Production & déclinaisons (semaine 4) | Phase 4 — Lancement & diffusion", status: "draft", assignedAgent: "cmo", sourceFile: null, sourceFiles: [] },
 ];
 
@@ -173,6 +176,39 @@ export function generateVisibleOutputs(sessionId: string, missionType: string, p
   data.outputs.push(...outputs);
   writeData(data);
   return outputs;
+}
+
+export function ensureFallbackVisibleOutput(sessionId: string, missionType: string, projectId: string | null = null): VisibleOutput {
+  const existing = getOutputsForSession(sessionId);
+  if (existing.length > 0) return existing[0];
+
+  const now = new Date().toISOString();
+  const output: VisibleOutput = {
+    id: nextId(),
+    sessionId,
+    projectId,
+    title: "Design Recommendation",
+    type: "style_direction",
+    summary: "Fallback visible design recommendation generated because the mission had progress but no visible output.",
+    preview: [
+      "Creative Direction: premium, simple, immediately usable.",
+      "Logo Concept: clean wordmark with a strong geometric mark.",
+      "Color Palette: #0F172A, #38BDF8, #F8FAFC, #22C55E.",
+      "Typography Direction: Inter Bold for headings, Inter Regular for body.",
+      "Design Recommendation: approve this direction for first visual production.",
+    ].join("\n"),
+    status: "review",
+    assignedAgent: missionType === "branding_pack" || missionType === "flyer" ? "cmo" : "frontend_agent",
+    sourceFile: null,
+    sourceFiles: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  const data = readData();
+  data.outputs.push(output);
+  writeData(data);
+  return output;
 }
 
 export function getOutputsForSession(sessionId: string): VisibleOutput[] {

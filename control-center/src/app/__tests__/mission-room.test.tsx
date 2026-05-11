@@ -29,6 +29,15 @@ describe("Mission Room experience", () => {
     expect(screen.getByText("Results")).toBeInTheDocument();
   });
 
+  it("shows latest generated result controls", async () => {
+    render(React.createElement(MissionRoomPage));
+
+    await waitFor(() => expect(screen.getByText("Latest generated result")).toBeInTheDocument());
+    expect(screen.getAllByText("Design Recommendation").length).toBeGreaterThan(0);
+    expect(screen.getByText("Next expected output")).toBeInTheDocument();
+    expect(screen.getByText("Open latest preview")).toBeInTheDocument();
+  });
+
   it("renders Recent Missions navigation", async () => {
     render(React.createElement(MissionsPage));
 

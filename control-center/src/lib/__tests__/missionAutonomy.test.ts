@@ -291,6 +291,16 @@ describe("Mission Autonomy — CEO command creates project automatically", () =>
     expect(updated!.status).toBe("review");
   });
 
+  it("mission at 70%+ without output creates fallback output", async () => {
+    const { ensureFallbackVisibleOutput, getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const fallback = ensureFallbackVisibleOutput("stalled-session", "branding_pack");
+
+    expect(fallback.title).toBe("Design Recommendation");
+    expect(fallback.status).toBe("review");
+    expect(fallback.preview).toContain("Color Palette");
+    expect(getOutputsForSession("stalled-session").length).toBe(1);
+  });
+
   it("delegation appears in CEO response for actionable missions", async () => {
     const { sendMessage } = await import("@/lib/ceoCommand");
     const { ceoMessage } = await sendMessage("Je veux un site web");

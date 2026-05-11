@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   AlertTriangle, CheckCircle2, Clock, DollarSign, Eye, FileText,
-  Image, Layout, Palette, Rocket, X, XCircle, ShieldCheck,
+  Image as ImageIcon, Layout, Palette, Rocket, X, XCircle, ShieldCheck, Sparkles,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────
@@ -46,7 +46,7 @@ interface ApprovalPreview {
     items: { description: string; quantity: number; unitPrice: number; total: number }[];
   };
   files?: { name: string; path: string; score?: number; status: string; preview?: string }[];
-  outputs?: { title: string; type: string; status: string; preview: string }[];
+  outputs?: { title: string; type: string; status: string; preview: string; visualKind?: "image" | "website" | "invoice" | "document" | "brand"; colors?: string[] }[];
   mission?: {
     name: string;
     missionType: string;
@@ -65,7 +65,7 @@ function typeIcon(type: ApprovalType, size = 14) {
   switch (type) {
     case "invoice": return <DollarSign {...props} style={{ ...props.style, color: "#22c55e" }} />;
     case "logo": return <Palette {...props} style={{ ...props.style, color: "#8b5cf6" }} />;
-    case "flyer": return <Image {...props} style={{ ...props.style, color: "#ec4899" }} />;
+    case "flyer": return <ImageIcon {...props} style={{ ...props.style, color: "#ec4899" }} />;
     case "website": return <Layout {...props} style={{ ...props.style, color: "#06b6d4" }} />;
     case "strategy": return <Rocket {...props} style={{ ...props.style, color: "#f59e0b" }} />;
     case "mission": return <Rocket {...props} style={{ ...props.style, color: "#3b82f6" }} />;
@@ -97,7 +97,8 @@ interface ApprovalCardProps {
 export function ApprovalCard({ item, onPreview, onApprove, onReject }: ApprovalCardProps) {
   const color = TYPE_COLORS[item.type] ?? "#64748b";
   const isPending = item.status === "pending";
-  const canApprove = item.hasPreviewContent || item.type === "invoice";
+  void onApprove;
+  void onReject;
 
   return (
     <motion.div
@@ -173,36 +174,23 @@ export function ApprovalCard({ item, onPreview, onApprove, onReject }: ApprovalC
           >
             <Eye size={10} /> Preview
           </button>
-          <button
-            onClick={() => onApprove(item.id)}
-            disabled={!canApprove}
-            title={!canApprove ? "Aucun apercu disponible — impossible d'approuver" : undefined}
-            style={{
-              padding: "5px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600,
-              cursor: canApprove ? "pointer" : "not-allowed",
-              background: canApprove ? "rgba(34,197,94,0.1)" : "transparent",
-              border: "1px solid rgba(34,197,94,0.3)", color: canApprove ? "#22c55e" : "#64748b",
-              display: "flex", alignItems: "center", gap: 4,
-              opacity: canApprove ? 1 : 0.5,
-            }}
-          >
-            <CheckCircle2 size={10} /> Approve
-          </button>
-          <button
-            onClick={() => onReject(item.id)}
-            style={{
-              padding: "5px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer",
-              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "#ef4444",
-              display: "flex", alignItems: "center", gap: 4,
-            }}
-          >
-            <XCircle size={10} /> Reject
-          </button>
+          {!item.hasPreviewContent && (
+            <button
+              onClick={() => onPreview(item.id)}
+              style={{
+                padding: "5px 10px", borderRadius: 6, fontSize: 10, fontWeight: 600, cursor: "pointer",
+                background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "#f59e0b",
+                display: "flex", alignItems: "center", gap: 4,
+              }}
+            >
+              <Sparkles size={10} /> Generate preview
+            </button>
+          )}
         </div>
       )}
 
       {/* No preview warning */}
-      {isPending && !canApprove && (
+      {isPending && !item.hasPreviewContent && (
         <div style={{
           marginTop: 8, padding: "6px 8px", borderRadius: 6,
           background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
@@ -413,6 +401,42 @@ export function ApprovalPreviewModal({ preview, open, onClose, onApprove, onReje
                           {out.status}
                         </span>
                       </div>
+                      {out.visualKind === "brand" && (
+                        <div style={{
+                          margin: "8px 0", padding: 10, borderRadius: 8,
+                          background: "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(30,41,59,0.92))",
+                          border: "1px solid rgba(148,163,184,0.24)",
+                        }}>
+                          <div style={{ fontSize: 22, lineHeight: 1, fontWeight: 900, color: "#f8fafc", letterSpacing: 0 }}>
+                            Aa
+                          </div>
+                          <div style={{ fontSize: 9, color: "#cbd5e1", marginTop: 5 }}>Logo / brand concept preview</div>
+                          {out.colors && out.colors.length > 0 && (
+                            <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
+                              {out.colors.map((c) => (
+                                <span key={c} title={c} style={{ width: 22, height: 22, borderRadius: 5, background: c, border: "1px solid rgba(255,255,255,0.35)" }} />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {out.visualKind === "website" && (
+                        <div style={{ margin: "8px 0", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden", background: "var(--bg-2)" }}>
+                          <div style={{ height: 20, display: "flex", alignItems: "center", gap: 4, padding: "0 8px", borderBottom: "1px solid var(--border)" }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#ef4444" }} />
+                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#f59e0b" }} />
+                            <span style={{ width: 6, height: 6, borderRadius: 99, background: "#22c55e" }} />
+                          </div>
+                          <div style={{ padding: 12 }}>
+                            <div style={{ height: 12, width: "55%", background: "#38bdf8", borderRadius: 3, marginBottom: 8 }} />
+                            <div style={{ height: 7, width: "82%", background: "var(--border)", borderRadius: 3, marginBottom: 5 }} />
+                            <div style={{ height: 7, width: "68%", background: "var(--border)", borderRadius: 3, marginBottom: 10 }} />
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                              {[0, 1, 2].map((n) => <span key={n} style={{ height: 30, borderRadius: 5, background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.2)" }} />)}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <p style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, margin: 0, whiteSpace: "pre-wrap" }}>
                         {out.preview || "No preview text available."}
                       </p>

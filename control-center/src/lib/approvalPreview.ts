@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { getProfile } from "./agentProfiles";
-import { getOutputsForSession } from "./visibleOutputs";
+import { getOutputById, getOutputsForSession } from "./visibleOutputs";
 import { getSession } from "./autopilotStore";
 import { loadReviewReport } from "./deliverableReview";
 
@@ -65,6 +65,8 @@ export interface ApprovalPreview {
     type: string;
     status: string;
     preview: string;
+    visualKind?: "image" | "website" | "invoice" | "document" | "brand";
+    colors?: string[];
   }[];
   mission?: {                 // Populated for mission type
     name: string;
@@ -157,7 +159,7 @@ export function collectPendingApprovals(): ApprovalItem[] {
               createdAt: out.createdAt ?? new Date().toISOString(),
               qualityScore: out.qualityScore,
               summary: out.preview ?? "Awaiting review",
-              hasPreviewContent: !!(out.preview),
+              hasPreviewContent: !!(out.preview || out.sourceFile || (out.sourceFiles?.length ?? 0) > 0),
               previewType: "output_list",
             });
           }
@@ -236,7 +238,31 @@ export function collectPendingApprovals(): ApprovalItem[] {
 export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
   const approvals = readApprovals().approvals;
   const pendingFromCollect = collectPendingApprovals();
-  const item = approvals.find((a) => a.id === approvalId) ?? pendingFromCollect.find((a) => a.id === approvalId);
+  let item = approvals.find((a) => a.id === approvalId) ?? pendingFromCollect.find((a) => a.id === approvalId);
+  if (!item && approvalId.startsWith("output-")) {
+    try {
+      const output = getOutputById(approvalId.replace(/^output-/, ""));
+      if (output) {
+        const agent = output.assignedAgent ? getProfile(output.assignedAgent as Parameters<typeof getProfile>[0]) : null;
+        item = {
+          id: approvalId,
+          title: output.title,
+          type: ["page_preview", "hero_section", "sitemap", "wireframe"].includes(output.type) ? "website"
+            : ["invoice_preview", "estimate_preview", "taxes_summary"].includes(output.type) ? "invoice"
+              : ["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "before_after"].includes(output.type) ? "logo"
+                : "document",
+          status: "pending",
+          agentId: output.assignedAgent,
+          agentName: agent?.displayName ?? output.assignedAgent,
+          sessionId: output.sessionId,
+          createdAt: output.createdAt,
+          summary: output.preview || output.summary,
+          hasPreviewContent: true,
+          previewType: "output_list",
+        };
+      }
+    } catch { /* ignore */ }
+  }
   if (!item) return null;
 
   const preview: ApprovalPreview = {
@@ -249,6 +275,31 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
     content: item.summary,
     warnings: [],
   };
+
+  try {
+    if (item.id.startsWith("output-")) {
+      const outputId = item.id.replace(/^output-/, "");
+      const output = getOutputById(outputId);
+      if (output) {
+        const colorMatches = (output.preview ?? "").match(/#[0-9a-fA-F]{6}/g) ?? [];
+        const websiteTypes = new Set(["page_preview", "hero_section", "sitemap", "wireframe"]);
+        const invoiceTypes = new Set(["invoice_preview", "estimate_preview", "taxes_summary"]);
+        const brandTypes = new Set(["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "before_after"]);
+        preview.outputs = [{
+          title: output.title,
+          type: output.type,
+          status: output.status,
+          preview: output.preview ?? output.summary ?? "",
+          visualKind: websiteTypes.has(output.type) ? "website"
+            : invoiceTypes.has(output.type) ? "invoice"
+              : brandTypes.has(output.type) ? "brand"
+                : "document",
+          colors: colorMatches.slice(0, 8),
+        }];
+        preview.content = output.preview || output.summary || item.summary;
+      }
+    }
+  } catch { /* ignore */ }
 
   // Enrich based on type
   if (item.type === "invoice" && item.id.startsWith("proposal-")) {
@@ -316,6 +367,10 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
           type: o.type,
           status: o.status,
           preview: o.preview ?? "",
+          visualKind: ["page_preview", "hero_section", "sitemap", "wireframe"].includes(o.type) ? "website"
+            : ["creative_brief", "logo_direction", "style_direction", "color_palette", "typography", "moodboard", "before_after"].includes(o.type) ? "brand"
+              : "document",
+          colors: (o.preview ?? "").match(/#[0-9a-fA-F]{6}/g)?.slice(0, 8) ?? [],
         }));
       }
     } catch { /* ignore */ }
@@ -364,8 +419,9 @@ export function getApprovalPreview(approvalId: string): ApprovalPreview | null {
   }
 
   // Warnings
-  if (!preview.invoice && !preview.files?.length && !preview.outputs?.length && !preview.mission && !preview.content) {
-    preview.warnings.push("Aucun apercu disponible — impossible d'approuver en toute securite.");
+  const hasRealPreview = !!(preview.invoice || preview.files?.length || preview.outputs?.length || preview.mission);
+  if (!hasRealPreview) {
+    preview.warnings.push("Aucun aperçu disponible");
   }
 
   return preview;

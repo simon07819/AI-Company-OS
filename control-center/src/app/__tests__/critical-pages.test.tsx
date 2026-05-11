@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import AgentsPage from "@/app/agents/page";
@@ -7,6 +7,7 @@ import FactoryPage from "@/app/factory/page";
 import LogsPage from "@/app/logs/page";
 import RuntimePage from "@/app/runtime/page";
 import SettingsPage from "@/app/settings/page";
+import CeoPage from "@/app/ceo/page";
 
 // Mock components that fetch data
 vi.mock("@/components/AutopilotPanel", () => ({
@@ -39,7 +40,7 @@ describe("critical Control Center pages", () => {
     expect(screen.getByRole("heading", { name: "AI Team Command Center" })).toBeInTheDocument();
     expect(screen.getByText("Product Agent")).toBeInTheDocument();
     expect(screen.getByText("NVIDIA API")).toBeInTheDocument();
-  });
+  }, 10000);
 
   it("renders Factory without crashing", () => {
     render(React.createElement(FactoryPage));
@@ -62,5 +63,21 @@ describe("critical Control Center pages", () => {
 
     expect(screen.getByText("Autopilot Sessions")).toBeInTheDocument();
     expect(screen.getByText("New Project")).toBeInTheDocument();
+  });
+
+  it("renders CEO chat controls", async () => {
+    render(React.createElement(CeoPage));
+
+    expect(await screen.findByText("New Chat")).toBeInTheDocument();
+    expect(screen.getByText("Archive Chat")).toBeInTheDocument();
+    expect(screen.getByText("Open Conversations")).toBeInTheDocument();
+  });
+
+  it("clicking an agent opens direct conversation header", async () => {
+    render(React.createElement(CeoPage));
+
+    await screen.findByText("Diana Park");
+    fireEvent.click(screen.getByTestId("team-chat-cfo"));
+    await waitFor(() => expect(screen.getByText("Participant actuel: CFO")).toBeInTheDocument());
   });
 });

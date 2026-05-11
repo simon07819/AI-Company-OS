@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -42,12 +43,14 @@ import {
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { ExecutiveDiscussion, DiscussionMessage } from "@/lib/executiveDiscussion";
-import type { ExecutiveId } from "@/lib/executiveTeam";
+import type { AgentId } from "@/lib/agentTypes";
+
+type TeamChatId = AgentId;
 
 // ─── Executive definitions (client-side copy) ─────────────────────────────
 
 interface ExecDef {
-  id: ExecutiveId;
+  id: TeamChatId;
   name: string;
   title: string;
   avatar: string;
@@ -65,10 +68,36 @@ const EXEC_DEFS: ExecDef[] = [
   { id: "support",   name: "Carlos Rivera",   title: "Support Director",  avatar: "🎧", color: "#ec4899", shortTitle: "Support" },
   { id: "sales",     name: "Rachel Kim",      title: "Sales Director",    avatar: "🎯", color: "#ef4444", shortTitle: "Sales" },
   { id: "hr",        name: "James Okafor",    title: "HR Director",       avatar: "👥", color: "#a78bfa", shortTitle: "HR" },
+  { id: "frontend_agent", name: "Léa Moreau", title: "Designer",          avatar: "🎨", color: "#ec4899", shortTitle: "Designer" },
+  { id: "qa_agent",  name: "Naomi Okafor",    title: "QA Director",       avatar: "🔍", color: "#ef4444", shortTitle: "QA" },
+  { id: "ecommerce_operator", name: "Lina Marchand", title: "E-commerce Operator", avatar: "🛒", color: "#14b8a6", shortTitle: "E-commerce" },
 ];
 
-function getExec(id: ExecutiveId): ExecDef {
+function getExec(id: TeamChatId): ExecDef {
   return EXEC_DEFS.find((e) => e.id === id) ?? EXEC_DEFS[0];
+}
+
+interface ConvParticipant {
+  id: TeamChatId | "custom_agent";
+  name: string;
+  avatar: string;
+  color: string;
+}
+
+interface ConvMessage {
+  id: string;
+  role: "user" | TeamChatId | "custom_agent";
+  text: string;
+  timestamp: string;
+}
+
+interface ConvThread {
+  id: string;
+  title: string;
+  participants: ConvParticipant[];
+  messages: ConvMessage[];
+  archived: boolean;
+  updatedAt: string;
 }
 
 // ─── File types ───────────────────────────────────────────────────────────
@@ -145,7 +174,7 @@ interface CeoOverview {
 
 // ─── Executive Avatar ─────────────────────────────────────────────────────
 
-function ExecAvatar({ id, size = 28, pulse }: { id: ExecutiveId; size?: number; pulse?: boolean }) {
+function ExecAvatar({ id, size = 28, pulse }: { id: TeamChatId; size?: number; pulse?: boolean }) {
   const exec = getExec(id);
   return (
     <motion.div
@@ -171,7 +200,7 @@ function ExecAvatar({ id, size = 28, pulse }: { id: ExecutiveId; size?: number; 
 
 // ─── Executive Typing Indicator ───────────────────────────────────────────
 
-function ExecTyping({ id }: { id: ExecutiveId }) {
+function ExecTyping({ id }: { id: TeamChatId }) {
   const exec = getExec(id);
   return (
     <motion.div
@@ -268,7 +297,7 @@ function DiscussionBubble({ msg }: { msg: DiscussionMessage }) {
         </div>
         {msg.to && msg.to !== "all" && (
           <div style={{ fontSize: 9, color: "var(--text-3)", marginTop: 2 }}>
-            → {getExec(msg.to as ExecutiveId).name}
+            → {getExec(msg.to as TeamChatId).name}
           </div>
         )}
       </div>
@@ -526,13 +555,20 @@ function OrgCard({
   exec,
   isActive,
   isTyping,
+  onOpen,
 }: {
   exec: ExecDef;
   isActive: boolean;
   isTyping: boolean;
+  onOpen: (id: TeamChatId) => void;
 }) {
   return (
     <motion.div
+      role="button"
+      data-testid={`team-chat-${exec.id}`}
+      tabIndex={0}
+      onClick={() => onOpen(exec.id)}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(exec.id); }}
       animate={isActive ? { boxShadow: [`0 0 0px ${exec.color}00`, `0 0 8px ${exec.color}44`, `0 0 0px ${exec.color}00`] } : {}}
       transition={isActive ? { duration: 2, repeat: Infinity } : {}}
       style={{
@@ -540,6 +576,7 @@ function OrgCard({
         background: isActive ? `${exec.color}08` : "var(--bg-2)",
         border: `1px solid ${isActive ? `${exec.color}35` : "var(--border)"}`,
         borderRadius: 8, display: "flex", alignItems: "center", gap: 7,
+        cursor: "pointer",
       }}
     >
       <ExecAvatar id={exec.id} size={24} pulse={isTyping} />
@@ -572,7 +609,7 @@ function OrgCard({
 
 // ─── CEO Message Bubble ───────────────────────────────────────────────────
 
-function CeoMessageBubble({ msg }: { msg: CeoMessage }) {
+function CeoMessageBubble({ msg, participant }: { msg: CeoMessage; participant: ExecDef }) {
   const isUser = msg.role === "user";
   return (
     <motion.div
@@ -582,7 +619,7 @@ function CeoMessageBubble({ msg }: { msg: CeoMessage }) {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
         <span style={{ fontSize: 9, fontWeight: 700, color: isUser ? "#3b82f6" : "#f59e0b" }}>
-          {isUser ? "YOU" : "👑 CEO"}
+          {isUser ? "YOU" : `${participant.avatar} ${participant.shortTitle}`}
         </span>
         <span style={{ fontSize: 9, color: "var(--text-3)" }}>
           {new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -599,8 +636,8 @@ function CeoMessageBubble({ msg }: { msg: CeoMessage }) {
       <div style={{
         fontSize: 12, color: "var(--text)", lineHeight: 1.55,
         padding: "7px 10px", borderRadius: isUser ? "8px 8px 8px 0" : "0 8px 8px 8px",
-        background: isUser ? "rgba(59,130,246,0.06)" : "rgba(245,158,11,0.06)",
-        border: `1px solid ${isUser ? "rgba(59,130,246,0.2)" : "rgba(245,158,11,0.2)"}`,
+        background: isUser ? "rgba(59,130,246,0.06)" : `${participant.color}10`,
+        border: `1px solid ${isUser ? "rgba(59,130,246,0.2)" : `${participant.color}30`}`,
         whiteSpace: "pre-wrap",
       }}>
         {msg.text}
@@ -1045,8 +1082,10 @@ export default function CeoPage() {
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalItem[]>([]);
   const [approvalPreview, setApprovalPreview] = useState<ApprovalPreview | null>(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [activeExecs, setActiveExecs] = useState<Set<ExecutiveId>>(new Set());
-  const [typingExecs, setTypingExecs] = useState<Set<ExecutiveId>>(new Set());
+  const [activeExecs, setActiveExecs] = useState<Set<TeamChatId>>(new Set());
+  const [typingExecs, setTypingExecs] = useState<Set<TeamChatId>>(new Set());
+  const [activeThread, setActiveThread] = useState<ConvThread | null>(null);
+  const [activeParticipant, setActiveParticipant] = useState<TeamChatId>("ceo");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // ── Upload state ──
@@ -1060,6 +1099,19 @@ export default function CeoPage() {
   const [clipHovered, setClipHovered] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const conversationMessages: CeoMessage[] = activeThread
+    ? activeThread.messages.map((msg) => ({
+      id: msg.id,
+      role: msg.role === "user" ? "user" : "ceo",
+      text: msg.text,
+      timestamp: msg.timestamp,
+    }))
+    : messages;
+
+  const currentParticipant = getExec(activeParticipant);
+  const currentThreadTitle = activeThread?.title ?? "CEO Cockpit";
+  const isCeoThread = activeParticipant === "ceo";
+
   const loadData = useCallback(async () => {
     try {
       const [mRes, oRes] = await Promise.all([
@@ -1068,11 +1120,22 @@ export default function CeoPage() {
       ]);
       if (mRes.ok) { const d = await mRes.json(); setMessages(d.messages ?? []); }
       if (oRes.ok) { const d = await oRes.json(); setOverview(d.overview ?? null); }
+      if (!activeThread) {
+        const tRes = await fetch("/api/conversations/threads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ directParticipant: "ceo" }),
+        });
+        if (tRes.ok) {
+          const td = await tRes.json();
+          if (td.ok && td.thread) setActiveThread(td.thread);
+        }
+      }
       setError(null);
     } catch {
       setError("Failed to load CEO data");
     }
-  }, []);
+  }, [activeThread]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -1087,12 +1150,12 @@ export default function CeoPage() {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, ceoTyping]);
+  }, [conversationMessages, ceoTyping]);
 
   // Animate active/typing exec indicators when discussion changes
   useEffect(() => {
     if (!discussion) return;
-    const involved = new Set(discussion.involvedExecutives);
+    const involved = new Set(discussion.involvedExecutives as TeamChatId[]);
     setActiveExecs(involved);
 
     // Simulate progressive typing: stagger which execs show as "typing"
@@ -1116,6 +1179,53 @@ export default function CeoPage() {
     return () => timers.forEach(clearTimeout);
   }, [discussion?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const openDirectThread = async (participant: TeamChatId, forceNew = false) => {
+    setActiveParticipant(participant);
+    setDiscussion(null);
+    const participantDef = getExec(participant);
+    const res = await fetch("/api/conversations/threads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(forceNew
+        ? { title: `Conversation avec ${participantDef.title}`, participants: [participant] }
+        : { directParticipant: participant }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.thread) {
+        setActiveThread(data.thread);
+        return data.thread as ConvThread;
+      }
+    }
+    return null;
+  };
+
+  const handleNewChat = async () => {
+    await openDirectThread(activeParticipant, true);
+    setInput("");
+    setUploadedFiles([]);
+  };
+
+  const handleArchiveChat = async () => {
+    if (!activeThread) return;
+    await fetch(`/api/conversations/threads/${activeThread.id}/archive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: true }),
+    });
+    setActiveThread(null);
+    await openDirectThread(activeParticipant, true);
+  };
+
+  const refreshActiveThread = async () => {
+    if (!activeThread) return;
+    const res = await fetch(`/api/conversations/threads/${activeThread.id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.thread) setActiveThread(data.thread);
+    }
+  };
+
   const handleSend = async (text?: string) => {
     const msg = text ?? input;
     if (!msg.trim() || sending) return;
@@ -1125,7 +1235,12 @@ export default function CeoPage() {
     setDiscussion(null);
 
     try {
-      const res = await fetch("/api/ceo/chat", {
+      const threadForSend = !isCeoThread && !activeThread ? await openDirectThread(activeParticipant) : activeThread;
+      const res = isCeoThread ? await fetch("/api/ceo/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: msg }),
+      }) : await fetch(`/api/conversations/threads/${threadForSend?.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: msg }),
@@ -1135,7 +1250,9 @@ export default function CeoPage() {
         await new Promise((r) => setTimeout(r, 600));
         setCeoTyping(false);
         if (d.discussion) setDiscussion(d.discussion);
+        if (d.thread) setActiveThread(d.thread);
         await loadData();
+        if (isCeoThread) await refreshActiveThread();
         const missionAction = d.response?.actions?.find((action: CeoAction) => action.type === "created_session" && action.href);
         if (missionAction) {
           setCreatedMission(missionAction);
@@ -1404,9 +1521,25 @@ export default function CeoPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6 }}>
               <MessageSquare size={10} style={{ color: "#f59e0b" }} />
               <span style={{ fontSize: 9, fontWeight: 700, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                CEO Direct Line
+                {isCeoThread ? "CEO Direct Line" : `Conversation avec ${currentParticipant.shortTitle}`}
               </span>
               <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 9, color: currentParticipant.color, fontWeight: 800 }}>
+                {currentParticipant.title}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 7 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {currentThreadTitle}
+                </div>
+                <div style={{ fontSize: 9, color: "var(--text-3)" }}>
+                  Participant actuel: {currentParticipant.shortTitle}
+                </div>
+              </div>
+              <button onClick={handleNewChat} style={chatHeaderButton("#22c55e")}>New Chat</button>
+              <button onClick={handleArchiveChat} disabled={!activeThread} style={chatHeaderButton("#f59e0b", !activeThread)}>Archive Chat</button>
+              <a href="/conversations" style={{ ...chatHeaderButton("#3b82f6"), textDecoration: "none" }}>Open Conversations</a>
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
               {QUICK_SUGGESTIONS.map((s) => (
@@ -1428,7 +1561,7 @@ export default function CeoPage() {
 
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0, marginBottom: 8 }}>
             <AnimatePresence>
-              {messages.length === 0 && uploadedFiles.length === 0 && !ceoTyping && (
+              {conversationMessages.length === 0 && uploadedFiles.length === 0 && !ceoTyping && (
                 <motion.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -1443,10 +1576,10 @@ export default function CeoPage() {
                     👑
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-2)", marginBottom: 4 }}>
-                    Alexandra Chen — CEO AI
+                    {currentParticipant.name} — {currentParticipant.title}
                   </div>
                   <div style={{ fontSize: 10, lineHeight: 1.5, marginBottom: 10 }}>
-                    Ready to lead. Tell me your vision or drop a file to analyze.
+                    {isCeoThread ? "Ready to lead. Tell me your vision or drop a file to analyze." : `Chat direct avec ${currentParticipant.shortTitle}. Les messages sont persistants.`}
                   </div>
                   <div style={{
                     display: "flex", alignItems: "center", gap: 6, justifyContent: "center",
@@ -1463,8 +1596,8 @@ export default function CeoPage() {
               {uploadedFiles.map((f) => (
                 <UploadedFileBadge key={f.id} file={f} />
               ))}
-              {messages.map((msg) => (
-                <CeoMessageBubble key={msg.id} msg={msg} />
+              {conversationMessages.map((msg) => (
+                <CeoMessageBubble key={msg.id} msg={msg} participant={currentParticipant} />
               ))}
               {ceoTyping && <CeoTypingIndicator />}
             </AnimatePresence>
@@ -1551,7 +1684,7 @@ export default function CeoPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={pendingFile ? `Send "${pendingFile.name}" to CEO…` : "Message CEO…"}
+                placeholder={pendingFile ? `Send "${pendingFile.name}" to ${currentParticipant.shortTitle}...` : `Message ${currentParticipant.shortTitle}...`}
                 disabled={sending || !!uploadProgress}
                 style={{
                   flex: 1,
@@ -1671,7 +1804,8 @@ export default function CeoPage() {
               background: "rgba(245,158,11,0.08)",
               border: "1px solid rgba(245,158,11,0.3)",
               borderRadius: 8,
-            }}>
+              cursor: "pointer",
+            }} role="button" tabIndex={0} onClick={() => { void openDirectThread("ceo"); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") void openDirectThread("ceo"); }}>
               <ExecAvatar id="ceo" size={28} pulse={ceoTyping} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#f59e0b", lineHeight: 1 }}>Alexandra Chen</div>
@@ -1698,6 +1832,7 @@ export default function CeoPage() {
                   exec={exec}
                   isActive={activeExecs.has(exec.id)}
                   isTyping={typingExecs.has(exec.id)}
+                  onOpen={(id) => { void openDirectThread(id); }}
                 />
               ))}
             </div>
@@ -1725,4 +1860,18 @@ export default function CeoPage() {
       />
     </div>
   );
+}
+
+function chatHeaderButton(color: string, disabled = false): CSSProperties {
+  return {
+    padding: "4px 7px",
+    borderRadius: 6,
+    border: `1px solid ${color}35`,
+    background: disabled ? "transparent" : `${color}12`,
+    color: disabled ? "#64748b" : color,
+    fontSize: 9,
+    fontWeight: 800,
+    cursor: disabled ? "not-allowed" : "pointer",
+    whiteSpace: "nowrap",
+  };
 }

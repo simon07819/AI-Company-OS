@@ -6,8 +6,7 @@ let fileStore: Record<string, string> = {};
 
 vi.mock("fs", async (importOriginal) => {
   const actual = await importOriginal<typeof import("fs")>();
-  return {
-    ...actual,
+  const mocked = {
     existsSync: (p: string) => {
       const key = p.split("/data/")[1] ?? p;
       return key in fileStore || p.includes("workspaces");
@@ -20,12 +19,16 @@ vi.mock("fs", async (importOriginal) => {
     },
     writeFileSync: (p: string, content: string) => {
       const key = p.split("/data/")[1] ?? p;
-      if (!key.startsWith("data/") && !key.includes("/")) return;
       fileStore[key] = content;
     },
     mkdirSync: () => {},
     readdirSync: () => [],
     statSync: () => ({ isFile: () => false }),
+  };
+  return {
+    ...actual,
+    ...mocked,
+    default: { ...actual, ...mocked },
   };
 });
 
@@ -71,10 +74,44 @@ describe("Approval Preview System", () => {
   });
 
   it("preview returns real content for output items", async () => {
+    fileStore["visible-outputs.json"] = JSON.stringify({
+      outputs: [{
+        id: "vo-logo-1",
+        sessionId: "session-logo",
+        projectId: null,
+        title: "Logo Concept",
+        type: "logo_direction",
+        summary: "Premium logo",
+        preview: "Logo Concept with Color Palette #0F172A #38BDF8 and typography.",
+        status: "review",
+        assignedAgent: "cmo",
+        sourceFile: null,
+        sourceFiles: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }],
+    });
+    fileStore["approvals.json"] = JSON.stringify({
+      approvals: [{
+        id: "output-vo-logo-1",
+        title: "Logo Concept",
+        type: "logo",
+        status: "pending",
+        agentId: "cmo",
+        agentName: "Sophie",
+        sessionId: "session-logo",
+        createdAt: new Date().toISOString(),
+        summary: "Premium logo",
+        hasPreviewContent: true,
+        previewType: "output_list",
+      }],
+    });
     const { getApprovalPreview } = await import("@/lib/approvalPreview");
-    // Non-existent ID
-    const preview = getApprovalPreview("nonexistent-id");
-    expect(preview).toBeNull();
+    const preview = getApprovalPreview("output-vo-logo-1");
+    expect(preview).toBeTruthy();
+    expect(preview!.outputs?.[0].preview).toContain("Logo Concept");
+    expect(preview!.outputs?.[0].colors).toContain("#0F172A");
+    expect(preview!.warnings).toEqual([]);
   });
 
   it("approve disabled without preview content", () => {

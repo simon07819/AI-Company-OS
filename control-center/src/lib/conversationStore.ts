@@ -16,7 +16,7 @@ const CONV_PATH = path.join(DATA_DIR, "conversations.json");
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
-export type ParticipantRole = ExecutiveId | "custom_agent";
+export type ParticipantRole = AgentId | "custom_agent";
 
 export interface ConversationParticipant {
   id: ParticipantRole;
@@ -119,6 +119,11 @@ function participantFromRole(role: ParticipantRole): ConversationParticipant {
   }
   const exec = EXECUTIVES[role as ExecutiveId];
   return { id: role, name: exec?.name ?? role, avatar: exec?.avatar ?? "🤖", color: exec?.color ?? "#94a3b8" };
+}
+
+function directThreadTitle(role: ParticipantRole): string {
+  const participant = participantFromRole(role);
+  return `Conversation avec ${participant.name}`;
 }
 
 // ─── Real AI Response Engine ──────────────────────────────────────────────
@@ -386,6 +391,23 @@ export function createThread(input: {
   data.threads.push(thread);
   writeData(data);
   return thread;
+}
+
+export function createDirectThread(participant: ParticipantRole, title?: string): ConversationThread {
+  return createThread({
+    title: title ?? directThreadTitle(participant),
+    participants: [participant],
+  });
+}
+
+export function findOrCreateDirectThread(participant: ParticipantRole): ConversationThread {
+  if (participant === "ceo") return findOrCreateCeoThread();
+  const data = readData();
+  const existing = data.threads
+    .filter((t) => !t.archived)
+    .find((t) => t.participants.length === 1 && t.participants[0]?.id === participant && !t.linkedMissionId);
+  if (existing) return existing;
+  return createDirectThread(participant);
 }
 
 export function listThreads(options?: { folderId?: string | null; includeArchived?: boolean }): ConversationThread[] {

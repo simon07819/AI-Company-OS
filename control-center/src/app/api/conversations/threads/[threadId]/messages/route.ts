@@ -12,7 +12,7 @@ export async function POST(
     const body = await req.json();
     const text = body?.text;
     if (!text) return NextResponse.json({ ok: false, message: "Missing text" }, { status: 400 });
-    const msg = addMessage(threadId, "user", text, body?.metadata);
+    const msg = await addMessage(threadId, "user", text, body?.metadata);
     if (!msg) return NextResponse.json({ ok: false, message: "Thread not found" }, { status: 404 });
     // Reload thread to include the auto-response
     const { getThread } = await import("@/lib/conversationStore");

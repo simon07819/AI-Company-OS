@@ -145,6 +145,66 @@ vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL): Promise<MockRespo
     };
   }
 
+  if (url.includes("/api/runtime-mode")) {
+    return { ok: true, status: 200, json: async () => ({ ok: true, mode: "simulation" }) };
+  }
+
+  if (url.includes("/api/approvals")) {
+    return { ok: true, status: 200, json: async () => ({ ok: true, pending: [] }) };
+  }
+
+  if (url.includes("/api/visible-outputs")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        outputs: [{
+          id: "vo-test",
+          title: "Design Recommendation",
+          type: "style_direction",
+          preview: "Creative Direction, Logo Concept, Color Palette, Typography Direction",
+          status: "review",
+          assignedAgent: "cmo",
+        }],
+      }),
+    };
+  }
+
+  if (url.includes("/api/conversations/threads")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        thread: {
+          id: "ceo-main-thread",
+          title: "CEO Cockpit",
+          participants: [{ id: "ceo", name: "Alexandra", avatar: "👑", color: "#f59e0b" }],
+          messages: [],
+          archived: false,
+          updatedAt: new Date().toISOString(),
+        },
+        threads: [],
+      }),
+    };
+  }
+
+  if (url.includes("/api/ceo/messages")) {
+    return { ok: true, status: 200, json: async () => ({ ok: true, messages: [] }) };
+  }
+
+  if (url.includes("/api/ceo/overview")) {
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        overview: { activeMissions: 0, pendingApprovals: 0, totalRevenue: 0, agents: [], recentMessages: [], pendingDecisions: [] },
+      }),
+    };
+  }
+
   if (url.includes("/api/autopilot/sessions/") && url.includes("/logs")) {
     return {
       ok: true,
