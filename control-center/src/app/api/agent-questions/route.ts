@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listOpenQuestions, createAgentQuestion } from "@/lib/agentQuestions";
-import { type AgentId } from "@/lib/agentProfiles";
+import { type AgentId } from "@/lib/agentTypes";
 
 export const dynamic = "force-dynamic";
 

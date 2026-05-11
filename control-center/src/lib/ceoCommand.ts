@@ -14,6 +14,7 @@ import {
   recordCeoDecision,
   type ThinkingState,
 } from "./ceoConversation";
+import { syncCeoMessageToConversation } from "./conversationStore";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -433,6 +434,8 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
     timestamp: new Date().toISOString(),
   };
   data.messages.push(userMsg);
+  // Sync to conversationStore
+  syncCeoMessageToConversation("user", text);
 
   // Detect intent (proactive inference included)
   const intent = detectIntent(text);
@@ -524,6 +527,11 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
     timestamp: new Date().toISOString(),
   };
   data.messages.push(ceoMsg);
+
+  // Sync CEO response to conversationStore
+  syncCeoMessageToConversation("ceo", responseText, {
+    linkedMissionId: sessionId,
+  });
 
   writeChat(data);
   return { ceoMessage: ceoMsg, discussion };

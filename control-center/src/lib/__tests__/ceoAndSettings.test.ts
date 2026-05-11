@@ -857,3 +857,87 @@ describe("Agent Questions", () => {
     expect(second).toBeNull();
   });
 });
+
+// ─── Customizable Agent Settings & Creative Quality Tests ────────────────
+
+describe("Agent Customizable Settings", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("updateProfile changes systemPrompt and persists", async () => {
+    const { getProfile, updateProfile } = await import("@/lib/agentProfiles");
+    updateProfile("cmo", { systemPrompt: "You are a premium CMO with Dribbble quality standards." });
+    const p = getProfile("cmo")!;
+    expect(p.systemPrompt).toContain("Dribbble quality");
+  });
+
+  it("updateProfile changes creativityLevel to extreme", async () => {
+    const { updateProfile, getProfile } = await import("@/lib/agentProfiles");
+    updateProfile("frontend_agent", { creativityLevel: 100 });
+    const p = getProfile("frontend_agent")!;
+    expect(p.creativityLevel).toBe(100);
+  });
+
+  it("updateProfile changes visualStyle", async () => {
+    const { updateProfile, getProfile } = await import("@/lib/agentProfiles");
+    updateProfile("cmo", { visualStyle: "bold_athletic" });
+    const p = getProfile("cmo")!;
+    expect(p.visualStyle).toBe("bold_athletic");
+  });
+
+  it("updateProfile changes tone and preferredWorkflows", async () => {
+    const { updateProfile, getProfile } = await import("@/lib/agentProfiles");
+    updateProfile("cto", {
+      tone: "Direct, architecture-focused, Vercel docs style",
+      preferredWorkflows: ["architecture_review", "stack_selection", "code_review"],
+    });
+    const p = getProfile("cto")!;
+    expect(p.tone).toContain("Vercel");
+    expect(p.preferredWorkflows).toContain("code_review");
+  });
+
+  it("setAgentOnline sets currentlyWorkingOn", async () => {
+    const { setAgentOnline, getProfile } = await import("@/lib/agentProfiles");
+    setAgentOnline("cmo", true, "Logo redesign for client X");
+    const p = getProfile("cmo")!;
+    expect(p.online).toBe(true);
+    expect(p.currentlyWorkingOn).toBe("Logo redesign for client X");
+  });
+
+  it("creative settings persist across reads", async () => {
+    const { updateProfile, getProfile } = await import("@/lib/agentProfiles");
+    updateProfile("frontend_agent", { creativityLevel: 95, visualStyle: "experimental_avant_garde" });
+    // Re-read from "disk"
+    const p = getProfile("frontend_agent")!;
+    expect(p.creativityLevel).toBe(95);
+    expect(p.visualStyle).toBe("experimental_avant_garde");
+  });
+
+  it("learnPreference saves user color scheme preference", async () => {
+    const { learnPreference, getMemory } = await import("@/lib/agentProfiles");
+    learnPreference("cmo", "preferred_color_scheme", "dark_premium");
+    learnPreference("cmo", "preferred_font", "Inter");
+    const mem = getMemory("cmo")!;
+    expect(mem.learnedPreferences.preferred_color_scheme).toBe("dark_premium");
+    expect(mem.learnedPreferences.preferred_font).toBe("Inter");
+  });
+
+  it("learnStylePreference accumulates styles", async () => {
+    const { learnStylePreference, getMemory } = await import("@/lib/agentProfiles");
+    learnStylePreference("frontend_agent", "glassmorphism");
+    learnStylePreference("frontend_agent", "dark_mode");
+    const mem = getMemory("frontend_agent")!;
+    expect(mem.stylePreferences).toContain("glassmorphism");
+    expect(mem.stylePreferences).toContain("dark_mode");
+  });
+
+  it("agent response uses premium profile when available", async () => {
+    const { addMessage, getThread, createThread } = await import("@/lib/conversationStore");
+    const t = createThread({ title: "Premium Test", participants: ["cmo"] });
+    addMessage(t.id, "user", "I need a premium logo");
+    const updated = getThread(t.id)!;
+    const agentMsg = updated.messages.find((m) => m.role === "cmo");
+    expect(agentMsg).toBeTruthy();
+    // CMO should respond with substance (not just generic template)
+    expect(agentMsg!.text.length).toBeGreaterThan(20);
+  });
+});

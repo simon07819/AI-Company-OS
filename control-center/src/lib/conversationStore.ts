@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { EXECUTIVES, type ExecutiveId } from "./executiveTeam";
+import { getProfile, type AgentId } from "./agentProfiles";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -37,6 +38,9 @@ export interface ConversationThread {
   linkedWorkspaceId: string | null;
   pinned: boolean;
   archived: boolean;
+  unread: number;
+  typing: ParticipantRole[];
+  favorite: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -112,6 +116,103 @@ function participantFromRole(role: ParticipantRole): ConversationParticipant {
 function buildAgentResponse(agentId: ParticipantRole, userText: string): string {
   const lower = userText.toLowerCase();
 
+  // Use agent profiles for premium responses when available
+  try {
+    const { getProfile } = require("./agentProfiles") as typeof import("./agentProfiles");
+    const profile = getProfile(agentId as import("./agentProfiles").AgentId);
+    if (profile) {
+      return buildPremiumResponse(profile, lower);
+    }
+  } catch { /* fallback to basic response */ }
+
+  // Fallback basic responses
+  return buildFallbackResponse(agentId, lower);
+}
+
+function buildPremiumResponse(profile: { firstName: string; role: string; expertise: string[]; creativityLevel: number; communicationStyle: string; tone: string; strengths: string[]; avatarEmoji: string }, lower: string): string {
+  const name = profile.firstName;
+
+  // CMO — Sophie
+  if (profile.role === "CMO") {
+    if (lower.includes("logo") || lower.includes("branding") || lower.includes("identité visuelle") || lower.includes("charte")) {
+      return `${name}: Je vais diriger la direction créative. On vise du niveau Apple/Dribbble top 1%. Sportif, premium, ou luxe — dis-moi l'émotion que tu veux transmettre et je lance le design immédiatement.`;
+    }
+    if (lower.includes("flyer") || lower.includes("affiche") || lower.includes("campagne") || lower.includes("promotion")) {
+      return `${name}: Concept créatif en préparation. Impact visuel maximal, style Nike. Quel est le call-to-action et le public cible? Je peux lancer la production tout de suite.`;
+    }
+    if (lower.includes("marketing") || lower.includes("growth") || lower.includes("stratégie")) {
+      return `${name}: Stratégie marketing en route. On va combiner branding premium et growth data-driven. Apple quality + métriques. Quel segment on cible?`;
+    }
+    return `${name}: Stratégie créative et marketing premium. Branding niveau Apple/Nike, campagnes data-driven, growth hacking. On fait quoi?`;
+  }
+
+  // CTO — Raj
+  if (profile.role === "CTO") {
+    if (lower.includes("site") || lower.includes("website") || lower.includes("plateforme") || lower.includes("app")) {
+      return `${name}: Architecture en préparation. Next.js 15 + TypeScript + Tailwind + PostgreSQL. Performance-first, Vercel-quality deploy. Quel type — landing, SaaS, e-commerce?`;
+    }
+    if (lower.includes("stack") || lower.includes("api") || lower.includes("backend") || lower.includes("architecture")) {
+      return `${name}: Stack moderne et scalable. API Stripe-quality, docs Vercel-grade. Je recommande REST + Edge Functions. Tu veux quoi côté tech?`;
+    }
+    return `${name}: Architecture technique scalable et moderne. Stack 2026, performance-first. Qu'est-ce qu'on construit?`;
+  }
+
+  // CFO — Diana
+  if (profile.role === "CFO") {
+    if (lower.includes("facture") || lower.includes("invoice")) {
+      return `${name}: Facture en préparation avec TPS 5% + TVQ 9.975%. Donne-moi le client et les items, je génère ça tout de suite.`;
+    }
+    if (lower.includes("budget") || lower.includes("coût") || lower.includes("roi")) {
+      return `${name}: Analyse budgétaire en cours. ROI, marges, optimisation. Quelles dépenses on évalue — ops, marketing, dev?`;
+    }
+    if (lower.includes("taxe") || lower.includes("tps") || lower.includes("tvq")) {
+      return `${name}: TPS 5% fédéral, TVQ 9.975% Québec. Je calcule sur n'importe quel montant. Quel sous-total?`;
+    }
+    return `${name}: Finances et stratégie fiscale. Budgets, ROI, facturation TPS/TVQ. Chiffres?`;
+  }
+
+  // COO — Marcus
+  if (profile.role === "COO") {
+    if (lower.includes("processus") || lower.includes("workflow") || lower.includes("ops")) {
+      return `${name}: Process optimisation en route. On identifie les goulots et on automatise. Quel flux on améliore?`;
+    }
+    if (lower.includes("délai") || lower.includes("deadline") || lower.includes("livraison")) {
+      return `${name}: Coordination équipes pour respecter les délais. Quelle mission est concernée?`;
+    }
+    return `${name}: Opérations et exécution. Process optimisation, livraison on time. On fait quoi?`;
+  }
+
+  // Logistics — Emma
+  if (profile.role === "Logistics" || profile.avatarEmoji === "📦") {
+    if (lower.includes("dropshipping") || lower.includes("fournisseur") || lower.includes("supplier")) {
+      return `${name}: Workflow fournisseurs/commandes en préparation. Shopify-quality fulfillment. Quel type de produits et zone de livraison?`;
+    }
+    return `${name}: Supply chain et logistique. Fulfillment fiable, coût optimisé. C'est quoi le besoin?`;
+  }
+
+  // Sales — Rachel
+  if (profile.role === "Sales" || profile.avatarEmoji === "🎯") {
+    if (lower.includes("lead") || lower.includes("pipeline") || lower.includes("prospect")) {
+      return `${name}: Pipeline analysis en route. Salesforce-quality tracking. Combien de leads actifs?`;
+    }
+    return `${name}: Ventes et revenue. Pipeline, closing, growth. Objectif?`;
+  }
+
+  // HR — James
+  if (profile.role === "HR" || profile.avatarEmoji === "👥") {
+    return `${name}: Culture et équipes. Google-quality people ops. Comment je peux aider?`;
+  }
+
+  // Support — Carlos
+  if (profile.role === "Support" || profile.avatarEmoji === "🎧") {
+    return `${name}: Support client. Intercom-quality, Apple-level care. Quel problème?`;
+  }
+
+  // Default
+  return `${name}: Je suis sur ton projet. Dis-moi ce dont tu as besoin et je m'en occupe.`;
+}
+
+function buildFallbackResponse(agentId: ParticipantRole, lower: string): string {
   if (agentId === "cfo") {
     if (lower.includes("facture") || lower.includes("invoice")) {
       return "Oui. J'ai besoin du client, des items et du montant. Je peux créer un brouillon de facture avec TPS/TVQ. Voulez-vous que je prépare ça maintenant?";
@@ -239,6 +340,9 @@ export function createThread(input: {
     linkedWorkspaceId: input.linkedWorkspaceId ?? null,
     pinned: false,
     archived: false,
+    unread: 0,
+    typing: [],
+    favorite: false,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -292,6 +396,11 @@ export function addMessage(threadId: string, role: "user" | ParticipantRole, tex
       timestamp: new Date().toISOString(),
     };
     data.threads[idx].messages.push(agentMsg);
+  }
+
+  // If agent message, increment unread
+  if (role !== "user") {
+    data.threads[idx].unread = (data.threads[idx].unread ?? 0) + 1;
   }
 
   writeData(data);
@@ -367,4 +476,111 @@ export function getConversationOverview(): ConversationOverview {
     pinnedThreads: pinned.length,
     recentThreads: recent,
   };
+}
+
+// ─── Unread, Favorites, Typing, Search ─────────────────────────────────────
+
+export function markThreadRead(threadId: string): void {
+  const data = readData();
+  const idx = data.threads.findIndex((t) => t.id === threadId);
+  if (idx === -1) return;
+  data.threads[idx].unread = 0;
+  writeData(data);
+}
+
+export function toggleFavorite(threadId: string): ConversationThread | null {
+  const data = readData();
+  const idx = data.threads.findIndex((t) => t.id === threadId);
+  if (idx === -1) return null;
+  data.threads[idx].favorite = !data.threads[idx].favorite;
+  data.threads[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return data.threads[idx];
+}
+
+export function setTyping(threadId: string, agentId: ParticipantRole, isTyping: boolean): void {
+  const data = readData();
+  const idx = data.threads.findIndex((t) => t.id === threadId);
+  if (idx === -1) return;
+  const typing = data.threads[idx].typing ?? [];
+  if (isTyping) {
+    if (!typing.includes(agentId)) typing.push(agentId);
+  } else {
+    const ti = typing.indexOf(agentId);
+    if (ti !== -1) typing.splice(ti, 1);
+  }
+  data.threads[idx].typing = typing;
+  writeData(data);
+}
+
+export function searchThreads(query: string): ConversationThread[] {
+  if (!query.trim()) return [];
+  const lower = query.toLowerCase();
+  const data = readData();
+  return data.threads.filter((t) =>
+    t.title.toLowerCase().includes(lower) ||
+    t.messages.some((m) => m.text.toLowerCase().includes(lower))
+  ).sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+}
+
+export function getTotalUnread(): number {
+  return readData().threads.reduce((sum, t) => sum + (t.unread ?? 0), 0);
+}
+
+// ─── CEO Chat Sync ────────────────────────────────────────────────────────
+
+const CEO_THREAD_ID = "ceo-main-thread";
+
+export function findOrCreateCeoThread(): ConversationThread {
+  const data = readData();
+  const existing = data.threads.find((t) => t.id === CEO_THREAD_ID);
+  if (existing) return existing;
+
+  const ceoParticipant = participantFromRole("ceo");
+  const thread: ConversationThread = {
+    id: CEO_THREAD_ID,
+    title: "CEO Cockpit",
+    folderId: null,
+    participants: [ceoParticipant],
+    messages: [],
+    linkedMissionId: null,
+    linkedWorkspaceId: null,
+    pinned: true,
+    archived: false,
+    unread: 0,
+    typing: [],
+    favorite: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  data.threads.push(thread);
+  writeData(data);
+  return thread;
+}
+
+export function syncCeoMessageToConversation(role: "user" | "ceo", text: string, metadata?: ConversationMessage["metadata"]): ConversationMessage | null {
+  const thread = findOrCreateCeoThread();
+  const data = readData();
+  const idx = data.threads.findIndex((t) => t.id === thread.id);
+  if (idx === -1) return null;
+
+  const msg: ConversationMessage = {
+    id: nextId("cmsg"),
+    role,
+    text,
+    timestamp: new Date().toISOString(),
+    metadata,
+  };
+
+  data.threads[idx].messages.push(msg);
+  data.threads[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return msg;
+}
+
+export function getCeoThreadMessages(limit = 100): ConversationMessage[] {
+  const data = readData();
+  const thread = data.threads.find((t) => t.id === CEO_THREAD_ID);
+  if (!thread) return [];
+  return thread.messages.slice(-limit);
 }

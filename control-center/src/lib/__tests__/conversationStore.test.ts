@@ -233,3 +233,89 @@ describe("conversationStore", () => {
     expect(inFolder[0].title).toBe("In Folder");
   });
 });
+
+// ─── CEO Sync + Unread + Favorites + Search Tests ───────────────────────
+
+describe("Conversation CEO Sync & Features", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("findOrCreateCeoThread creates pinned CEO thread", async () => {
+    const { findOrCreateCeoThread } = await import("@/lib/conversationStore");
+    const thread = findOrCreateCeoThread();
+    expect(thread.id).toBe("ceo-main-thread");
+    expect(thread.title).toBe("CEO Cockpit");
+    expect(thread.pinned).toBe(true);
+    expect(thread.favorite).toBe(true);
+  });
+
+  it("findOrCreateCeoThread returns same thread on second call", async () => {
+    const { findOrCreateCeoThread } = await import("@/lib/conversationStore");
+    const t1 = findOrCreateCeoThread();
+    const t2 = findOrCreateCeoThread();
+    expect(t1.id).toBe(t2.id);
+  });
+
+  it("syncCeoMessageToConversation adds messages to CEO thread", async () => {
+    const { syncCeoMessageToConversation, getCeoThreadMessages } = await import("@/lib/conversationStore");
+    syncCeoMessageToConversation("user", "Build me a logo");
+    syncCeoMessageToConversation("ceo", "Parfait. Je crée la mission logo.");
+    const msgs = getCeoThreadMessages(10);
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
+    expect(msgs[msgs.length - 2].role).toBe("user");
+    expect(msgs[msgs.length - 1].role).toBe("ceo");
+  });
+
+  it("unread field exists on new threads", async () => {
+    const { createThread } = await import("@/lib/conversationStore");
+    const t = createThread({ title: "Unread Field Test", participants: ["cmo"] });
+    // New threads should have unread field initialized to 0
+    expect(t.unread).toBe(0);
+    expect(t.typing).toEqual([]);
+    expect(t.favorite).toBe(false);
+  });
+
+  it("markThreadRead sets unread to 0", async () => {
+    const { createThread, addMessage, markThreadRead, getThread } = await import("@/lib/conversationStore");
+    const t = createThread({ title: "Mark Read", participants: ["cto"] });
+    addMessage(t.id, "user", "Check architecture");
+    markThreadRead(t.id);
+    const updated = getThread(t.id)!;
+    expect(updated.unread).toBe(0);
+  });
+
+  it("toggleFavorite toggles favorite status", async () => {
+    const { createThread, toggleFavorite } = await import("@/lib/conversationStore");
+    const t = createThread({ title: "Fav Test" });
+    const favorited = toggleFavorite(t.id)!;
+    expect(favorited.favorite).toBe(true);
+    const unfavorited = toggleFavorite(t.id)!;
+    expect(unfavorited.favorite).toBe(false);
+  });
+
+  it("searchThreads finds threads by title and message content", async () => {
+    const { createThread, addMessage, searchThreads } = await import("@/lib/conversationStore");
+    createThread({ title: "Branding Discussion" });
+    const t2 = createThread({ title: "Random" });
+    addMessage(t2.id, "user", "I need a new logo for my startup");
+    const results = searchThreads("logo");
+    expect(results.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("getTotalUnread returns sum of all thread unread counts", async () => {
+    const { getTotalUnread, createThread, addMessage } = await import("@/lib/conversationStore");
+    const before = getTotalUnread();
+    const t = createThread({ title: "More Unread", participants: ["cfo"] });
+    addMessage(t.id, "user", "Check budget");
+    const after = getTotalUnread();
+    expect(after).toBeGreaterThanOrEqual(before);
+  });
+
+  it("CEO chat sync persists to conversations.json", async () => {
+    const { syncCeoMessageToConversation, getCeoThreadMessages } = await import("@/lib/conversationStore");
+    syncCeoMessageToConversation("user", "Sync test message");
+    const msgs = getCeoThreadMessages(5);
+    const lastMsg = msgs[msgs.length - 1];
+    expect(lastMsg.text).toBe("Sync test message");
+    expect(lastMsg.role).toBe("user");
+  });
+});

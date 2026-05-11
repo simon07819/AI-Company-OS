@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { type AgentId } from "./agentProfiles";
+import { type AgentId } from "./agentTypes";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
