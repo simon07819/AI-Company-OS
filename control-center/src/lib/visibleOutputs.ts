@@ -1,0 +1,178 @@
+import fs from "fs";
+import path from "path";
+import { type AgentId } from "./agentTypes";
+
+// ─── Paths ────────────────────────────────────────────────────────────────
+
+const REPO_ROOT = process.cwd();
+const DATA_DIR = path.join(REPO_ROOT, "data");
+const OUTPUTS_PATH = path.join(DATA_DIR, "visible-outputs.json");
+
+// ─── Types ────────────────────────────────────────────────────────────────
+
+export type OutputType =
+  | "creative_brief"
+  | "logo_direction"
+  | "style_direction"
+  | "color_palette"
+  | "typography"
+  | "moodboard"
+  | "concept_card"
+  | "architecture_doc"
+  | "api_spec"
+  | "sitemap"
+  | "wireframe"
+  | "copywriting"
+  | "marketing_plan"
+  | "financial_projection"
+  | "task_list"
+  | "progress_report"
+  | "validation_report"
+  | "before_after";
+
+export type OutputStatus = "draft" | "in_progress" | "review" | "approved" | "delivered";
+
+export interface VisibleOutput {
+  id: string;
+  sessionId: string;
+  projectId: string | null;
+  title: string;
+  type: OutputType;
+  preview: string;
+  status: OutputStatus;
+  assignedAgent: AgentId;
+  sourceFile: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface OutputsData {
+  outputs: VisibleOutput[];
+}
+
+// ─── Persistence ──────────────────────────────────────────────────────────
+
+function ensureDataDir() {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function readData(): OutputsData {
+  ensureDataDir();
+  if (!fs.existsSync(OUTPUTS_PATH)) return { outputs: [] };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(OUTPUTS_PATH, "utf-8")) as Partial<OutputsData>;
+    return { outputs: Array.isArray(parsed.outputs) ? parsed.outputs : [] };
+  } catch {
+    return { outputs: [] };
+  }
+}
+
+function writeData(data: OutputsData) {
+  ensureDataDir();
+  fs.writeFileSync(OUTPUTS_PATH, JSON.stringify(data, null, 2) + "\n", "utf-8");
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+let idCounter = Date.now();
+function nextId(): string {
+  return `vo-${(idCounter++).toString(36)}`;
+}
+
+// ─── Agent-specific output generators ─────────────────────────────────────
+
+const LOGO_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Direction créative", type: "creative_brief", preview: "Branding premium — objectif: identité visuelle mémorable, émotionnelle, distinctive. Références: Apple, Nike, Tesla. Style: moderne 2026.", status: "in_progress", assignedAgent: "cmo", sourceFile: null },
+  { title: "Concept logo", type: "logo_direction", preview: "Propositions: ① Sportif/Dynamique — typographie bold, angles vifs, palette énergie ② Premium/Minimaliste — espace blanc, serif élégant, monochrome or ③ Luxe/Noir — fond sombre, or métallique, emblème sculptural", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Direction style", type: "style_direction", preview: "Direction visuelle: minimalisme premium avec accents dynamiques. Inspiration: Apple HIG + Nike branding. Grid: 8px baseline. Border radius: 12px cards, 24px buttons.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Palette couleurs", type: "color_palette", preview: "Primaire: #1A1A2E (Deep Navy) | Accent: #E94560 (Energetic Red) | Surface: #16213E (Dark Blue) | Text: #F5F5F5 | Success: #0F9D58 | Warning: #F4B400", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Typographie", type: "typography", preview: "Headings: Inter Bold 700 | Body: Inter Regular 400 | Labels: Inter Medium 500 | Code: JetBrains Mono | Taille: 32/24/16/14/12px", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Moodboard", type: "moodboard", preview: "Mood: Premium, confiant, moderne. Visuels: dark mode interfaces, gradients subtils, photography noir/or, icônes minimaliste, whitespace généreux. Émotion: 'Je fais confiance à cette marque.'", status: "draft", assignedAgent: "cmo", sourceFile: null },
+];
+
+const WEBSITE_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Architecture technique", type: "architecture_doc", preview: "Stack: Next.js 15 + TypeScript + Tailwind CSS + PostgreSQL. Architecture: App Router, Server Components, API Routes. Deploy: Vercel. Auth: NextAuth.js.", status: "in_progress", assignedAgent: "cto", sourceFile: null },
+  { title: "Spécifications API", type: "api_spec", preview: "RESTful API avec endpoints: /api/auth, /api/users, /api/projects, /api/tasks. Auth: JWT Bearer tokens. Rate limiting: 100 req/min. Stripe-quality docs.", status: "draft", assignedAgent: "backend_agent", sourceFile: null },
+  { title: "Sitemap & structure", type: "sitemap", preview: "Pages: / (landing), /dashboard, /projects, /settings, /api-docs. Navigation: sidebar + breadcrumbs. Mobile-first responsive.", status: "draft", assignedAgent: "product_agent", sourceFile: null },
+  { title: "Wireframes", type: "wireframe", preview: "Landing: hero + CTA + features + testimonials. Dashboard: stats cards + activity feed + quick actions. Projects: card grid + filters + search.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+];
+
+const FLYER_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Concept créatif", type: "creative_brief", preview: "Flyer événementiel premium. Format: A5 digital + print. Style: bold typographie + photo hero + CTA percutant. Référence: Nike campaigns.", status: "in_progress", assignedAgent: "cmo", sourceFile: null },
+  { title: "Direction visuelle", type: "style_direction", preview: "Style: impactful, émotionnel. Photo: lifestyle hero shot. Typography: bold sans-serif 48px headline. Palette: brand primary + accent énergie.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Copywriting", type: "copywriting", preview: "Headline: [À définir selon événement]. Subhead: Date, lieu, call-to-action. Corps: 3 points clés. Footer: logo + contact + social.", status: "draft", assignedAgent: "cmo", sourceFile: null },
+];
+
+const BRANDING_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Direction créative branding", type: "creative_brief", preview: "Identité de marque complète. Vision: premium, mémorable, cohérente. Références: Apple minimalisme + Nike énergie + Tesla futurisme. Objectif: marque qui inspire confiance et désir.", status: "in_progress", assignedAgent: "cmo", sourceFile: null },
+  { title: "Concept identité visuelle", type: "logo_direction", preview: "Propositions identité: ① Premium minimaliste — monogramme + serif élégant ② Sportif dynamique — logotype bold + accent couleur ③ Luxe affirmé — emblème + or métallique + noir profond", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Charte graphique", type: "style_direction", preview: "Guide complet: logo déclinaisons, couleurs primaires/secondaires, typographie, iconographie, photography style, spacing, composants UI. Format: brand book PDF.", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Palette couleurs branding", type: "color_palette", preview: "Primaire: #0A0A0A (Noir absolu) | Accent: #C9A96E (Or premium) | Secondaire: #1A1A2E (Bleu nuit) | Surface: #F8F8F8 | Texte: #333333", status: "draft", assignedAgent: "frontend_agent", sourceFile: null },
+  { title: "Plan marketing", type: "marketing_plan", preview: "Stratégie de lancement branding: Phase 1 — Audit & recherche (semaine 1) | Phase 2 — Concepts & directions (semaine 2-3) | Phase 3 — Production & déclinaisons (semaine 4) | Phase 4 — Lancement & diffusion", status: "draft", assignedAgent: "cmo", sourceFile: null },
+];
+
+const DROPSHIPPING_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Plan dropshipping", type: "creative_brief", preview: "Business model dropshipping: sélection produits, fournisseurs vérifiés, marges optimisées. Zone: Canada/US. Objectif: 30% marge nette.", status: "in_progress", assignedAgent: "logistics", sourceFile: null },
+  { title: "Projections financières", type: "financial_projection", preview: "Investissement initial: $500. Marge produit: 30-50%. ROI estimé: 3-6 mois. Break-even: 50 commandes/mois. Revenus projetés: $2000-5000/mois.", status: "draft", assignedAgent: "cfo", sourceFile: null },
+  { title: "Plan marketing e-commerce", type: "marketing_plan", preview: "Canaux: Instagram ads + TikTok + SEO. Budget pub: $200/mois initial. CAC cible: < $15. LTV cible: > $80. Stratégie contenu: UGC + product demos.", status: "draft", assignedAgent: "cmo", sourceFile: null },
+];
+
+const GENERIC_OUTPUTS: Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[] = [
+  { title: "Plan d'exécution", type: "task_list", preview: "Phase 1: Planification & architecture | Phase 2: Développement core | Phase 3: Design & UX | Phase 4: Validation & livraison. Chaque phase avec deliverables clairs.", status: "in_progress", assignedAgent: "coo", sourceFile: null },
+  { title: "Rapport de progression", type: "progress_report", preview: "Mission démarrée. Équipe assignée. Premiers deliverables en production. Timeline respectée. Prochaines étapes: validation creative, review architecture.", status: "in_progress", assignedAgent: "ceo", sourceFile: null },
+];
+
+const OUTPUT_TEMPLATES: Record<string, Omit<VisibleOutput, "id" | "sessionId" | "projectId" | "createdAt" | "updatedAt">[]> = {
+  redesign_logo: LOGO_OUTPUTS,
+  branding_pack: BRANDING_OUTPUTS,
+  design_review: LOGO_OUTPUTS.slice(0, 3),
+  create_website: WEBSITE_OUTPUTS,
+  create_flyer: FLYER_OUTPUTS,
+  create_dropshipping_business: DROPSHIPPING_OUTPUTS,
+  launch_mission: GENERIC_OUTPUTS,
+  saas_project: WEBSITE_OUTPUTS,
+};
+
+// ─── Public API ───────────────────────────────────────────────────────────
+
+export function generateVisibleOutputs(sessionId: string, missionType: string, projectId: string | null = null): VisibleOutput[] {
+  const templates = OUTPUT_TEMPLATES[missionType] ?? GENERIC_OUTPUTS;
+  const now = new Date().toISOString();
+  const outputs: VisibleOutput[] = templates.map((t) => ({
+    ...t,
+    id: nextId(),
+    sessionId,
+    projectId,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  const data = readData();
+  data.outputs.push(...outputs);
+  writeData(data);
+  return outputs;
+}
+
+export function getOutputsForSession(sessionId: string): VisibleOutput[] {
+  return readData().outputs.filter((o) => o.sessionId === sessionId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function getOutputsForProject(projectId: string): VisibleOutput[] {
+  return readData().outputs.filter((o) => o.projectId === projectId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function updateOutputStatus(outputId: string, status: OutputStatus): VisibleOutput | null {
+  const data = readData();
+  const idx = data.outputs.findIndex((o) => o.id === outputId);
+  if (idx === -1) return null;
+  data.outputs[idx].status = status;
+  data.outputs[idx].updatedAt = new Date().toISOString();
+  writeData(data);
+  return data.outputs[idx];
+}
+
+export function getOutputCountForSession(sessionId: string): number {
+  return readData().outputs.filter((o) => o.sessionId === sessionId).length;
+}

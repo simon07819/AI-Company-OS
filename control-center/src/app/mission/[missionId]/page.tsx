@@ -18,6 +18,7 @@ import {
   Play,
   Radio,
   HelpCircle,
+  Palette,
   RefreshCw,
   RotateCcw,
   Sparkles,
@@ -213,22 +214,26 @@ export default function MissionRoomPage() {
   const [session, setSession] = useState<MissionSession | null>(null);
   const [recent, setRecent] = useState<MissionSession[]>([]);
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
+  const [visibleOutputs, setVisibleOutputs] = useState<{ id: string; title: string; type: string; preview: string; status: string; assignedAgent: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const loadMission = useCallback(async () => {
     try {
-      const [missionRes, sessionsRes, workspaceRes] = await Promise.all([
+      const [missionRes, sessionsRes, workspaceRes, outputsRes] = await Promise.all([
         fetch(`/api/autopilot/sessions/${missionId}`, { cache: "no-store" }),
         fetch("/api/autopilot/sessions", { cache: "no-store" }),
         fetch(`/api/autopilot/sessions/${missionId}/workspace`, { cache: "no-store" }),
+        fetch(`/api/visible-outputs?sessionId=${missionId}`, { cache: "no-store" }),
       ]);
       const missionPayload = await missionRes.json();
       const sessionsPayload = await sessionsRes.json();
       const workspacePayload = await workspaceRes.json();
+      const outputsPayload = await outputsRes.json();
       setSession(missionPayload.session ?? null);
       setRecent((sessionsPayload.sessions ?? []).slice(0, 5));
       setFiles(workspacePayload.summary?.files ?? []);
+      setVisibleOutputs(outputsPayload.outputs ?? []);
     } finally {
       setLoading(false);
     }
@@ -502,6 +507,51 @@ export default function MissionRoomPage() {
               </div>
             </div>
           </div>
+
+          {/* Visual Outputs — Design/Branding deliverables */}
+          {visibleOutputs.length > 0 && (
+            <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+              <SectionHeader title="Visual Deliverables" icon={<Palette size={12} style={{ color: "#8b5cf6" }} />} />
+              <div style={{ display: "grid", gap: 8 }}>
+                {visibleOutputs.map((vo) => {
+                  const typeLabel: Record<string, string> = {
+                    creative_brief: "Direction créative",
+                    logo_direction: "Concept logo",
+                    style_direction: "Direction style",
+                    color_palette: "Palette couleurs",
+                    typography: "Typographie",
+                    moodboard: "Moodboard",
+                    concept_card: "Concept",
+                    architecture_doc: "Architecture",
+                    api_spec: "API Spec",
+                    sitemap: "Sitemap",
+                    wireframe: "Wireframe",
+                    copywriting: "Copywriting",
+                    marketing_plan: "Plan marketing",
+                    financial_projection: "Projections",
+                    task_list: "Plan d'exécution",
+                    progress_report: "Rapport",
+                    validation_report: "Validation",
+                    before_after: "Avant/Après",
+                  };
+                  const statusColors: Record<string, string> = { draft: "#94a3b8", in_progress: "#3b82f6", review: "#f59e0b", approved: "#22c55e", delivered: "#8b5cf6" };
+                  return (
+                    <div key={vo.id} style={{ padding: 10, borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{vo.title}</div>
+                        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                          <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColors[vo.status] ?? "#94a3b8"}22`, color: statusColors[vo.status] ?? "#94a3b8", fontWeight: 600 }}>{typeLabel[vo.type] ?? vo.type}</span>
+                          <span style={{ fontSize: 8, padding: "2px 6px", borderRadius: 4, background: `${statusColors[vo.status] ?? "#94a3b8"}22`, color: statusColors[vo.status] ?? "#94a3b8", fontWeight: 600 }}>{vo.status}</span>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--text-3)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{vo.preview}</div>
+                      <div style={{ fontSize: 9, color: "#8b5cf6", marginTop: 4 }}>→ {vo.assignedAgent}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
             <SectionHeader title="Active Tasks" icon={<Clock3 size={12} style={{ color: "#f59e0b" }} />} />

@@ -1,4 +1,5 @@
 import { getAllProjects } from "@/lib/projects";
+import { listCeoProjects, type CeoProject } from "@/lib/ceoProjectStore";
 import Link from "next/link";
 
 function statusClass(status?: string) {
@@ -8,6 +9,10 @@ function statusClass(status?: string) {
     paused: "badge-yellow",
     completed: "badge-purple",
     failed: "badge-red",
+    starting: "badge-blue",
+    in_progress: "badge-green",
+    review: "badge-yellow",
+    delivered: "badge-purple",
   };
   return map[status ?? ""] ?? "badge-gray";
 }
@@ -21,6 +26,8 @@ function priorityStyle(priority?: string) {
 
 export default function ProjectsPage() {
   const projects = getAllProjects();
+  const ceoProjects = listCeoProjects();
+  const totalCount = projects.length + ceoProjects.length;
 
   return (
     <main className="page">
@@ -28,7 +35,7 @@ export default function ProjectsPage() {
         <div>
           <h1 className="page-title">Projects</h1>
           <p className="page-subtitle">
-            {projects.length} project{projects.length !== 1 ? "s" : ""} in the factory
+            {totalCount} project{totalCount !== 1 ? "s" : ""} in the factory
           </p>
         </div>
         <div className="page-actions">
@@ -70,80 +77,56 @@ export default function ProjectsPage() {
             const queued = p.tasks.filter((t) => t.status === "queued" || t.status === "pending").length;
             const rate = p.tasks.length > 0 ? Math.round((done / p.tasks.length) * 100) : 0;
             const { color: priColor, bg: priBg } = priorityStyle(p.meta.project_priority);
-            const hasApp = true; // simplified — the project detail checks the filesystem
 
             return (
               <Link key={p.name} href={`/projects/${p.name}`} className="project-card-link">
                 <div className="project-card">
-                  {/* Header */}
                   <div className="project-card-header">
                     <span className="project-name">{p.name}</span>
                     <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       {p.meta.project_priority && (
-                        <span
-                          className="badge"
-                          style={{ background: priBg, color: priColor }}
-                        >
-                          {p.meta.project_priority}
-                        </span>
+                        <span className="badge" style={{ background: priBg, color: priColor }}>{p.meta.project_priority}</span>
                       )}
-                      <span className={`badge ${statusClass(p.meta.status)}`}>
-                        {p.meta.status}
-                      </span>
+                      <span className={`badge ${statusClass(p.meta.status)}`}>{p.meta.status}</span>
                     </div>
                   </div>
-
-                  {/* Progress bar */}
                   <div className="project-progress-bar">
-                    <div
-                      className="project-progress-fill"
-                      style={{
-                        width: `${rate}%`,
-                        background: rate === 100
-                          ? "var(--green)"
-                          : failed > 0
-                          ? "var(--yellow)"
-                          : "linear-gradient(90deg, var(--accent), var(--accent-light))",
-                      }}
-                    />
+                    <div className="project-progress-fill" style={{ width: `${rate}%`, background: rate === 100 ? "var(--green)" : failed > 0 ? "var(--yellow)" : "linear-gradient(90deg, var(--accent), var(--accent-light))" }} />
                   </div>
-
-                  {/* Stats row */}
                   <div className="project-stats">
-                    <div className="project-stat">
-                      <span className="project-stat-value">{p.tasks.length}</span>
-                      <span className="project-stat-label">Tasks</span>
-                    </div>
-                    <div className="project-stat">
-                      <span className="project-stat-value" style={{ color: "var(--green)" }}>{done}</span>
-                      <span className="project-stat-label">Done</span>
-                    </div>
-                    {queued > 0 && (
-                      <div className="project-stat">
-                        <span className="project-stat-value" style={{ color: "var(--blue)" }}>{queued}</span>
-                        <span className="project-stat-label">Queued</span>
-                      </div>
-                    )}
-                    {failed > 0 && (
-                      <div className="project-stat">
-                        <span className="project-stat-value" style={{ color: "var(--red)" }}>{failed}</span>
-                        <span className="project-stat-label">Failed</span>
-                      </div>
-                    )}
-                    <div className="project-stat" style={{ marginLeft: "auto" }}>
-                      <span
-                        className="project-stat-value"
-                        style={{ color: rate >= 80 ? "var(--green)" : rate >= 40 ? "var(--yellow)" : "var(--text-3)" }}
-                      >
-                        {rate}%
-                      </span>
-                      <span className="project-stat-label">Success</span>
-                    </div>
+                    <div className="project-stat"><span className="project-stat-value">{p.tasks.length}</span><span className="project-stat-label">Tasks</span></div>
+                    <div className="project-stat"><span className="project-stat-value" style={{ color: "var(--green)" }}>{done}</span><span className="project-stat-label">Done</span></div>
+                    {queued > 0 && <div className="project-stat"><span className="project-stat-value" style={{ color: "var(--blue)" }}>{queued}</span><span className="project-stat-label">Queued</span></div>}
+                    {failed > 0 && <div className="project-stat"><span className="project-stat-value" style={{ color: "var(--red)" }}>{failed}</span><span className="project-stat-label">Failed</span></div>}
+                    <div className="project-stat" style={{ marginLeft: "auto" }}><span className="project-stat-value" style={{ color: rate >= 80 ? "var(--green)" : rate >= 40 ? "var(--yellow)" : "var(--text-3)" }}>{rate}%</span><span className="project-stat-label">Success</span></div>
                   </div>
                 </div>
               </Link>
             );
           })}
+
+          {/* CEO-created projects */}
+          {ceoProjects.map((cp) => (
+            <Link key={cp.id} href={cp.sessionId ? `/mission/${cp.sessionId}` : `/projects/${cp.name}`} className="project-card-link">
+              <div className="project-card">
+                <div className="project-card-header">
+                  <span className="project-name">{cp.name}</span>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <span className="badge" style={{ background: "rgba(139,92,246,0.15)", color: "#8b5cf6" }}>{cp.missionType}</span>
+                    <span className={`badge ${statusClass(cp.status)}`}>{cp.status.replace("_", " ")}</span>
+                  </div>
+                </div>
+                <div className="project-progress-bar">
+                  <div className="project-progress-fill" style={{ width: `${cp.progress}%`, background: cp.progress >= 100 ? "var(--green)" : cp.progress >= 50 ? "linear-gradient(90deg, #3b82f6, #8b5cf6)" : "var(--blue)" }} />
+                </div>
+                <div className="project-stats">
+                  <div className="project-stat"><span className="project-stat-value" style={{ color: "#8b5cf6" }}>{cp.outputsCount}</span><span className="project-stat-label">Outputs</span></div>
+                  <div className="project-stat"><span className="project-stat-value" style={{ color: cp.progress >= 80 ? "var(--green)" : "var(--text-3)" }}>{cp.progress}%</span><span className="project-stat-label">Progress</span></div>
+                  <div className="project-stat" style={{ marginLeft: "auto" }}><span className="project-stat-value" style={{ color: "var(--text-3)", fontSize: 10 }}>{new Date(cp.lastActivity).toLocaleDateString()}</span><span className="project-stat-label">Activity</span></div>
+                </div>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
     </main>

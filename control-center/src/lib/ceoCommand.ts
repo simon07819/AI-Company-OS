@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { listSessions, createSession, getSession, type AutopilotSession } from "./autopilotStore";
+import { listSessions, createSession, getSession, runStep, type AutopilotSession } from "./autopilotStore";
+import { createCeoProject, getCeoProjectBySession, updateProjectProgress, type CeoProject } from "./ceoProjectStore";
+import { generateVisibleOutputs, getOutputsForSession } from "./visibleOutputs";
 import { getAllAgentStates, type AgentRuntimeState } from "./agentRuntime";
 import { getBusinessOverview } from "./businessOps";
 import { getCrmOverview } from "./clientCrm";
@@ -54,7 +56,7 @@ export interface CeoMessage {
 }
 
 export interface CeoAction {
-  type: "created_session" | "delegated_task" | "created_invoice" | "approval_needed" | "review_ready";
+  type: "created_session" | "created_project" | "auto_started" | "delegated_task" | "created_invoice" | "approval_needed" | "review_ready";
   label: string;
   targetId?: string;
   href?: string;
@@ -338,7 +340,11 @@ async function buildProactiveResponse(
   }
 
   // Mission creation confirmation
-  if (sessionCreated) {
+  const projectCreated = actions.some((a) => a.type === "created_project");
+  const autoStarted = actions.find((a) => a.type === "auto_started");
+  if (sessionCreated && projectCreated) {
+    parts.push(`Projet créé: ${projectName}. J'ai démarré l'équipe automatiquement:`);
+  } else if (sessionCreated) {
     parts.push(`Je crée une mission et je délègue:`);
   } else {
     parts.push(`Délégation:`);
@@ -354,7 +360,9 @@ async function buildProactiveResponse(
   }
 
   // Closing
-  if (sessionCreated) {
+  if (sessionCreated && autoStarted) {
+    parts.push(`\n${autoStarted.label}. L'équipe travaille déjà — suis l'avancement dans la Mission Room.`);
+  } else if (sessionCreated) {
     parts.push(`\nTu peux modifier les infos dans la Mission Room. C'est parti.`);
   } else {
     parts.push(`\nTu peux affiner les détails quand tu veux.`);
@@ -458,13 +466,53 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
     const missionTypeKey = missionTypeForIntent(intent);
     const projectName = assumptions.find((a) => a.field === "Project name")?.value ?? text.slice(0, 40).trim();
     try {
+      // 1. Create autopilot session
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
+
+      // 2. Create CEO project (visible in /projects)
+      const project = createCeoProject({
+        name: projectName,
+        missionType: missionTypeKey ?? "saas_project",
+        sessionId: session.sessionId,
+        conversationId: "ceo-main-thread",
+      });
+
+      // 3. Generate visible outputs based on mission type
+      generateVisibleOutputs(session.sessionId, missionTypeKey ?? "saas_project", project.id);
+
+      // 4. Auto-execute first 3 steps
+      let stepsExecuted = 0;
+      for (let i = 0; i < 3; i++) {
+        const stepResult = await runStep(session.sessionId);
+        if (stepResult.ok && !stepResult.completed) {
+          stepsExecuted++;
+        } else break;
+      }
+
+      // 5. Update project progress
+      const updatedSession = getSession(session.sessionId);
+      const outputs = getOutputsForSession(session.sessionId);
+      if (updatedSession) {
+        updateProjectProgress(project.id, updatedSession.progress, outputs.length);
+      }
+
       actions.push({
         type: "created_session",
         label: "Mission créée — ouvrir la Mission Room",
         targetId: session.sessionId,
         href: `/mission/${session.sessionId}`,
+      });
+      actions.push({
+        type: "created_project",
+        label: `Projet créé: ${projectName}`,
+        targetId: project.id,
+        href: `/mission/${session.sessionId}`,
+      });
+      actions.push({
+        type: "auto_started",
+        label: `${stepsExecuted} étapes exécutées automatiquement`,
+        targetId: session.sessionId,
       });
     } catch {
       actions.push({ type: "created_session", label: "Erreur lors de la création de session" });

@@ -941,3 +941,125 @@ describe("Agent Customizable Settings", () => {
     expect(agentMsg!.text.length).toBeGreaterThan(20);
   });
 });
+
+// ─── CEO Auto-Start & Visible Outputs Tests ─────────────────────────────
+
+describe("CEO Auto-Start & Projects", () => {
+  beforeAll(() => { fileStore = {}; });
+
+  it("CEO command creates a project record", async () => {
+    const { createCeoProject, listCeoProjects } = await import("@/lib/ceoProjectStore");
+    const project = createCeoProject({
+      name: "Logo Sportif Premium",
+      missionType: "redesign_logo",
+      sessionId: "test-session-1",
+    });
+    expect(project.id).toBeTruthy();
+    expect(project.name).toBe("Logo Sportif Premium");
+    expect(project.missionType).toBe("redesign_logo");
+    expect(project.status).toBe("starting");
+    expect(project.sessionId).toBe("test-session-1");
+
+    const projects = listCeoProjects();
+    expect(projects.length).toBeGreaterThanOrEqual(1);
+    const found = projects.find((p) => p.id === project.id);
+    expect(found).toBeTruthy();
+  });
+
+  it("project appears in projects list", async () => {
+    const { createCeoProject, listCeoProjects, getCeoProjectBySession } = await import("@/lib/ceoProjectStore");
+    createCeoProject({ name: "E-commerce Store", missionType: "create_website", sessionId: "session-ec" });
+    const projects = listCeoProjects();
+    const found = projects.find((p) => p.name === "E-commerce Store");
+    expect(found).toBeTruthy();
+    expect(found!.missionType).toBe("create_website");
+
+    const bySession = getCeoProjectBySession("session-ec");
+    expect(bySession).toBeTruthy();
+    expect(bySession!.name).toBe("E-commerce Store");
+  });
+
+  it("project progress updates correctly", async () => {
+    const { createCeoProject, updateProjectProgress, getCeoProject } = await import("@/lib/ceoProjectStore");
+    const p = createCeoProject({ name: "Progress Test", missionType: "saas_project" });
+    updateProjectProgress(p.id, 30, 3);
+    const updated = getCeoProject(p.id)!;
+    expect(updated.progress).toBe(30);
+    expect(updated.outputsCount).toBe(3);
+    expect(updated.status).toBe("in_progress");
+
+    updateProjectProgress(p.id, 100);
+    const done = getCeoProject(p.id)!;
+    expect(done.status).toBe("delivered");
+  });
+
+  it("visible outputs generated for logo mission", async () => {
+    const { generateVisibleOutputs, getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const outputs = generateVisibleOutputs("session-logo", "redesign_logo");
+    expect(outputs.length).toBeGreaterThanOrEqual(4);
+    const titles = outputs.map((o) => o.title);
+    expect(titles).toContain("Direction créative");
+    expect(titles).toContain("Concept logo");
+    expect(titles).toContain("Palette couleurs");
+
+    const loaded = getOutputsForSession("session-logo");
+    expect(loaded.length).toBe(outputs.length);
+  });
+
+  it("visible outputs generated for website mission", async () => {
+    const { generateVisibleOutputs, getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const outputs = generateVisibleOutputs("session-web", "create_website");
+    expect(outputs.length).toBeGreaterThanOrEqual(3);
+    const types = outputs.map((o) => o.type);
+    expect(types).toContain("architecture_doc");
+    expect(types).toContain("api_spec");
+  });
+
+  it("visible outputs generated for branding mission", async () => {
+    const { generateVisibleOutputs, getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const outputs = generateVisibleOutputs("session-brand", "branding_pack");
+    expect(outputs.length).toBeGreaterThanOrEqual(4);
+    const titles = outputs.map((o) => o.title);
+    expect(titles).toContain("Direction créative branding");
+    expect(titles).toContain("Charte graphique");
+  });
+
+  it("output status can be updated", async () => {
+    const { generateVisibleOutputs, updateOutputStatus, getOutputsForSession } = await import("@/lib/visibleOutputs");
+    const outputs = generateVisibleOutputs("session-status", "saas_project");
+    const first = outputs[0];
+    updateOutputStatus(first.id, "review");
+    const loaded = getOutputsForSession("session-status");
+    const updated = loaded.find((o) => o.id === first.id);
+    expect(updated!.status).toBe("review");
+  });
+
+  it("CEO proactive response mentions auto-start", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("je veux un nouveau logo sportif");
+    expect(ceoMessage.text).not.toContain("cliquer");
+    // Should mention project created or auto-started
+    const hasProjectOrAutoStart = ceoMessage.actions.some(
+      (a) => a.type === "created_project" || a.type === "auto_started"
+    );
+    expect(hasProjectOrAutoStart).toBe(true);
+  });
+
+  it("mission auto-starts first steps", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("crée un site e-commerce");
+    const autoStartAction = ceoMessage.actions.find((a) => a.type === "auto_started");
+    expect(autoStartAction).toBeTruthy();
+    // Should have executed at least 1 step
+    expect(autoStartAction!.label).toMatch(/\d+ étapes exécutées/);
+  });
+
+  it("no manual Run required — mission is already running", async () => {
+    const { sendMessage } = await import("@/lib/ceoCommand");
+    const { ceoMessage } = await sendMessage("lance une mission branding");
+    const sessionAction = ceoMessage.actions.find((a) => a.type === "created_session");
+    expect(sessionAction).toBeTruthy();
+    // Response should mention team is already working
+    expect(ceoMessage.text).toMatch(/travaille|avancement|démarré|l'équipe/i);
+  });
+});
