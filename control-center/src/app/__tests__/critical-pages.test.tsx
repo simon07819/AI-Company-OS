@@ -125,13 +125,13 @@ describe("critical Control Center pages", () => {
   });
 
   it("renders CEO chat controls", async () => {
-    render(React.createElement(CeoPage));
+    const { container } = render(React.createElement(CeoPage));
 
-    expect(await screen.findByText("AI Company OS")).toBeInTheDocument();
-    expect(screen.getByText("CEO AI en ligne")).toBeInTheDocument();
+    expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
-    expect(screen.getByText("Mes entreprises")).toBeInTheDocument();
-    expect(screen.getByText("Agents au travail")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Je veux un logo/)).toBeInTheDocument();
+    expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
+    expect(container.querySelector(".left-rail")).not.toBeInTheDocument();
   });
 
   it("renders the global dark mode toggle and stores the preference", () => {
@@ -167,7 +167,7 @@ describe("critical Control Center pages", () => {
     render(React.createElement(CeoPage));
 
     expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
-    expect(screen.getByPlaceholderText(/Ecris au CEO AI/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Je veux un logo/)).toBeInTheDocument();
   });
 
   it("keeps CEO expert mode available", async () => {
@@ -194,13 +194,14 @@ describe("critical Control Center pages", () => {
 
     render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText("Studio Lumiere")).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Pret a approuver").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Resultat pret - approbation requise").length).toBeGreaterThan(0);
-    expect(screen.getByText("Les agents ont prepare un premier resultat. Valide-le ou demande des changements.")).toBeInTheDocument();
-    expect(screen.getAllByText("Approuver").length).toBeGreaterThan(0);
-    expect(screen.getByText("Demander des changements")).toBeInTheDocument();
-    fireEvent.click(screen.getAllByText("Approuver")[0]);
+    expect(await screen.findByRole("heading", { name: "Logo Concept — Studio Lumiere" })).toBeInTheDocument();
+    expect(screen.getAllByText("Prêt").length).toBeGreaterThan(0);
+    expect(screen.getByText("Accepter cette version")).toBeInTheDocument();
+    expect(screen.getByText("Modifier")).toBeInTheDocument();
+    expect(screen.getByText("Refaire")).toBeInTheDocument();
+    expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Accepter cette version"));
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith("/api/approvals/output-out-logo/approve", { method: "POST" });
     });
@@ -229,9 +230,9 @@ describe("critical Control Center pages", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(React.createElement(CeoPage));
-    fireEvent.click(await screen.findByText("Demander des changements"));
+    fireEvent.click(await screen.findByText("Modifier"));
     fireEvent.change(screen.getByPlaceholderText(/plus luxe/), { target: { value: "Je veux quelque chose de plus luxe et minimaliste" } });
-    fireEvent.click(screen.getByText("Envoyer la demande"));
+    fireEvent.click(screen.getByText("Envoyer la modification"));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith("/api/approvals/output-out-logo/reject", expect.objectContaining({
@@ -240,5 +241,13 @@ describe("critical Control Center pages", () => {
     });
     const rejectCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/reject"));
     expect(String(rejectCall?.[1]?.body)).toContain("plus luxe et minimaliste");
+  });
+
+  it("keeps CEO simple view final-result-first and free of stale technical content", async () => {
+    const { container } = render(React.createElement(CeoPage));
+    await screen.findByText("Demande, reçois, décide.");
+    expect(container.textContent ?? "").not.toMatch(/ELEVIO|Mission Room|autopilot|sessionId|projectId|workspaceId|À approuver|A approuver/);
+    expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
+    expect(container.querySelector(".left-rail")).not.toBeInTheDocument();
   });
 });

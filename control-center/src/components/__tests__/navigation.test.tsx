@@ -9,14 +9,8 @@ const primaryLinks = [
   "CEO",
   "Entreprises",
   "Projets",
-  "Agents",
   "Resultats",
-  "Approvals",
-  "Messages",
-  "Mission Rooms",
   "Mode expert",
-  "Workspaces",
-  "Settings",
 ];
 
 describe("NavSidebar", () => {
@@ -26,6 +20,11 @@ describe("NavSidebar", () => {
     for (const label of primaryLinks) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
+    expect(screen.queryByRole("link", { name: "Agents" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Approvals" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Mission Rooms" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Workspaces" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
   });
 
   it("marks the active route", () => {
@@ -51,7 +50,6 @@ describe("AppShell", () => {
     );
 
     expect(screen.getAllByText("AI Company OS").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Settings" })[0]).toHaveAttribute("href", "/settings");
     expect(screen.getByText("Agence AI active")).toBeInTheDocument();
     expect(screen.getByText("Mode simple")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Settings child content" })).toBeInTheDocument();

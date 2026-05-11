@@ -4,18 +4,12 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bot,
   Building2,
   Crown,
   Eye,
   FolderKanban,
   Home,
-  MessageSquare,
-  Rocket,
-  Settings,
   Shield,
-  Users,
-  CheckCircle2,
 } from "lucide-react";
 export type NavItem = {
   href: string;
@@ -33,24 +27,13 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { href: "/ceo", label: "CEO", description: "Talk to the AI CEO", icon: <Crown size={16} /> },
       { href: "/companies", label: "Entreprises", description: "Companies you are building", icon: <Building2 size={16} /> },
       { href: "/projects", label: "Projets", description: "Active projects and next actions", icon: <FolderKanban size={16} /> },
-      { href: "/agents", label: "Agents", description: "AI team and work status", icon: <Bot size={16} /> },
       { href: "/outputs", label: "Resultats", description: "Generated results and previews", icon: <Eye size={16} /> },
-      { href: "/approvals", label: "Approvals", description: "Decisions waiting for you", icon: <CheckCircle2 size={16} /> },
-    ],
-  },
-  {
-    label: "Conversations",
-    items: [
-      { href: "/conversations", label: "Messages", description: "Conversation threads", icon: <MessageSquare size={16} /> },
-      { href: "/mission", label: "Mission Rooms", description: "Guided mission rooms", icon: <Rocket size={16} /> },
     ],
   },
   {
     label: "Expert Admin",
     items: [
       { href: "/ceo/expert", label: "Mode expert", description: "Runtime, CRM, revenue, distribution and logs", icon: <Shield size={16} /> },
-      { href: "/workspaces", label: "Workspaces", description: "Advanced workspace view", icon: <Building2 size={16} /> },
-      { href: "/settings", label: "Settings", description: "Technical configuration", icon: <Settings size={16} /> },
     ],
   },
 ];
