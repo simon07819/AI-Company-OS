@@ -4,7 +4,56 @@ function json(value: unknown) {
   return JSON.stringify(value, null, 2) + "\n";
 }
 
+function websiteDomainCopy(spec: ProductSpec) {
+  if (spec.domain === "construction") {
+    return {
+      map: ["Accueil premium", "Services construction", "Projets réalisés", "Processus", "Garanties et sécurité", "Soumission"],
+      stories: [
+        "As a property owner, I can understand the contractor's expertise, proof and project fit in under 10 seconds.",
+        "As a commercial buyer, I can review completed projects, safety posture and service scope before requesting a quote.",
+        "As the operator, I can capture qualified construction leads with project type, budget range and timeline.",
+      ],
+      wireframe: "Hero project-led -> services grid -> proof/case studies -> safety and process band -> quote CTA.",
+      content: [
+        "Headline: premium construction outcome with trust and project certainty.",
+        "Body: concise proof around completed builds, renovation expertise, timelines, safety and craftsmanship.",
+        "CTA: request a construction quote or book a site consultation.",
+      ],
+      design: "Premium construction identity: warm off-white surfaces, graphite typography, steel blue accents, large project photography slots, strong proof bands, restrained motion and high-trust spacing.",
+      heroEyebrow: "Premium construction",
+      heroHeadline: "Build with confidence, proof and precision.",
+      heroSubcopy: "A polished construction website prototype focused on project credibility, service clarity and quote conversion.",
+      cards: [
+        ["Residential and commercial projects", "Showcase project types, budgets and finished work without clutter."],
+        ["Safety and reliability proof", "Surface licenses, process, timelines and quality controls early."],
+        ["Quote-ready lead capture", "Guide buyers toward a qualified consultation instead of a generic contact form."],
+      ],
+    };
+  }
+
+  return {
+    map: ["Home", "Services / Offer", "Proof / Case studies", "About", "Contact / Lead capture"],
+    stories: [
+      "As a visitor, I can understand the offer in under 10 seconds.",
+      "As a buyer, I can see services, proof, and a clear CTA.",
+      "As the operator, I can capture qualified leads.",
+    ],
+    wireframe: "Hero -> offer cards -> proof band -> process -> contact CTA.",
+    content: [
+      "Headline: clear product category and outcome.",
+      `Body: concise benefit statements for ${spec.targetUser}.`,
+      "CTA: book a call or request a quote.",
+    ],
+    design: "Premium light interface, calm typography, strong whitespace, restrained accent color, responsive sections.",
+    heroEyebrow: spec.industry,
+    heroHeadline: spec.name,
+    heroSubcopy: spec.goal,
+    cards: spec.coreFeatures.slice(0, 3).map((feature) => [feature, `Focused section for ${feature}.`]),
+  };
+}
+
 export function createWebsiteBlueprint(spec: ProductSpec): ProductFile[] {
+  const copy = websiteDomainCopy(spec);
   return [
     {
       relativePath: "README.md",
@@ -20,20 +69,14 @@ This website artifact includes a content structure, design direction, and a simp
       relativePath: "app-map.md",
       content: `# Website Map
 
-- Home
-- Services / Offer
-- Proof / Case studies
-- About
-- Contact / Lead capture
+${copy.map.map((item) => `- ${item}`).join("\n")}
 `,
     },
     {
       relativePath: "user-stories.md",
       content: `# User Stories
 
-- As a visitor, I can understand the offer in under 10 seconds.
-- As a buyer, I can see services, proof, and a clear CTA.
-- As the operator, I can capture qualified leads.
+${copy.stories.map((story) => `- ${story}`).join("\n")}
 `,
     },
     { relativePath: "database-schema.md", content: "# Database Schema\n\nNo database required for the first static prototype.\n" },
@@ -42,23 +85,21 @@ This website artifact includes a content structure, design direction, and a simp
       relativePath: "ui-wireframe.md",
       content: `# UI Wireframe
 
-Hero -> offer cards -> proof band -> process -> contact CTA.
+${copy.wireframe}
 `,
     },
     {
       relativePath: "content-plan.md",
       content: `# Content Plan
 
-- Headline: clear product category and outcome.
-- Body: concise benefit statements for ${spec.targetUser}.
-- CTA: book a call or request a quote.
+${copy.content.map((item) => `- ${item}`).join("\n")}
 `,
     },
     {
       relativePath: "design-direction.md",
       content: `# Design Direction
 
-Premium light interface, calm typography, strong whitespace, restrained accent color, responsive sections.
+${copy.design}
 `,
     },
     {
@@ -85,15 +126,15 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <main>
       <section className="hero">
-        <p>${spec.industry}</p>
-        <h1>${spec.name}</h1>
-        <span>${spec.goal}</span>
-        <a href="#contact">Start the project</a>
+        <p>${copy.heroEyebrow}</p>
+        <h1>${copy.heroHeadline}</h1>
+        <span>${copy.heroSubcopy}</span>
+        <a href="#contact">${spec.domain === "construction" ? "Request a quote" : "Start the project"}</a>
       </section>
       <section className="cards">
-        ${spec.coreFeatures.slice(0, 3).map((feature) => `<article><h2>${feature}</h2><p>Focused section for ${feature}.</p></article>`).join("\n        ")}
+        ${copy.cards.map(([title, body]) => `<article><h2>${title}</h2><p>${body}</p></article>`).join("\n        ")}
       </section>
-      <section id="contact" className="contact"><h2>Ready to talk?</h2><p>Lead capture can be wired next.</p></section>
+      <section id="contact" className="contact"><h2>${spec.domain === "construction" ? "Plan the next build." : "Ready to talk?"}</h2><p>${spec.domain === "construction" ? "Lead capture can collect project type, location, budget range and timeline next." : "Lead capture can be wired next."}</p></section>
     </main>
   );
 }

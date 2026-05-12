@@ -189,15 +189,21 @@ Validation:
 ---
 
 ## Prompt 12 — Validation finale
-Statut: ⬜ À faire / ⬜ En cours / ⬜ Fait
-Commit attendu: commit final ou résumé final
+Statut: ✅ Fait
+Commit attendu:
+chore: validate AI Company OS platform build
 
 Validation:
-- ⬜ test logo ELEVIO
-- ⬜ test SaaS clinique
-- ⬜ test site web construction
-- ⬜ test mode expert
-- ⬜ npm run lint
-- ⬜ npm test
-- ⬜ npm run build
-- ⬜ hash final noté
+- ✅ test logo ELEVIO via /api/ceo/chat + /api/ceo/simple-agency
+- ✅ test SaaS clinique avec artifacts réels, README, spec et routes clinic
+- ✅ test site web construction avec artifacts réels et contenu/domain construction corrigé
+- ✅ test mode expert: routes avancées accessibles, navigation expert couverte par tests
+- ✅ npm run lint
+- ✅ npm test
+- ✅ npm run build
+- ⬜ hash final noté après commit
+
+Notes validation 2026-05-12:
+- Prompt 8 existe déjà: be81165 / fadd270.
+- Correction ajoutée pendant la validation: le builder website reconnaît maintenant construction comme domaine produit et génère une direction/contenu non générique.
+- Données locales générées par le test manuel non destinées au commit: data/company-workspaces.json et generated-products/.

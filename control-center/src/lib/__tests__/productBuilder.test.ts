@@ -127,4 +127,24 @@ describe("AI Product Builder", () => {
     expect(gate.ok).toBe(true);
     expect(gate.missingFiles).toEqual([]);
   });
+
+  it("generates domain-aware construction website content", () => {
+    const result = buildProductArtifacts({
+      requestText: "Je veux un site web premium pour une entreprise de construction",
+      requestType: "website",
+    });
+    const projectDir = path.join(root, result.spec.slug);
+    const spec = JSON.parse(fs.readFileSync(path.join(projectDir, "product-spec.json"), "utf-8")) as { domain: string; industry: string; coreFeatures: string[] };
+    const designDirection = fs.readFileSync(path.join(projectDir, "design-direction.md"), "utf-8");
+    const contentPlan = fs.readFileSync(path.join(projectDir, "content-plan.md"), "utf-8");
+    const page = fs.readFileSync(path.join(projectDir, "next-app", "app", "page.tsx"), "utf-8");
+
+    expect(spec.domain).toBe("construction");
+    expect(spec.industry).toBe("construction");
+    expect(spec.coreFeatures).toEqual(expect.arrayContaining(["projets réalisés", "services construction", "soumission"]));
+    expect(designDirection).toMatch(/construction|steel blue|project photography/i);
+    expect(contentPlan).toMatch(/construction quote|site consultation|completed builds/i);
+    expect(page).toContain("Build with confidence");
+    expect(page).toContain("Request a quote");
+  });
 });

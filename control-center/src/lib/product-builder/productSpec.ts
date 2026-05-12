@@ -35,6 +35,7 @@ function inferName(input: ProductBuilderInput): string {
   if (input.requestType === "saas" && /immobilier|real estate|propriet|propriété|visite|contrat|courtier/.test(text)) return "Real estate operations SaaS";
   if (input.requestType === "saas" && /e-?commerce|boutique|produit|commande|revenu|shop/.test(text)) return "E-commerce operations SaaS";
   if (input.requestType === "website" && /restaurant|cafe|bistro/.test(text)) return "Restaurant website";
+  if (input.requestType === "website" && /construction|contractor|building|renovation|chantier|entrepreneur/.test(text)) return "Construction website";
   if (input.requestType === "app" && /gym|fitness/.test(text)) return "Fitness mobile app";
 
   const industry = clean(input.industry);
@@ -50,6 +51,9 @@ function labelForKind(kind: ProductKind) {
 
 function inferFeatures(input: ProductBuilderInput): string[] {
   const domain = inferDomain(input);
+  if (input.requestType === "website" && domain === "construction") {
+    return ["projets réalisés", "services construction", "preuves terrain", "soumission", "processus", "contact"];
+  }
   if (input.coreFeatures?.length && input.coreFeatures.length >= 4) return input.coreFeatures;
   if (input.requestType === "saas" && domain === "clinic") {
     return ["patients", "rendez-vous", "praticiens", "facturation", "disponibilités", "tableau de bord"];
@@ -77,6 +81,7 @@ function inferTargetUser(input: ProductBuilderInput) {
   if (domain === "real-estate") return "courtiers, équipes immobilières, clients acheteurs et vendeurs";
   if (domain === "ecommerce") return "opérateurs e-commerce, support client et gestionnaires de revenus";
   if (domain === "restaurant") return "clients locaux et gestionnaires de restaurant";
+  if (domain === "construction") return "propriétaires, promoteurs, gestionnaires immobiliers et clients commerciaux";
   return "utilisateurs et opérateurs du futur produit";
 }
 
@@ -87,12 +92,14 @@ export function inferDomain(input: ProductBuilderInput): string {
   if (/real estate|immobilier/.test(industry)) return "real-estate";
   if (/ecommerce|commerce|shop/.test(industry)) return "ecommerce";
   if (/restaurant/.test(industry)) return "restaurant";
+  if (/construction|contractor|building|renovation|chantier|entrepreneur/.test(industry)) return "construction";
   const text = input.requestText.toLowerCase();
   if (/gym|fitness/.test(text)) return "fitness";
   if (/clinique|clinic|patient|rendez[- ]?vous|appointment|praticien|doctor|medecin|médecin|santé|sante/.test(text)) return "clinic";
   if (/immobilier|real estate|propriet|propriété|visite|contrat|courtier/.test(text)) return "real-estate";
   if (/e-?commerce|boutique|produit|commande|revenu|shop/.test(text)) return "ecommerce";
   if (/restaurant|cafe|bistro/.test(text)) return "restaurant";
+  if (/construction|contractor|building|renovation|chantier|entrepreneur/.test(text)) return "construction";
   if (/photo|photograph|camera/.test(text)) return "photography";
   return "general business";
 }
