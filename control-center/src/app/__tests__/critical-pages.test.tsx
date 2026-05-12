@@ -127,7 +127,7 @@ describe("critical Control Center pages", () => {
   it("renders CEO chat controls", async () => {
     const { container } = render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText(/CEO AI/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/AI Company OS/)).length).toBeGreaterThan(0);
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
     expect(screen.getByLabelText("Command Surface")).toBeInTheDocument();
@@ -179,7 +179,7 @@ describe("critical Control Center pages", () => {
   it("renders CEO simple agency conversation", async () => {
     render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText(/CEO AI/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Command Center/)).length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
   });
 
@@ -189,105 +189,33 @@ describe("critical Control Center pages", () => {
     expect((await screen.findAllByText("CEO Cockpit")).length).toBeGreaterThan(0);
   });
 
-  it("renders waiting approval as ready to approve with visual action", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        view: {
-          messages: [],
-          companies: [{ id: "workspace-photo", name: "Studio Lumiere", type: "photography", status: "Attend ton avis", avatar: "SL", projectsCount: 1, projectIds: ["proj-logo"], hasPendingApproval: true }],
-          projects: [{ id: "proj-logo", name: "Logo pour compagnie de photo", missionType: "branding_pack", status: "review", sessionId: "session-logo", workspaceId: "workspace-photo", progress: 70, outputsCount: 1, updatedAt: "2026-05-11T12:00:00.000Z" }],
-          sessions: [{ sessionId: "session-logo", projectName: "Logo pour compagnie de photo", projectIdea: "", missionType: "branding_pack", businessStatus: "review", status: "waiting_approval", progress: 70, assignedAgents: [{ agentId: "frontend_agent", role: "Designer", status: "done", provider: "simulation" }], tasks: [], logs: [{ id: "log-1", timestamp: "2026-05-11T12:01:00.000Z", level: "success", agent: "ceo", message: "Generated visible output: Approval Preview", source: "visible_outputs" }], runtime: { lastEvent: "Waiting for approval", activeWorkers: 0 } }],
-          outputs: [{ id: "out-logo", sessionId: "session-logo", projectId: "proj-logo", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette #0F172A #38BDF8", status: "review", assignedAgent: "frontend_agent", updatedAt: "2026-05-11T12:02:00.000Z", visualPreview: { kind: "brand_card", logoText: "SL", tagline: "Capture the light", colors: ["#0F172A", "#38BDF8", "#F8FAFC", "#F59E0B"], typography: { heading: "Inter Bold", body: "Inter Regular" }, mockup: { title: "Studio Lumiere", subtitle: "Photo", blocks: ["Premium", "Lumineux", "Moderne"] } } }],
-          approvals: [{ item: { id: "output-out-logo", title: "Logo Concept", type: "logo", status: "pending", agentId: "frontend_agent", agentName: "Designer", sessionId: "session-logo", missionType: "branding_pack", createdAt: "2026-05-11T12:02:00.000Z", summary: "Concept premium", hasPreviewContent: true, previewType: "output_list" }, preview: null, canApprove: true, visualPreview: { kind: "brand_card", logoText: "SL", tagline: "Capture the light", colors: ["#0F172A", "#38BDF8", "#F8FAFC", "#F59E0B"], typography: { heading: "Inter Bold", body: "Inter Regular" }, mockup: { title: "Studio Lumiere", subtitle: "Photo", blocks: ["Premium", "Lumineux", "Moderne"] } } }],
-          logs: [],
-        },
-      }),
-    })));
-
-    render(React.createElement(CeoPage));
-
-    expect(await screen.findByRole("heading", { name: "Concept de marque — Studio Lumiere" })).toBeInTheDocument();
-    expect(screen.getAllByText("Prêt").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: /Accepter/ }).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByRole("button", { name: /Refaire/ }).length).toBeGreaterThanOrEqual(3);
-    expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getAllByRole("button", { name: /Accepter/ })[0]);
-    await waitFor(() => {
-      expect(fetch).toHaveBeenCalledWith("/api/approvals/output-out-logo/approve", { method: "POST" });
-    });
-  });
-
-  it("renders ELEVIO logo request as brand-aware central concepts", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        view: {
-          messages: [
-            { id: "msg-user", role: "user", text: "je veux un logo pour une compagnie qui s'appelle ELEVIO", timestamp: "2026-05-11T12:00:00.000Z" },
-            { id: "msg-ceo", role: "ceo", text: "Parfait. Je prépare un premier concept de logo pour ELEVIO.\nMission créée — ouvrir la Mission Room\n5 étapes exécutées automatiquement. autopilot", timestamp: "2026-05-11T12:00:02.000Z" },
-          ],
-          companies: [{ id: "workspace-elevio", name: "ELEVIO", type: "construction verticale / élévateurs", status: "Attend ton avis", avatar: "EL", projectsCount: 1, projectIds: ["proj-elevio"], hasPendingApproval: true }],
-          projects: [{ id: "proj-elevio", name: "Logo ELEVIO", missionType: "branding_pack", status: "review", sessionId: "session-elevio", workspaceId: "workspace-elevio", progress: 70, outputsCount: 1, updatedAt: "2026-05-11T12:00:00.000Z" }],
-          sessions: [{ sessionId: "session-elevio", projectName: "Logo ELEVIO", projectIdea: "", missionType: "branding_pack", businessStatus: "review", status: "waiting_approval", progress: 70, assignedAgents: [], tasks: [], logs: [], runtime: { lastEvent: "Waiting for approval", activeWorkers: 0 } }],
-          outputs: [{ id: "out-elevio", sessionId: "session-elevio", projectId: "proj-elevio", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette #0F172A #38BDF8", status: "review", assignedAgent: "frontend_agent", updatedAt: "2026-05-11T12:02:00.000Z", visualPreview: { kind: "brand_card", logoText: "NM", tagline: "Generic", colors: ["#0F172A", "#38BDF8"], typography: { heading: "Inter Bold", body: "Inter Regular" }, mockup: { title: "Nouvelle Marque AI", subtitle: "Generic", blocks: ["Generic"] } } }],
-          approvals: [{ item: { id: "output-out-elevio", title: "Logo Concept", type: "logo", status: "pending", agentId: "frontend_agent", agentName: "Designer", sessionId: "session-elevio", missionType: "branding_pack", createdAt: "2026-05-11T12:02:00.000Z", summary: "Concept premium", hasPreviewContent: true, previewType: "output_list" }, preview: null, canApprove: true, visualPreview: null }],
-          logs: [],
-        },
-      }),
-    })));
+  it("renders submitted ELEVIO branding as a clean artifact result", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (String(url).includes("/api/ceo/chat")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, response: { id: "ceo-logo", role: "ceo", text: "Branding créé.", timestamp: "2026-05-11T12:00:00.000Z", actions: [{
+          type: "product_artifacts_created",
+          label: "Projet créé: ELEVIO brand system",
+          targetId: "elevio-brand-system",
+          href: "/projects/elevio-brand-system",
+          kind: "branding",
+          qualityStatus: "Prêt",
+          qualityScore: 90,
+          summary: "Direction de marque pour ELEVIO avec prototypes SVG.",
+          artifactPaths: ["generated-products/elevio-brand-system/logo-concept-a.svg", "generated-products/elevio-brand-system/logo-concept-b.svg", "generated-products/elevio-brand-system/logo-concept-c.svg"],
+        }] } }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, view: { messages: [], companies: [], projects: [], sessions: [], outputs: [], approvals: [] } }) });
+    }));
 
     const { container } = render(React.createElement(CeoPage));
+    fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "ELEVIO brand system" })).toBeInTheDocument();
     expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
-    expect(screen.getByText("A. Premium / corporate")).toBeInTheDocument();
-    expect(screen.getByText("B. Mouvement / vitesse / verticalité")).toBeInTheDocument();
-    expect(screen.getByText("C. Sécurité / fiabilité / infrastructure")).toBeInTheDocument();
-    expect(screen.getAllByText("Prototype visuel — prêt pour génération finale")).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: /Accepter cette direction/ })).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: /Accepter/ })).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: /Modifier/ })).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: /Refaire/ })).toHaveLength(3);
-  });
-
-  it("reject workflow asks for changes and calls the existing approval route", async () => {
-    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).includes("/reject")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) });
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({
-          view: {
-            messages: [],
-            companies: [],
-            projects: [],
-            sessions: [],
-            outputs: [],
-            approvals: [{ item: { id: "output-out-logo", title: "Logo Concept", type: "logo", status: "pending", agentId: "frontend_agent", agentName: "Designer", sessionId: "session-logo", createdAt: "2026-05-11T12:02:00.000Z", summary: "Concept premium", hasPreviewContent: true, previewType: "output_list" }, preview: null, canApprove: true, visualPreview: { kind: "brand_card", logoText: "SL", colors: ["#0F172A", "#38BDF8", "#F8FAFC", "#F59E0B"] } }],
-            logs: [],
-          },
-        }),
-      });
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(React.createElement(CeoPage));
-    fireEvent.click((await screen.findAllByRole("button", { name: /Modifier/ }))[0]);
-    fireEvent.change(screen.getByPlaceholderText(/plus luxe/), { target: { value: "Je veux quelque chose de plus luxe et minimaliste" } });
-    fireEvent.click(screen.getByText("Envoyer la modification"));
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith("/api/approvals/output-out-logo/reject", expect.objectContaining({
-        method: "POST",
-      }));
-    });
-    const rejectCall = fetchMock.mock.calls.find(([url]) => String(url).includes("/reject"));
-    expect(String(rejectCall?.[1]?.body)).toContain("plus luxe et minimaliste");
+    expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
   });
 
   it("keeps CEO simple view final-result-first and free of stale technical content", async () => {

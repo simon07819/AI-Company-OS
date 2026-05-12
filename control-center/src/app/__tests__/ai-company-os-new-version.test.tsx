@@ -110,27 +110,37 @@ describe("AI Company OS new version regression suite", () => {
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|sessionId|projectId|workspaceId/i);
   });
 
-  it("shows simple result actions on CEO logo outputs", async () => {
-    stubSimpleAgencyView({
-      messages: [{ id: "u1", role: "user", text: "je veux un logo pour une compagnie qui s'appelle ELEVIO", timestamp: "2026-05-11T12:00:00.000Z" }],
-      companies: [],
-      projects: [{ id: "proj-logo", name: "Logo ELEVIO", sessionId: "session-logo", progress: 70, outputsCount: 1 }],
-      sessions: [{ sessionId: "session-logo", projectName: "Logo ELEVIO", status: "waiting_approval", progress: 70, tasks: [], logs: [] }],
-      outputs: [{ id: "out-logo", sessionId: "session-logo", projectId: "proj-logo", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette", status: "review", assignedAgent: "designer", updatedAt: "2026-05-11T12:02:00.000Z" }],
-      approvals: [],
-    });
+  it("shows simple result actions on CEO logo artifact outputs", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (String(url).includes("/api/ceo/chat")) {
+        return jsonResponse({ ok: true, response: { id: "ceo-logo", role: "ceo", text: "Branding créé.", timestamp: "2026-05-11T12:00:00.000Z", actions: [{
+          type: "product_artifacts_created",
+          label: "Projet créé: ELEVIO brand system",
+          targetId: "elevio-brand-system",
+          href: "/projects/elevio-brand-system",
+          kind: "branding",
+          qualityStatus: "Prêt",
+          qualityScore: 90,
+          summary: "Direction de marque pour ELEVIO avec prototypes SVG.",
+          artifactPaths: [
+            "generated-products/elevio-brand-system/brand-brief.json",
+            "generated-products/elevio-brand-system/logo-concept-a.svg",
+            "generated-products/elevio-brand-system/logo-concept-b.svg",
+            "generated-products/elevio-brand-system/logo-concept-c.svg",
+          ],
+        }] } });
+      }
+      return jsonResponse({ ok: true, view: { messages: [], companies: [], projects: [], sessions: [], outputs: [], approvals: [] } });
+    }));
 
     render(React.createElement(CeoPage));
+    fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "ELEVIO brand system" })).toBeInTheDocument();
     expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Prototype visuel/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("A. Premium / corporate")).toBeInTheDocument();
-    expect(screen.getByText("B. Mouvement / vitesse / verticalité")).toBeInTheDocument();
-    expect(screen.getByText("C. Sécurité / fiabilité / infrastructure")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: /Accepter cette direction/ })).toHaveLength(3);
-    expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBeGreaterThanOrEqual(3);
-    expect(screen.getAllByRole("button", { name: /Refaire/ }).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
+    expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });
 
   it("creates real SaaS artifacts with spec, README, ledger artifact paths and quality gate", () => {

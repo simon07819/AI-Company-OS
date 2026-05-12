@@ -1,85 +1,143 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import CeoPage from "@/app/ceo/page";
+
+function emptyView() {
+  return {
+    messages: [],
+    companies: [],
+    projects: [],
+    sessions: [],
+    outputs: [],
+    approvals: [],
+    generatedProjects: [],
+  };
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("CEO product artifacts", () => {
-  it("shows concrete product artifact actions in simple mode", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        view: {
-          messages: [{
-            id: "ceo-product",
-            role: "ceo",
-            text: "Projet créé avec des artifacts locaux.",
-            timestamp: "2026-05-11T12:00:00.000Z",
-            actions: [{
-              type: "product_artifacts_created",
-              label: "Projet créé: Gym management SaaS",
-              targetId: "gym-management-saas",
-              href: "generated-products/gym-management-saas",
-              kind: "saas",
-              qualityStatus: "Prêt",
-              summary: "Generated product passed the local artifact quality gate.",
-              artifactPaths: [
-                "generated-products/gym-management-saas/README.md",
-                "generated-products/gym-management-saas/product-spec.json",
-                "generated-products/gym-management-saas/next-app/package.json",
-                "generated-products/gym-management-saas/next-app/app/dashboard/page.tsx",
-              ],
-              launchInstructions: ["cd next-app", "npm install", "npm run dev"],
-            }],
-          }],
-          companies: [],
-          projects: [],
-          sessions: [],
-          outputs: [],
-          approvals: [],
-        },
-      }),
-    })));
+describe("CEO command surface flow", () => {
+  it("creates a current product result from real artifact actions", async () => {
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (String(url).includes("/api/ceo/chat")) {
+        expect(String(init?.body)).toContain("clinique");
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            ok: true,
+            response: {
+              id: "ceo-product",
+              role: "ceo",
+              text: "Projet créé avec des artifacts locaux.",
+              timestamp: "2026-05-11T12:00:00.000Z",
+              actions: [{
+                type: "product_artifacts_created",
+                label: "Projet créé: Clinic appointments SaaS",
+                targetId: "clinic-appointments-saas",
+                href: "/projects/clinic-appointments-saas",
+                kind: "saas",
+                qualityStatus: "Prêt",
+                qualityScore: 91,
+                summary: "Generated product passed the local artifact quality gate.",
+                artifactPaths: [
+                  "generated-products/clinic-appointments-saas/README.md",
+                  "generated-products/clinic-appointments-saas/product-spec.json",
+                  "generated-products/clinic-appointments-saas/next-app/package.json",
+                  "generated-products/clinic-appointments-saas/next-app/app/dashboard/page.tsx",
+                ],
+                launchInstructions: ["cd next-app", "npm install", "npm run dev"],
+              }],
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, view: emptyView() }) });
+    });
+    vi.stubGlobal("fetch", fetchMock);
 
     render(React.createElement(CeoPage));
 
-    expect(await screen.findByText("Résultat courant")).toBeInTheDocument();
-    expect(screen.getByText("Gym management SaaS")).toBeInTheDocument();
-    expect(screen.getByText("SaaS")).toBeInTheDocument();
-    expect(screen.getByText("Progression")).toBeInTheDocument();
-    expect(screen.getAllByText(/next-app\/app\/dashboard\/page.tsx/).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: "Ouvrir le workspace" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Voir les fichiers" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continuer le projet" })).toBeInTheDocument();
+    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    fireEvent.change(input, { target: { value: "Je veux un SaaS pour gérer les rendez-vous d'une clinique" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+
+    await waitFor(() => expect(input).toHaveValue(""));
+    expect(await screen.findByRole("heading", { name: "Clinic appointments SaaS" })).toBeInTheDocument();
+    expect(screen.getByText("README.md")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-appointments-saas");
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
   });
 
-  it("shows the extracted brand name for logo requests without generic fallback", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
-      ok: true,
-      json: () => Promise.resolve({
-        view: {
-          messages: [{ id: "u1", role: "user", text: "je veux un logo pour une compagnie qui s'appelle ELEVIO", timestamp: "2026-05-11T12:00:00.000Z" }],
-          companies: [],
-          projects: [{ id: "proj-logo", name: "Logo ELEVIO", sessionId: "session-logo", progress: 70, outputsCount: 1 }],
-          sessions: [{ sessionId: "session-logo", projectName: "Logo ELEVIO", status: "waiting_approval", progress: 70, tasks: [], logs: [] }],
-          outputs: [{ id: "out-logo", sessionId: "session-logo", projectId: "proj-logo", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette", status: "review", assignedAgent: "frontend_agent", updatedAt: "2026-05-11T12:02:00.000Z" }],
-          approvals: [],
-        },
-      }),
-    })));
+  it("resets the current result when a second command starts", async () => {
+    let chatCount = 0;
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (String(url).includes("/api/ceo/chat")) {
+        chatCount += 1;
+        const title = chatCount === 1 ? "Construction Website" : "Clinic appointments SaaS";
+        const slug = chatCount === 1 ? "construction-website" : "clinic-appointments-saas";
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            ok: true,
+            response: {
+              id: `ceo-${chatCount}`,
+              role: "ceo",
+              text: "Projet créé.",
+              timestamp: "2026-05-11T12:00:00.000Z",
+              actions: [{
+                type: "product_artifacts_created",
+                label: `Projet créé: ${title}`,
+                targetId: slug,
+                href: `/projects/${slug}`,
+                kind: chatCount === 1 ? "website" : "saas",
+                qualityStatus: "Prêt",
+                artifactPaths: [`generated-products/${slug}/README.md`],
+                summary: `${title} summary`,
+              }],
+            },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, view: emptyView() }) });
+    }));
 
     render(React.createElement(CeoPage));
+    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    fireEvent.change(input, { target: { value: "Je veux un site web premium pour une entreprise de construction" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    expect(await screen.findByRole("heading", { name: "Construction Website" })).toBeInTheDocument();
 
-    expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
-    expect(screen.getAllByText("ELEVIO").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Prototype visuel/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
+    fireEvent.change(input, { target: { value: "Je veux un SaaS pour gérer les rendez-vous d'une clinique" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "Construction Website" })).not.toBeInTheDocument());
+    expect(await screen.findByRole("heading", { name: "Clinic appointments SaaS" })).toBeInTheDocument();
+  });
+
+  it("does not show fake success when no artifacts are returned", async () => {
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (String(url).includes("/api/ceo/chat")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            ok: true,
+            response: { id: "ceo-empty", role: "ceo", text: "Réponse sans artifact", timestamp: "2026-05-11T12:00:00.000Z", actions: [] },
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, view: emptyView() }) });
+    }));
+
+    render(React.createElement(CeoPage));
+    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    fireEvent.change(input, { target: { value: "Je veux un système vague" } });
+    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+
+    expect(await screen.findByRole("heading", { name: "Aucun artifact réel créé" })).toBeInTheDocument();
+    expect(screen.getByText(/refuse de l’afficher comme résultat prêt/i)).toBeInTheDocument();
   });
 });
