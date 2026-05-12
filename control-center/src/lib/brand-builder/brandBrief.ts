@@ -6,7 +6,11 @@ const STOP_WORDS = new Set([
   "logo", "site", "app", "application", "business", "compagnie", "company", "entreprise",
   "marque", "qui", "pour", "avec", "dans", "une", "un", "des", "les", "le", "la",
   "called", "named", "nommee", "nomme", "appelee", "appelle",
+  "sur", "fond", "noir", "blanc", "transparent", "sportif", "premium", "moderne",
+  "minimaliste", "simple", "professionnel", "style",
 ]);
+
+const LOGO_STYLE_WORDS = "sportif|premium|moderne|minimaliste|simple|professionnel|luxe|tech|corporate";
 
 function normalizeText(input: string) {
   return input
@@ -29,6 +33,8 @@ export function detectBrandRequestType(input: string): BrandRequestType {
 function cleanBrandCandidate(candidate: string) {
   const cleaned = candidate
     .replace(/[“”"'.:,;!?()[\]{}]/g, " ")
+    .replace(/\b(sur\s+fond\s+(?:noir|blanc|transparent)|fond\s+(?:noir|blanc|transparent))\b.*$/i, " ")
+    .replace(new RegExp(`^(?:${LOGO_STYLE_WORDS})\\s+`, "i"), "")
     .replace(/\s+/g, " ")
     .trim();
   const words = cleaned.split(" ").filter(Boolean);
@@ -43,8 +49,8 @@ function cleanBrandCandidate(candidate: string) {
 export function extractBrandName(input: string): { brandName: string; explicit: boolean } {
   const patterns = [
     /(?:s['’]?\s*appelle|se\s+nomme|nommee?|nommée?|appelee?|appelée?|called|named)\s+([A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ&\- ]{1,48})/i,
-    /^\s*logo\s+(?:sportif|premium|moderne|minimaliste|simple|professionnel)?\s*([A-Z0-9][A-Z0-9&\- ]{1,32})(?:\s|$|[.,;!?])/i,
-    /(?:^|\s)logo\s+(?:pour\s+)?([A-Z0-9][A-Z0-9&\- ]{1,32})(?:\s|$|[.,;!?])/,
+    new RegExp(`^\\s*(?:fais\\s+(?:moi\\s+)?un\\s+|cree\\s+un\\s+|crée\\s+un\\s+)?logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32})(?=\\s+(?:sur\\s+fond|avec|style|en\\s+)|$|[.,;!?])`, "i"),
+    new RegExp(`(?:^|\\s)logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32})(?=\\s+(?:sur\\s+fond|avec|style|en\\s+)|$|[.,;!?])`, "i"),
     /(?:pour|de|d['’])\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
     /(?:marque|compagnie|entreprise)\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
   ];
@@ -56,6 +62,19 @@ export function extractBrandName(input: string): { brandName: string; explicit: 
   }
 
   return { brandName: UNNAMED_BRAND, explicit: false };
+}
+
+export function extractVisualPreferences(input: string): BrandBrief["visualPreferences"] {
+  const lower = normalizeText(input);
+  const styleKeywords = Array.from(new Set((lower.match(new RegExp(LOGO_STYLE_WORDS, "g")) ?? []).filter(Boolean)));
+  const background = /sur\s+fond\s+noir|fond\s+noir/.test(lower)
+    ? "black"
+    : /sur\s+fond\s+blanc|fond\s+blanc/.test(lower)
+      ? "white"
+      : /sur\s+fond\s+transparent|fond\s+transparent/.test(lower)
+        ? "transparent"
+        : undefined;
+  return { background, styleKeywords };
 }
 
 export function inferIndustry(input: string, brandName = "") {
@@ -158,6 +177,7 @@ function profileForIndustry(industry: string, brandName: string) {
 export function generateBrandBrief(input: string): BrandBrief {
   const requestType = detectBrandRequestType(input);
   const extracted = extractBrandName(input);
+  const visualPreferences = extractVisualPreferences(input);
   const industry = inferIndustry(input, extracted.brandName);
   const profile = profileForIndustry(industry.industry, extracted.brandName);
   const concepts = [
@@ -170,6 +190,7 @@ export function generateBrandBrief(input: string): BrandBrief {
     requestType,
     brandName: extracted.brandName,
     explicitBrandName: extracted.explicit,
+    visualPreferences,
     industry: industry.industry,
     industryConfidence: industry.confidence,
     industryAssumption: industry.assumption,

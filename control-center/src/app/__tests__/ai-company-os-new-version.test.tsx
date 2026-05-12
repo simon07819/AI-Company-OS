@@ -105,9 +105,9 @@ describe("AI Company OS new version regression suite", () => {
 
     const { container } = render(React.createElement(CeoPage));
 
-    expect(await screen.findByLabelText("Command Surface")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
-    expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|sessionId|projectId|workspaceId/i);
+    expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|sessionId|projectId|workspaceId|Décris ce que tu veux construire|Conversation CEO/i);
   });
 
   it("shows final-answer-first CEO logo output with details hidden by default", async () => {
@@ -138,12 +138,14 @@ describe("AI Company OS new version regression suite", () => {
     }));
 
     render(React.createElement(CeoPage));
-    fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.change(await screen.findByPlaceholderText("Message"), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     expect(await screen.findByText("ELEVIO")).toBeInTheDocument();
-    expect(screen.getByText("Voici une première version du logo ELEVIO.")).toBeInTheDocument();
+    expect(screen.queryByText("Voici une première version du logo ELEVIO.")).not.toBeInTheDocument();
     expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prototype visuel|90\/100|brand-brief.json/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();

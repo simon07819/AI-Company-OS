@@ -11,6 +11,10 @@ export interface BrandBrief {
   requestType: BrandRequestType;
   brandName: string;
   explicitBrandName: boolean;
+  visualPreferences?: {
+    background?: "black" | "white" | "transparent";
+    styleKeywords: string[];
+  };
   industry: string;
   industryConfidence: "explicit" | "inferred" | "weak";
   industryAssumption: string;
@@ -40,4 +44,3 @@ export interface LogoConcept {
   prototypeNotice: string;
   imagePrompt: string;
 }
-

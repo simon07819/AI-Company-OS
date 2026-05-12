@@ -8,7 +8,28 @@ describe("brandGeneration", () => {
       brandName: "EKIDA",
       explicitBrandName: true,
     });
+    expect(generateBrandBrief("logo EKIDA sur fond noir")).toMatchObject({
+      requestType: "logo",
+      brandName: "EKIDA",
+      explicitBrandName: true,
+      visualPreferences: { background: "black" },
+    });
     expect(generateBrandBrief("je veux un logo pour EKIDA")).toMatchObject({
+      requestType: "logo",
+      brandName: "EKIDA",
+      explicitBrandName: true,
+    });
+    expect(generateBrandBrief("crée un logo pour NOVARA")).toMatchObject({
+      requestType: "logo",
+      brandName: "NOVARA",
+      explicitBrandName: true,
+    });
+    expect(generateBrandBrief("fais moi un logo EKIDA")).toMatchObject({
+      requestType: "logo",
+      brandName: "EKIDA",
+      explicitBrandName: true,
+    });
+    expect(generateBrandBrief("logo de EKIDA")).toMatchObject({
       requestType: "logo",
       brandName: "EKIDA",
       explicitBrandName: true,

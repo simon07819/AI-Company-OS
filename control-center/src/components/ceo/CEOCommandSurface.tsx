@@ -1,33 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
 import { useOptionalViewMode } from "@/components/os/ViewModeProvider";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
-import type { CEOActionResult, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
-
-interface ApiAction {
-  type: string;
-  label: string;
-  targetId?: string;
-  href?: string;
-  artifactPaths?: string[];
-  summary?: string;
-  kind?: string;
-  limitations?: string[];
-  launchInstructions?: string[];
-  qualityStatus?: string;
-  qualityScore?: number;
-}
-
-interface ApiMessage {
-  id: string;
-  role: "user" | "ceo";
-  text: string;
-  actions?: ApiAction[];
-  timestamp: string;
-}
+import type { CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
 interface CommandResponse {
   ok: boolean;
@@ -60,70 +37,6 @@ function detectRequestType(prompt: string): CEORequestType {
   if (/\bapp\b|application/.test(normalized)) return "app";
   if (/automation|automatisation|workflow|systeme|système/.test(normalized)) return "business-system";
   return "unknown";
-}
-
-function titleFromAction(action: CEOActionResult) {
-  return action.label.replace(/^Projet créé:\s*/i, "").trim() || "Projet généré";
-}
-
-function statusFromAction(action: CEOActionResult): CEOCurrentMission["status"] {
-  if (!action.artifactPaths.length) return "rejected";
-  if (action.qualityStatus === "Prêt") return "ready";
-  if (action.qualityStatus === "Incomplet") return "rejected";
-  return "needs_revision";
-}
-
-function normalizeWorkspaceHref(action: CEOActionResult) {
-  if (action.href?.startsWith("/projects/")) return action.href;
-  if (action.targetId) return `/projects/${action.targetId}`;
-  return undefined;
-}
-
-function actionFromMessage(message: ApiMessage | null): CEOActionResult | null {
-  const action = message?.actions?.find((item) => item.type === "product_artifacts_created");
-  if (!action) return null;
-  return {
-    label: action.label,
-    targetId: action.targetId,
-    href: action.href,
-    kind: action.kind,
-    artifactPaths: action.artifactPaths ?? [],
-    summary: action.summary,
-    limitations: action.limitations,
-    launchInstructions: action.launchInstructions,
-    qualityStatus: action.qualityStatus,
-    qualityScore: action.qualityScore,
-  };
-}
-
-function missionFromAction(prompt: string, action: CEOActionResult): CEOCurrentMission {
-  const status = statusFromAction(action);
-  return {
-    id: action.targetId ?? `mission-${Date.now()}`,
-    prompt,
-    requestType: (action.kind as CEORequestType) || detectRequestType(prompt),
-    status,
-    createdAt: new Date().toISOString(),
-    artifactCount: action.artifactPaths.length,
-    workspaceHref: normalizeWorkspaceHref(action),
-    qualityScore: action.qualityScore,
-  };
-}
-
-function resultFromAction(prompt: string, action: CEOActionResult): CEOCurrentResult {
-  const status = statusFromAction(action);
-  return {
-    title: titleFromAction(action),
-    requestType: (action.kind as CEORequestType) || detectRequestType(prompt),
-    status,
-    summary: action.summary || "Résultat produit avec artifacts traçables.",
-    artifactPaths: action.artifactPaths,
-    workspaceHref: normalizeWorkspaceHref(action),
-    qualityScore: action.qualityScore,
-    qualityStatus: action.qualityStatus,
-    limitations: action.limitations,
-    launchInstructions: action.launchInstructions,
-  };
 }
 
 function statusFromCommand(status?: CommandResponse["status"]): CEOCurrentMission["status"] {
@@ -173,32 +86,8 @@ export default function CEOCommandSurface() {
   const toggleMode = viewMode?.toggleMode ?? (() => undefined);
   const [mission, setMission] = useState<CEOCurrentMission | null>(null);
   const [result, setResult] = useState<CEOCurrentResult | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    async function loadInitial() {
-      try {
-        const response = await fetch("/api/ceo/simple-agency", { cache: "no-store" });
-        const payload = await response.json().catch(() => ({}));
-        if (cancelled) return;
-        const messages = (payload.view?.messages ?? []) as ApiMessage[];
-        const latestUser = [...messages].reverse().find((message) => message.role === "user")?.text ?? "";
-        if (latestUser) setMission({ id: "last-command", prompt: latestUser, requestType: detectRequestType(latestUser), status: "idle", createdAt: new Date().toISOString(), artifactCount: 0 });
-        setHistory(messages.filter((message) => message.role === "user").slice(-4).map((message) => message.text));
-      } catch {
-        if (!cancelled) setError("Impossible de charger l’état CEO.");
-      }
-    }
-    void loadInitial();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const currentPrompt = useMemo(() => history.filter(Boolean).at(-1) ?? "", [history]);
 
   const submitCommand = async (prompt: string) => {
     const requestType = detectRequestType(prompt);
@@ -214,7 +103,6 @@ export default function CEOCommandSurface() {
     setError(null);
     setMission(pendingMission);
     setResult(null);
-    setHistory((items) => [...items.filter((item) => item !== prompt), prompt].slice(-6));
 
     try {
       const response = await fetch("/api/ceo/command", {
@@ -247,28 +135,18 @@ export default function CEOCommandSurface() {
   };
 
   return (
-    <main className="ceo-os-page">
-      <section className={`ceo-os-shell ${result || loading ? "has-conversation" : ""}`} aria-label="Command Surface">
-        <header className="ceo-os-topbar">
-          <div>
-            <span>AI Company OS</span>
-            <strong>CEO</strong>
+    <main className="ceo-chat-page">
+      <section className="ceo-chat-shell" aria-label="Chat CEO">
+        <header className="ceo-chat-header">
+          <div className="ceo-chat-agent">
+            <div className="ceo-chat-avatar" aria-hidden="true">C</div>
+            <div>
+              <strong>CEO</strong>
+              <span>en ligne</span>
+            </div>
           </div>
-          <div className="ceo-os-system-state">
-            <i />
-            <span>Production IA active</span>
-            <button type="button" onClick={toggleMode}>{isExpert ? "Mode simple" : "Mode expert"}</button>
-          </div>
+          <button className="ceo-chat-mode-toggle" type="button" onClick={toggleMode}>{isExpert ? "Simple" : "Expert"}</button>
         </header>
-
-        <section className="ceo-os-hero">
-          <div>
-            <div className="ceo-os-eyebrow"><Sparkles size={14} /> Conversation CEO</div>
-            <h1>Décris ce que tu veux construire.</h1>
-            <p>Pose une demande. Le CEO répond ici avec le résultat final utile, sans exposer le procédé.</p>
-          </div>
-          <CEOCommandComposer loading={loading} onSubmit={submitCommand} />
-        </section>
 
         <CEOResultStage
           result={result}
@@ -280,7 +158,7 @@ export default function CEOCommandSurface() {
           onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
         />
 
-        {!result && !loading && currentPrompt && <p className="ceo-os-current-note">Dernière demande prête: {currentPrompt}</p>}
+        <CEOCommandComposer loading={loading} onSubmit={submitCommand} />
       </section>
     </main>
   );

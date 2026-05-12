@@ -35,8 +35,8 @@ describe("CEO command components", () => {
     const onSubmit = vi.fn(() => Promise.resolve());
     render(React.createElement(CEOCommandComposer, { loading: false, onSubmit }));
 
-    const textarea = screen.getByPlaceholderText("Décris ce que tu veux construire...");
-    const button = screen.getByRole("button", { name: "Construire" });
+    const textarea = screen.getByPlaceholderText("Message");
+    const button = screen.getByRole("button", { name: "Envoyer" });
 
     expect(button).toBeDisabled();
     fireEvent.change(textarea, { target: { value: "Je veux un site web" } });
@@ -51,8 +51,8 @@ describe("CEO command components", () => {
   it("disables submit while loading", () => {
     render(React.createElement(CEOCommandComposer, { loading: true, onSubmit: vi.fn() }));
 
-    fireEvent.change(screen.getByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "Créer un SaaS" } });
-    expect(screen.getByRole("button", { name: "Construire" })).toBeDisabled();
+    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "Créer un SaaS" } });
+    expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
   });
 
   it("renders a final-answer-first result with details hidden by default", () => {
@@ -71,14 +71,15 @@ describe("CEO command components", () => {
     expect(screen.queryByText("README.md")).not.toBeInTheDocument();
     expect(screen.queryByText("product-spec.json")).not.toBeInTheDocument();
     expect(screen.queryByText("88/100")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-saas");
+    expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Voir détails/ })).not.toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.getByText("product-spec.json")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-saas");
     expect(screen.queryByText(/raw output|runtime id|sessionId/i)).not.toBeInTheDocument();
-    expect(container.querySelector(".ceo-os-conversation")).not.toHaveClass("text-white");
-    expect(container.querySelector(".ceo-os-conversation")).not.toHaveClass("text-slate-50");
+    expect(container.querySelector(".ceo-chat-messages")).not.toHaveClass("text-white");
+    expect(container.querySelector(".ceo-chat-messages")).not.toHaveClass("text-slate-50");
   });
 
   it("does not fake success when artifacts are missing", () => {
@@ -93,7 +94,7 @@ describe("CEO command components", () => {
     }));
 
     expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0);
-    expect(screen.getByRole("button", { name: /Ouvrir workspace/ })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("Aucun artifact réel créé")).toBeInTheDocument();
   });
@@ -140,7 +141,7 @@ describe("CEO command components", () => {
         workspaceHref: "/projects/logo-ekida",
         qualityScore: 84,
       },
-      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding" },
+      mission: { ...mission, prompt: "logo EKIDA sur fond noir", requestType: "branding" },
       expertMode: false,
       loading: false,
       error: null,
@@ -148,11 +149,14 @@ describe("CEO command components", () => {
       onContinue: vi.fn(),
     }));
 
-    expect(screen.getByText("Voici une première version du logo EKIDA.")).toBeInTheDocument();
-    expect(screen.getByLabelText("Prototype visuel EKIDA")).toBeInTheDocument();
+    expect(screen.queryByText("Voici une première version du logo EKIDA.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Visuel EKIDA")).toBeInTheDocument();
     expect(screen.getByText("EKIDA")).toBeInTheDocument();
+    expect(screen.queryByText("EKIDA sur fond noir")).not.toBeInTheDocument();
     expect(screen.queryByText(/Brand system/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Marque à nommer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Prototype visuel/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
     expect(screen.queryByText("84/100")).not.toBeInTheDocument();
     expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();

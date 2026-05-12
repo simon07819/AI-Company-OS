@@ -38,7 +38,7 @@ export default function CEOCommandComposer({
       <textarea
         value={value}
         rows={2}
-        placeholder="Décris ce que tu veux construire..."
+        placeholder="Message"
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
@@ -47,9 +47,9 @@ export default function CEOCommandComposer({
           }
         }}
       />
-      <button type="submit" disabled={!canSubmit} aria-label="Construire">
+      <button type="submit" disabled={!canSubmit} aria-label="Envoyer">
         <SendHorizontal size={16} />
-        <span>{loading ? "Production..." : "Construire"}</span>
+        <span>{loading ? "..." : "Envoyer"}</span>
       </button>
     </form>
   );

@@ -52,16 +52,17 @@ describe("CEO command surface flow", () => {
 
     render(React.createElement(CeoPage));
 
-    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    const input = await screen.findByPlaceholderText("Message");
     fireEvent.change(input, { target: { value: "Je veux un SaaS pour gérer les rendez-vous d'une clinique" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     await waitFor(() => expect(input).toHaveValue(""));
     expect(await screen.findByText("Clinic appointments SaaS")).toBeInTheDocument();
     expect(screen.queryByText("README.md")).not.toBeInTheDocument();
     expect(screen.queryByText("91/100")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-appointments-saas");
+    expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-appointments-saas");
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
@@ -93,13 +94,13 @@ describe("CEO command surface flow", () => {
     }));
 
     render(React.createElement(CeoPage));
-    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    const input = await screen.findByPlaceholderText("Message");
     fireEvent.change(input, { target: { value: "Je veux un site web premium pour une entreprise de construction" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
     expect(await screen.findByText("Construction Website")).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "Je veux un SaaS pour gérer les rendez-vous d'une clinique" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     await waitFor(() => expect(screen.queryByText("Construction Website")).not.toBeInTheDocument());
     expect(await screen.findByText("Clinic appointments SaaS")).toBeInTheDocument();
@@ -124,9 +125,9 @@ describe("CEO command surface flow", () => {
     }));
 
     render(React.createElement(CeoPage));
-    const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
+    const input = await screen.findByPlaceholderText("Message");
     fireEvent.change(input, { target: { value: "Je veux un système vague" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     await waitFor(() => expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/Aucun fichier traçable/i).length).toBeGreaterThan(0);

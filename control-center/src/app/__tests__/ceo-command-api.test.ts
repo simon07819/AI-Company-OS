@@ -68,7 +68,7 @@ describe("CEO command API", () => {
   });
 
   it("returns the requested logo deliverable for a bare EKIDA logo prompt", async () => {
-    const response = await postCommand("logo EKIDA");
+    const response = await postCommand("logo EKIDA sur fond noir");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
@@ -78,6 +78,7 @@ describe("CEO command API", () => {
     expect(payload.brandName).toBe("EKIDA");
     expect(payload.title).toBe("Logo EKIDA");
     expect(payload.shortMessage).toBe("Voici une première version du logo EKIDA.");
+    expect(payload.title).not.toContain("sur fond noir");
     expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
     expect(payload.title).not.toMatch(/Brand system/i);
   });

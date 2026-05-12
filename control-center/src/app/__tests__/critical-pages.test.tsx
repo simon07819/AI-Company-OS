@@ -127,10 +127,12 @@ describe("critical Control Center pages", () => {
   it("renders CEO chat controls", async () => {
     const { container } = render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText(/AI Company OS/)).length).toBeGreaterThan(0);
-    expect(screen.getByText("Mode expert")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Command Surface")).toBeInTheDocument();
+    expect((await screen.findAllByText("CEO")).length).toBeGreaterThan(0);
+    expect(screen.getByText("Expert")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
+    expect(screen.getByLabelText("Chat CEO")).toBeInTheDocument();
+    expect(screen.queryByText(/Décris ce que tu veux construire/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Production IA active/)).not.toBeInTheDocument();
     expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
     expect(container.querySelector(".left-rail")).not.toBeInTheDocument();
@@ -139,7 +141,7 @@ describe("critical Control Center pages", () => {
   it("renders CEO inside desktop shell without WordPress sidebar or permanent rails", async () => {
     const { container } = render(React.createElement(AppShell, null, React.createElement(CeoPage)));
 
-    expect(await screen.findByLabelText("Command Surface")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
     expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
     expect(container.querySelector(".os-dock")).toBeInTheDocument();
     expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
@@ -179,8 +181,9 @@ describe("critical Control Center pages", () => {
   it("renders CEO simple agency conversation", async () => {
     render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText(/Conversation CEO/)).length).toBeGreaterThan(0);
-    expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
+    expect((await screen.findAllByText("CEO")).length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
+    expect(screen.queryByText(/Conversation CEO/)).not.toBeInTheDocument();
   });
 
   it("keeps CEO expert mode available", async () => {
@@ -212,15 +215,15 @@ describe("critical Control Center pages", () => {
     }));
 
     const { container } = render(React.createElement(CeoPage));
-    fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
-    fireEvent.click(screen.getByRole("button", { name: "Construire" }));
+    fireEvent.change(await screen.findByPlaceholderText("Message"), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
     expect(await screen.findByText("ELEVIO")).toBeInTheDocument();
-    expect(screen.getByText("Voici une première version du logo ELEVIO.")).toBeInTheDocument();
+    expect(screen.queryByText("Voici une première version du logo ELEVIO.")).not.toBeInTheDocument();
     expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
-    expect(container.textContent ?? "").not.toMatch(/Brand system|Marque à nommer|Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
+    expect(container.textContent ?? "").not.toMatch(/Brand system|Marque à nommer|Prototype visuel|Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId|90\/100/i);
+    expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
     expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
-    expect(screen.queryByText("90/100")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
@@ -229,8 +232,9 @@ describe("critical Control Center pages", () => {
 
   it("keeps CEO simple view final-result-first and free of stale technical content", async () => {
     const { container } = render(React.createElement(CeoPage));
-    await screen.findByText("Décris ce que tu veux construire.");
+    await screen.findByPlaceholderText("Message");
     expect(container.textContent ?? "").not.toMatch(/ELEVIO|Mission Room|autopilot|sessionId|projectId|workspaceId|À approuver|A approuver/);
+    expect(container.textContent ?? "").not.toMatch(/Décris ce que tu veux construire|Conversation CEO|Production IA active/);
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
     expect(container.querySelector(".left-rail")).not.toBeInTheDocument();
   });

@@ -1,20 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { AlertTriangle, FolderOpen, Info, Wand2 } from "lucide-react";
+import { AlertTriangle, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
 import CEOResultDetails from "./CEOResultDetails";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
-
-function projectTypeLabel(type?: string) {
-  if (type === "saas") return "SaaS";
-  if (type === "website") return "Site web";
-  if (type === "app") return "App";
-  if (type === "branding" || type === "logo") return "Branding";
-  if (type === "business-system") return "Système business";
-  return "Projet";
-}
 
 function responseIntro(result: CEOCurrentResult) {
   if (result.shortMessage) return result.shortMessage;
@@ -39,12 +29,8 @@ function brandNameFromResult(result: CEOCurrentResult) {
   return result.brandName || brandNameFromTitle(result.title);
 }
 
-function primaryArtifactLabel(result: CEOCurrentResult) {
-  if (!result.artifactPaths.length) return "Aucun fichier exploitable";
-  if (result.requestType === "branding" || result.requestType === "logo") return "Prototype visuel";
-  if (result.requestType === "website") return "Structure de site créée";
-  if (result.requestType === "saas") return "Starter produit créé";
-  return "Artifact principal créé";
+function usesDarkLogoBackground(prompt?: string) {
+  return /sur\s+fond\s+noir|fond\s+noir/i.test(prompt ?? "");
 }
 
 export default function CEOResultStage({
@@ -67,15 +53,13 @@ export default function CEOResultStage({
 
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
     return (
-      <section className="ceo-os-conversation" aria-label="Conversation CEO">
+      <section className="ceo-chat-messages" aria-label="Messages CEO">
         {mission?.prompt && (
-          <article className="ceo-os-bubble user">
-            <span>Toi</span>
+          <article className="ceo-chat-message user">
             <p>{mission.prompt}</p>
           </article>
         )}
-        <article className="ceo-os-bubble ceo">
-          <span>CEO AI</span>
+        <article className="ceo-chat-message ceo">
           <p>Je prépare le résultat.</p>
           <div className="ceo-os-thinking" aria-label="Production en cours"><i /><i /><i /></div>
         </article>
@@ -85,15 +69,13 @@ export default function CEOResultStage({
 
   if (error) {
     return (
-      <section className="ceo-os-conversation" aria-label="Conversation CEO">
+      <section className="ceo-chat-messages" aria-label="Messages CEO">
         {mission?.prompt && (
-          <article className="ceo-os-bubble user">
-            <span>Toi</span>
+          <article className="ceo-chat-message user">
             <p>{mission.prompt}</p>
           </article>
         )}
-        <article className="ceo-os-bubble ceo error">
-          <span>CEO AI</span>
+        <article className="ceo-chat-message ceo error">
           <p>Impossible de créer le projet. Détail disponible en mode expert.</p>
           <small>{error}</small>
         </article>
@@ -103,11 +85,9 @@ export default function CEOResultStage({
 
   if (!result) {
     return (
-      <section className="ceo-os-conversation empty" aria-label="Conversation CEO">
-        <article className="ceo-os-empty-card">
-          <span>CEO AI</span>
-          <h2>Prêt à construire.</h2>
-          <p>Écris ce que tu veux créer. Je répondrai ici avec le résultat final utile.</p>
+      <section className="ceo-chat-messages empty" aria-label="Messages CEO">
+        <article className="ceo-chat-empty">
+          <p>Écris un message au CEO.</p>
         </article>
       </section>
     );
@@ -119,58 +99,40 @@ export default function CEOResultStage({
   const brandName = brandNameFromResult(result);
 
   return (
-    <section className="ceo-os-conversation" aria-label="Conversation CEO">
+    <section className="ceo-chat-messages" aria-label="Messages CEO">
       {mission?.prompt && (
-        <article className="ceo-os-bubble user">
-          <span>Toi</span>
+        <article className="ceo-chat-message user">
           <p>{mission.prompt}</p>
         </article>
       )}
 
-      <article className={`ceo-os-bubble ceo ${hasArtifacts ? "ready" : "failed"}`}>
-        <span>CEO AI</span>
-        <p>{responseIntro(result)}</p>
+      <article className={`ceo-chat-message ceo ${hasArtifacts ? "ready" : "failed"}`}>
+        {!isLogoDeliverable && <p>{responseIntro(result)}</p>}
 
         {hasArtifacts ? (
-          <div className={isBranding ? "ceo-os-final-preview brand" : "ceo-os-final-preview product"}>
-            <em>{isLogoDeliverable ? "Logo" : projectTypeLabel(result.requestType)}</em>
+          <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
             {isBranding ? (
-              <>
-                <LogoFinalAnswer brandName={brandName} />
-                <p>{isLogoDeliverable ? `Prototype visuel pour ${brandName}.` : result.summary}</p>
-              </>
+              <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} />
             ) : (
               <>
                 <strong>{result.title}</strong>
                 <p>{result.summary}</p>
-                <small>{primaryArtifactLabel(result)}</small>
               </>
             )}
           </div>
         ) : (
-          <div className="ceo-os-final-preview failed">
+          <div className="ceo-chat-visual-reply failed">
             <AlertTriangle size={18} />
             <strong>Je n’ai pas encore produit un résultat exploitable.</strong>
             <p>{result.summary}</p>
           </div>
         )}
 
-        <div className="ceo-os-minimal-actions">
+        <div className="ceo-chat-actions">
           <button type="button" onClick={onModify}>
             <Wand2 size={15} />
             Modifier
           </button>
-          {!isLogoDeliverable && result.workspaceHref ? (
-            <Link href={result.workspaceHref}>
-              <FolderOpen size={15} />
-              Ouvrir workspace
-            </Link>
-          ) : !isLogoDeliverable ? (
-            <button type="button" disabled>
-              <FolderOpen size={15} />
-              Ouvrir workspace
-            </button>
-          ) : null}
           <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
             <Info size={15} />
             Voir détails
