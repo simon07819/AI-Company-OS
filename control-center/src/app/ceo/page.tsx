@@ -368,7 +368,7 @@ export default function CeoSimplePage() {
   return (
     <main className="ceo-simple-page">
       <style>{styles}</style>
-      <section className="ceo-simple-shell">
+      <section className="ceo-simple-shell command-surface" aria-label="Command Surface">
         <header className="ceo-simple-header">
           <div>
             <div className="ceo-eyebrow"><Sparkles size={14} /> CEO AI</div>

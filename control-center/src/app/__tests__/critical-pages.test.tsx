@@ -31,10 +31,10 @@ describe("critical Control Center pages", () => {
   it("renders the simple OS dashboard", async () => {
     render(React.createElement(DashboardPage));
 
-    expect(await screen.findByRole("heading", { name: "Ce que votre agence AI fait maintenant" })).toBeInTheDocument();
-    expect(screen.getByText("Ce qui se passe maintenant")).toBeInTheDocument();
-    expect(screen.getAllByText("Studio Lumiere").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Logo Concept").length).toBeGreaterThan(0);
+    expect(await screen.findByRole("heading", { name: "Que veux-tu construire aujourd'hui?" })).toBeInTheDocument();
+    expect(screen.getByText("AI Company OS Desktop")).toBeInTheDocument();
+    expect(screen.getByText("Command Center")).toBeInTheDocument();
+    expect(screen.getByText("Entreprises")).toBeInTheDocument();
   });
 
   it("renders Settings without crashing", () => {
@@ -130,8 +130,21 @@ describe("critical Control Center pages", () => {
     expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Je veux un logo/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Command Surface")).toBeInTheDocument();
+    expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
     expect(container.querySelector(".left-rail")).not.toBeInTheDocument();
+  });
+
+  it("renders CEO inside desktop shell without WordPress sidebar or permanent rails", async () => {
+    const { container } = render(React.createElement(AppShell, null, React.createElement(CeoPage)));
+
+    expect(await screen.findByLabelText("Command Surface")).toBeInTheDocument();
+    expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
+    expect(container.querySelector(".os-dock")).toBeInTheDocument();
+    expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
+    expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|logs/i);
   });
 
   it("renders the global dark mode toggle and stores the preference", () => {

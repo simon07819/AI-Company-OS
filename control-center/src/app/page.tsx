@@ -1,5 +1,5 @@
-import { AgencyDashboard } from "@/components/os/AgencyDashboard";
+import DesktopHome from "@/components/os/DesktopHome";
 
 export default function DashboardPage() {
-  return <AgencyDashboard variant="dashboard" />;
+  return <DesktopHome />;
 }

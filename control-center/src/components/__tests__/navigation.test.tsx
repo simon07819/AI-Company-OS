@@ -78,6 +78,28 @@ describe("AppShell", () => {
     expect(screen.getByRole("heading", { name: "Settings child content" })).toBeInTheDocument();
   });
 
+  it("renders desktop shell simple dock without advanced modules", () => {
+    globalThis.__TEST_PATHNAME__ = "/ceo";
+
+    const { container } = render(
+      React.createElement(
+        AppShell,
+        null,
+        React.createElement("main", null, React.createElement("h1", null, "CEO child content"))
+      )
+    );
+
+    expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
+    expect(container.querySelector(".os-dock")).toBeInTheDocument();
+    expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
+    for (const label of primaryLinks) {
+      expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    }
+    for (const label of expertLinks) {
+      expect(screen.queryByRole("link", { name: label })).not.toBeInTheDocument();
+    }
+  });
+
   it("toggles global expert navigation and persists the choice", async () => {
     const store = new Map<string, string>();
     Object.defineProperty(window, "localStorage", {
