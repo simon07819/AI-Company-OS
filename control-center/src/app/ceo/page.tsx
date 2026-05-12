@@ -271,7 +271,7 @@ export default function CeoSimplePage() {
       for (const storage of [window.localStorage, window.sessionStorage]) {
         for (let index = storage.length - 1; index >= 0; index -= 1) {
           const key = storage.key(index);
-          if (key && /ai-company|company-os|ceo-simple|simple-agency/i.test(key) && key !== "ai-company-os-theme") {
+          if (key && /ai-company|company-os|ceo-simple|simple-agency/i.test(key) && key !== "ai-company-os-theme" && key !== "ai-company-os-nav-mode") {
             storage.removeItem(key);
           }
         }

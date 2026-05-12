@@ -1,11 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Crown, Menu, ShieldCheck, Sparkles, X } from "lucide-react";
 import NavSidebar, { getActiveNavItem } from "@/components/NavSidebar";
 import ThemeToggle from "@/components/ThemeToggle";
+
+const NAV_MODE_STORAGE_KEY = "ai-company-os-nav-mode";
+
+function isAdvancedPath(pathname: string) {
+  return /^\/(ceo\/expert|runtime|logs|system|settings|demo|crm|revenue|distribution|workspaces|agents|approvals|mission|conversations|business|archive)(\/|$)/.test(pathname);
+}
 
 function formatSegment(segment: string) {
   return segment
@@ -29,20 +35,49 @@ function buildBreadcrumbs(pathname: string) {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [expertMode, setExpertMode] = useState(false);
 
   const active = getActiveNavItem(pathname);
   const breadcrumbs = useMemo(() => buildBreadcrumbs(pathname), [pathname]);
-  const expertMode = pathname.startsWith("/ceo/expert") || pathname.startsWith("/runtime") || pathname.startsWith("/logs");
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(NAV_MODE_STORAGE_KEY);
+      if (stored === "expert") {
+        setExpertMode(true);
+        return;
+      }
+      if (stored === "simple") {
+        setExpertMode(false);
+        return;
+      }
+      setExpertMode(isAdvancedPath(pathname));
+    } catch {
+      setExpertMode(isAdvancedPath(pathname));
+    }
+  }, [pathname]);
+
+  const toggleExpertMode = () => {
+    setExpertMode((current) => {
+      const next = !current;
+      try {
+        window.localStorage.setItem(NAV_MODE_STORAGE_KEY, next ? "expert" : "simple");
+      } catch {
+        // localStorage can be unavailable in private or test environments.
+      }
+      return next;
+    });
+  };
 
   return (
     <div className="app-shell">
       <div className={`mobile-sidebar-panel${mobileOpen ? " open" : ""}`}>
-        <NavSidebar onNavigate={() => setMobileOpen(false)} />
+        <NavSidebar expertMode={expertMode} onNavigate={() => setMobileOpen(false)} />
       </div>
       {mobileOpen && <button className="mobile-sidebar-backdrop" aria-label="Close navigation" onClick={() => setMobileOpen(false)} />}
 
       <div className="desktop-sidebar">
-        <NavSidebar />
+        <NavSidebar expertMode={expertMode} />
       </div>
 
       <div className="main-content">
@@ -75,7 +110,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </div>
             <ThemeToggle />
             <Link className="top-header-link" href="/ceo"><Crown size={14} /> Parler au CEO</Link>
-            <Link className="top-header-link subtle" href="/ceo/expert">Mode expert</Link>
+            <button className="top-header-link subtle" type="button" onClick={toggleExpertMode}>
+              {expertMode ? "Mode simple" : "Mode expert"}
+            </button>
           </div>
         </header>
 
