@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 const RESET_CONFIRMATION = "AI_COMPANY_OS_RESET";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rootDir = path.resolve(__dirname, "..");
+const rootDir = path.resolve(process.env.AI_COMPANY_OS_ROOT ?? path.resolve(__dirname, ".."));
 const controlDataDir = path.join(rootDir, "data");
 const parentDataDir = path.resolve(rootDir, "..", "data");
 const parentLogsDir = path.resolve(rootDir, "..", "logs");
@@ -31,6 +31,7 @@ const controlDataFiles = {
   "distribution-engine.json": { jobs: [], assets: [], campaigns: [] },
   "executive-discussions.json": { discussions: [] },
   "loop-state.json": [],
+  "onboarding-state.json": { completed: false },
   "project-archive.json": { entities: [] },
   "revenue-system.json": { proposals: [], invoices: [], records: [] },
   "revisions.json": { revisions: [] },
@@ -86,6 +87,25 @@ function removePath(targetPath) {
   return count;
 }
 
+function countFilesAndDirs(targetPath) {
+  if (!fs.existsSync(targetPath)) return 0;
+  const stat = fs.statSync(targetPath);
+  if (!stat.isDirectory()) return 1;
+  return fs.readdirSync(targetPath).reduce((sum, entry) => sum + countFilesAndDirs(path.join(targetPath, entry)), 0);
+}
+
+function cleanGeneratedProducts(targetPath) {
+  if (!fs.existsSync(targetPath)) return 0;
+  let count = 0;
+  for (const entry of fs.readdirSync(targetPath)) {
+    if (entry === ".gitkeep") continue;
+    const fullPath = path.join(targetPath, entry);
+    count += countFilesAndDirs(fullPath);
+    fs.rmSync(fullPath, { recursive: true, force: true });
+  }
+  return count;
+}
+
 function writeText(filePath, value) {
   const count = fs.existsSync(filePath) ? 1 : 0;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -95,6 +115,9 @@ function writeText(filePath, value) {
 
 console.log("Reset AI Company OS");
 console.log("Donnees supprimees: entreprises, projets, missions, conversations, resultats, approvals, CRM/revenue/distribution lies aux anciennes missions, logs runtime.");
+if (process.env.RESET_GENERATED_PRODUCTS === "true") {
+  console.log("generated-products sera nettoye, sauf .gitkeep.");
+}
 console.log("Donnees conservees: code, routes, agents, configs, adapters, NVIDIA adapter, .env.local et secrets.");
 
 const emptied = {};
@@ -111,6 +134,9 @@ deleted["data/uploads"] = removePath(path.join(controlDataDir, "uploads"));
 deleted["data/workspaces"] = removePath(path.join(controlDataDir, "workspaces"));
 deleted["data/invoices"] = removePath(path.join(controlDataDir, "invoices"));
 deleted["data/backups"] = removePath(path.join(controlDataDir, "backups"));
+if (process.env.RESET_GENERATED_PRODUCTS === "true") {
+  deleted["generated-products"] = cleanGeneratedProducts(path.join(rootDir, "generated-products"));
+}
 emptied["../logs/agent_activity.jsonl"] = writeText(path.join(parentLogsDir, "agent_activity.jsonl"), "");
 deleted["../logs/autopilot_session.json"] = removePath(path.join(parentLogsDir, "autopilot_session.json"));
 

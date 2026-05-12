@@ -46,6 +46,7 @@ import {
 } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
+import { cleanupCompanyOsClientStorage } from "@/lib/clientStorageReset";
 import type { ExecutiveDiscussion, DiscussionMessage } from "@/lib/executiveDiscussion";
 import type { AgentId } from "@/lib/agentTypes";
 
@@ -1135,6 +1136,7 @@ export default function CeoPage() {
         setResetStatus(payload.message ?? "Reset refuse.");
         return;
       }
+      cleanupCompanyOsClientStorage();
       setResetConfirmation("");
       setResetStatus("Reset termine. Le mode simple est revenu a un etat neuf.");
       await loadData();

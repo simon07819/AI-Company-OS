@@ -11,6 +11,7 @@ export interface ResetCompanyOsOptions {
   confirm?: string;
   allowProduction?: boolean;
   production?: boolean;
+  resetGeneratedProducts?: boolean;
 }
 
 export interface ResetCompanyOsResult {
@@ -41,6 +42,7 @@ const CONTROL_DATA_FILES: Record<string, JsonValue> = {
   "distribution-engine.json": { jobs: [], assets: [], campaigns: [] },
   "executive-discussions.json": { discussions: [] },
   "loop-state.json": [],
+  "onboarding-state.json": { completed: false },
   "project-archive.json": { entities: [] },
   "revenue-system.json": { proposals: [], invoices: [], records: [] },
   "revisions.json": { revisions: [] },
@@ -105,6 +107,26 @@ function removePath(targetPath: string): number {
   return 1;
 }
 
+function countFilesAndDirs(targetPath: string): number {
+  if (!fs.existsSync(targetPath)) return 0;
+  const stat = fs.statSync(targetPath);
+  if (!stat.isDirectory()) return 1;
+  return fs.readdirSync(targetPath).reduce((sum, entry) => sum + countFilesAndDirs(path.join(targetPath, entry)), 0);
+}
+
+function cleanGeneratedProducts(targetPath: string): number {
+  if (!fs.existsSync(targetPath)) return 0;
+  const entries = fs.readdirSync(targetPath);
+  let count = 0;
+  for (const entry of entries) {
+    if (entry === ".gitkeep") continue;
+    const fullPath = path.join(targetPath, entry);
+    count += countFilesAndDirs(fullPath);
+    fs.rmSync(fullPath, { recursive: true, force: true });
+  }
+  return count;
+}
+
 function writeText(filePath: string, value: string): number {
   const count = fs.existsSync(filePath) ? 1 : 0;
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -122,6 +144,7 @@ export function getResetPlanSummary() {
       "CRM, revenue and distribution records linked to old missions",
       "runtime queues/state and mission activity logs",
       "uploaded CEO files and generated local workspaces",
+      "generated-products only when RESET_GENERATED_PRODUCTS=true",
     ],
     willPreserve: PRESERVED_CATEGORIES,
   };
@@ -150,6 +173,9 @@ export function resetCompanyOs(options: ResetCompanyOsOptions = {}): ResetCompan
   deleted["data/workspaces"] = removePath(path.join(controlDataDir, "workspaces"));
   deleted["data/invoices"] = removePath(path.join(controlDataDir, "invoices"));
   deleted["data/backups"] = removePath(path.join(controlDataDir, "backups"));
+  if (options.resetGeneratedProducts) {
+    deleted["generated-products"] = cleanGeneratedProducts(path.join(rootDir, "generated-products"));
+  }
 
   emptied["../logs/agent_activity.jsonl"] = writeText(path.join(parentLogsDir, "agent_activity.jsonl"), "");
   deleted["../logs/autopilot_session.json"] = removePath(path.join(parentLogsDir, "autopilot_session.json"));
