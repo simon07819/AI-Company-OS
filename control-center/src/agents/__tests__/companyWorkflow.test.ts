@@ -8,6 +8,7 @@ describe("company workflow", () => {
     const roles = result.agentRuns.map((run) => run.role);
 
     expect(result.workflow).toBe("logo");
+    if (result.workflow !== "logo") throw new Error("Expected logo workflow");
     expect(result.workOrder.deliverableType).toBe("logo");
     expect(result.workOrder.brandName).toBe("EKIDA");
     expect(result.visibleOutput?.kind).toBe("visual");
@@ -24,6 +25,12 @@ describe("company workflow", () => {
       "quality_director",
       "artifact_manager",
     ]));
+    expect(result.hiddenDetails.toolTrace.map((trace) => trace.toolId)).toEqual(expect.arrayContaining([
+      "visual.svg",
+      "quality.evaluate",
+      "artifact.store",
+    ]));
+    expect(JSON.stringify(result.visibleOutput)).not.toContain("toolTrace");
   });
 
   it("routes page web with logo as a website deliverable, not a recycled logo", () => {
@@ -40,6 +47,7 @@ describe("company workflow", () => {
     const roles = next.agentRuns.map((run) => run.role);
 
     expect(next.workflow).toBe("website");
+    if (next.workflow !== "website") throw new Error("Expected website workflow");
     expect(next.workOrder.requestType).toBe("website");
     expect(next.workOrder.deliverableType).not.toBe("logo");
     expect(next.workOrder.brandName).toBe("EKIDA");
@@ -63,6 +71,12 @@ describe("company workflow", () => {
     ]));
     const websiteQualityRun = next.agentRuns.find((run) => run.role === "quality_director" && run.skillId === "validate_website_deliverable");
     expect(websiteQualityRun?.output).toMatchObject({ ok: true });
+    expect(next.hiddenDetails.toolTrace.map((trace) => trace.toolId)).toEqual(expect.arrayContaining([
+      "website.preview",
+      "quality.evaluate",
+      "artifact.store",
+    ]));
+    expect(JSON.stringify(next.visibleOutput)).not.toContain("toolTrace");
   });
 
   it("blocks recycled or structureless website deliverables", () => {

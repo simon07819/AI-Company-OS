@@ -11,6 +11,19 @@ function artifactName(artifactPath: string) {
   return parts.at(-1) ?? artifactPath;
 }
 
+function workflowDetails(expert: CEOCurrentResult["expert"]) {
+  const workflow = expert?.companyWorkflow as {
+    workflow?: string;
+    agentRuns?: { agentId?: string; role?: string; skillId?: string; status?: string }[];
+    hiddenDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
+  } | undefined;
+  return {
+    workflow: workflow?.workflow,
+    agents: workflow?.agentRuns ?? [],
+    tools: workflow?.hiddenDetails?.toolTrace ?? [],
+  };
+}
+
 export default function CEOResultDetails({
   result,
   mission,
@@ -21,6 +34,7 @@ export default function CEOResultDetails({
   expertMode: boolean;
 }) {
   const hasArtifacts = result.artifactPaths.length > 0;
+  const workflow = workflowDetails(result.expert);
 
   return (
     <div className="ceo-os-result-details" aria-label="Détails du résultat">
@@ -58,6 +72,36 @@ export default function CEOResultDetails({
         </div>
       )}
 
+      {(workflow.agents.length > 0 || workflow.tools.length > 0) && (
+        <div>
+          <strong>Agents, skills et tools</strong>
+          {workflow.workflow && <p>Workflow: {workflow.workflow}</p>}
+          {workflow.agents.length > 0 && (
+            <ul>
+              {workflow.agents.slice(0, 10).map((run, index) => (
+                <li key={`${run.agentId}-${run.skillId}-${index}`}>
+                  <span>{run.role ?? run.agentId}</span>
+                  <span>{run.skillId}</span>
+                  <span>{run.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {workflow.tools.length > 0 && (
+            <ul>
+              {workflow.tools.map((trace, index) => (
+                <li key={`${trace.toolId}-${index}`}>
+                  <span>{trace.role}</span>
+                  <span>{trace.toolId}</span>
+                  <span>{trace.status}</span>
+                  {trace.error && <span>{trace.error}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {expertMode && (
         <div>
           <strong>Mode expert</strong>
@@ -70,6 +114,7 @@ export default function CEOResultDetails({
             revisions: result.expert?.revisions,
             manifest: result.expert?.manifest,
             runtime: result.expert?.runtime,
+            companyWorkflow: result.expert?.companyWorkflow,
           }, null, 2)}</pre>
         </div>
       )}

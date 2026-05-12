@@ -1,6 +1,8 @@
 import { generateBrandBrief } from "@/lib/brand-builder";
 import { validateLogoDeliverable } from "@/agents/quality/logo-quality-gates";
-import { runAgentSkill } from "@/agents/registry";
+import { agentRegistry, runAgentSkill } from "@/agents/registry";
+import { defaultToolContext, runToolAdapter } from "@/agents/capabilities/registry";
+import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { AgentRunResult } from "@/agents/types";
 
 export interface DesignBrief {
@@ -40,6 +42,7 @@ export interface DesignTeamResult {
     concepts: DesignConcept[];
     artDirectorNotes: string[];
     agentRuns: AgentRunResult[];
+    toolTrace: ToolTraceEntry[];
     qualityIssues: string[];
     score: number;
   };
@@ -243,9 +246,21 @@ function selectFinalLogoConcept(brief: DesignBrief, concepts: DesignConcept[]) {
 
 export function runDesignTeamWorkflow(input: string): DesignTeamResult {
   const agentRuns: AgentRunResult[] = [];
+  const toolTrace: ToolTraceEntry[] = [];
   const run = <TInput, TOutput>(agentId: string, skillId: string, payload: TInput) => {
     const result = runAgentSkill<TInput, TOutput>(agentId, skillId, payload);
     agentRuns.push(result);
+    return result.output;
+  };
+  const runTool = <TInput, TOutput>(agentId: string, toolId: string, payload: TInput, capabilityPackId?: string) => {
+    const agent = agentRegistry[agentId];
+    const result = runToolAdapter<TInput, TOutput>(toolId, payload, defaultToolContext({
+      agentId,
+      role: agent.role,
+      userPrompt: input,
+      mode: "details",
+    }), agent.toolsAllowed, capabilityPackId);
+    toolTrace.push(result);
     return result.output;
   };
 
@@ -281,6 +296,7 @@ export function runDesignTeamWorkflow(input: string): DesignTeamResult {
 
   const primaryVisual = selection.selectedConcept.svg;
   run("svg_illustrator", "render_svg_logo", primaryVisual);
+  runTool("svg_illustrator", "visual.svg", { svg: primaryVisual, brandName: brief.brandName }, "logo-production");
   run("svg_illustrator", "validate_svg_viewbox", primaryVisual);
   run("svg_illustrator", "fit_svg_content", primaryVisual);
   const visibleOutput = {
@@ -292,6 +308,7 @@ export function runDesignTeamWorkflow(input: string): DesignTeamResult {
   };
   const qualityGate = validateLogoDeliverable({ brandName: brief.brandName, visibleOutput });
   run("quality_director", "validate_logo_deliverable", qualityGate);
+  runTool("quality_director", "quality.evaluate", { kind: "logo", payload: { brandName: brief.brandName, visibleOutput } }, "quality-core");
   run("quality_director", "detect_generic_placeholder", visibleOutput);
   run("quality_director", "detect_text_only_logo", visibleOutput);
   run("quality_director", "detect_wrong_brand_name", visibleOutput);
@@ -302,6 +319,12 @@ export function runDesignTeamWorkflow(input: string): DesignTeamResult {
     artDirectorNotes: selection.artDirectorNotes,
     score: selection.score,
   });
+  runTool("artifact_manager", "artifact.store", {
+    brief,
+    concepts,
+    artDirectorNotes: selection.artDirectorNotes,
+    qualityIssues: qualityGate.issues,
+  }, "git-repo");
   run("ceo", "return_final_deliverable", visibleOutput);
 
   return {
@@ -316,6 +339,7 @@ export function runDesignTeamWorkflow(input: string): DesignTeamResult {
       concepts,
       artDirectorNotes: selection.artDirectorNotes,
       agentRuns,
+      toolTrace,
       qualityIssues: qualityGate.issues,
       score: selection.score,
     },

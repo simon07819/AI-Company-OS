@@ -41,6 +41,7 @@ export interface AgentMission {
   responsibilities: string[];
   skills: string[];
   toolsAllowed: string[];
+  capabilityPacks: string[];
   mustProduce: string[];
   mustNeverDo: string[];
   qualityChecklist: string[];

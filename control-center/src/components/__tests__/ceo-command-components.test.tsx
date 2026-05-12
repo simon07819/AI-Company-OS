@@ -199,4 +199,31 @@ describe("CEO command components", () => {
     expect(screen.queryByLabelText("Visuel EKIDA")).not.toBeInTheDocument();
     expect(screen.queryByText(/Brand system|Marque à nommer|README|workspace|90\/100/i)).not.toBeInTheDocument();
   });
+
+  it("keeps tool traces hidden until details are opened", () => {
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        expert: {
+          companyWorkflow: {
+            workflow: "website",
+            agentRuns: [{ role: "frontend_builder", skillId: "render_website_preview", status: "ok" }],
+            hiddenDetails: { toolTrace: [{ role: "frontend_builder", toolId: "website.preview", status: "ok" }] },
+          },
+        },
+      },
+      mission,
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.queryByText("website.preview")).not.toBeInTheDocument();
+    expect(screen.queryByText("render_website_preview")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("website.preview")).toBeInTheDocument();
+    expect(screen.getByText("render_website_preview")).toBeInTheDocument();
+  });
 });

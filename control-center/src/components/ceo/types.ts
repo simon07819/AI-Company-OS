@@ -48,5 +48,6 @@ export interface CEOCurrentResult {
     revisions?: unknown;
     manifest?: unknown;
     runtime?: unknown;
+    companyWorkflow?: unknown;
   };
 }

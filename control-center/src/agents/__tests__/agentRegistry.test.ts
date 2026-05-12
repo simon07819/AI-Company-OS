@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { capabilityPacks, toolRegistry } from "@/agents/capabilities/registry";
 import { agentRegistry, runAgentSkill, skillRegistry } from "@/agents/registry";
 
 const requiredAgents = [
@@ -27,6 +28,7 @@ describe("agent registry", () => {
       expect(agent.responsibilities.length).toBeGreaterThan(0);
       expect(agent.skills.length).toBeGreaterThan(0);
       expect(agent.toolsAllowed.length).toBeGreaterThan(0);
+      expect(agent.capabilityPacks.length).toBeGreaterThan(0);
       expect(agent.mustProduce.length).toBeGreaterThan(0);
       expect(agent.mustNeverDo.length).toBeGreaterThan(0);
       expect(agent.qualityChecklist.length).toBeGreaterThan(0);
@@ -46,6 +48,17 @@ describe("agent registry", () => {
           skillId,
           status: "ok",
         });
+      }
+    }
+  });
+
+  it("only references real capability packs and tools", () => {
+    for (const agent of Object.values(agentRegistry)) {
+      for (const packId of agent.capabilityPacks) {
+        expect(capabilityPacks[packId], `${agent.id}.${packId}`).toBeTruthy();
+      }
+      for (const toolId of agent.toolsAllowed) {
+        expect(toolRegistry[toolId], `${agent.id}.${toolId}`).toBeTruthy();
       }
     }
   });
