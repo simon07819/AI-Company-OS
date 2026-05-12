@@ -22,6 +22,8 @@ import { generateBrandBrief } from "./brandGeneration";
 import { analyzeCeoIntent } from "./ai/ceoIntent";
 import { planCeoExecution } from "./ai/ceoPlanner";
 import type { CeoExecutionPlan, CeoIntentResult } from "./ai/schemas";
+import { buildProductArtifacts } from "./product-builder/artifactWriter";
+import type { ProductKind } from "./product-builder/types";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -61,10 +63,13 @@ export interface CeoMessage {
 }
 
 export interface CeoAction {
-  type: "created_session" | "created_project" | "auto_started" | "delegated_task" | "created_invoice" | "approval_needed" | "review_ready";
+  type: "created_session" | "created_project" | "auto_started" | "delegated_task" | "created_invoice" | "approval_needed" | "review_ready" | "product_artifacts_created";
   label: string;
   targetId?: string;
   href?: string;
+  artifactPaths?: string[];
+  summary?: string;
+  kind?: ProductKind;
 }
 
 export interface CeoOverview {
@@ -338,6 +343,10 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
     design_review: "branding_pack",
   };
   return map[intent] ?? null;
+}
+
+function isProductBuilderRequest(requestType: CeoIntentResult["requestType"]): requestType is ProductKind {
+  return requestType === "saas" || requestType === "website" || requestType === "app";
 }
 
 function inferCompanyWorkspace(text: string, missionType: string, structured?: CeoIntentResult): { name: string; industry: string; description: string } {
@@ -676,6 +685,33 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
           targetId: session.sessionId,
           href: `/mission/${session.sessionId}`,
         });
+      }
+
+      if (isProductBuilderRequest(structuredIntent.requestType)) {
+        const canWriteArtifacts = process.env.NODE_ENV !== "test" || !!process.env.AI_COMPANY_PRODUCTS_DIR;
+        if (canWriteArtifacts) {
+          const productBuild = buildProductArtifacts({
+            requestText: text,
+            requestType: structuredIntent.requestType,
+            projectName,
+            brandName: structuredIntent.brandName,
+            industry: structuredIntent.industry,
+            targetUser: structuredIntent.targetUser,
+            goal: structuredIntent.goal,
+            constraints: structuredIntent.constraints,
+            coreFeatures: structuredIntent.coreFeatures,
+            language: structuredIntent.language,
+          });
+          actions.push({
+            type: "product_artifacts_created",
+            label: `Projet créé: ${productBuild.spec.name}`,
+            targetId: productBuild.spec.slug,
+            href: productBuild.projectPath,
+            kind: structuredIntent.requestType,
+            artifactPaths: productBuild.artifactPaths,
+            summary: productBuild.qualityGate.summary,
+          });
+        }
       }
     } catch {
       actions.push({ type: "created_session", label: "Erreur lors de la création de session" });

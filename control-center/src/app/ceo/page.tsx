@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, Moon, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, Files, FolderOpen, Moon, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 import { generateBrandBrief, generateLogoConcepts, type BrandBrief, type LogoConcept } from "@/lib/brandGeneration";
@@ -13,7 +13,18 @@ interface CeoMessage {
   role: "user" | "ceo";
   text: string;
   sessionId?: string;
+  actions?: CeoAction[];
   timestamp: string;
+}
+
+interface CeoAction {
+  type: string;
+  label: string;
+  targetId?: string;
+  href?: string;
+  artifactPaths?: string[];
+  summary?: string;
+  kind?: string;
 }
 
 interface CeoProject {
@@ -234,6 +245,14 @@ function activitySummary(sessions: AutopilotSession[], outputs: VisibleOutput[])
   return "Prêt à créer le premier concept.";
 }
 
+function latestProductAction(messages: CeoMessage[]): CeoAction | null {
+  for (const message of [...messages].reverse()) {
+    const action = message.actions?.find((item) => item.type === "product_artifacts_created" && item.artifactPaths?.length);
+    if (action) return action;
+  }
+  return null;
+}
+
 export default function CeoSimplePage() {
   const [messages, setMessages] = useState<CeoMessage[]>([]);
   const [projects, setProjects] = useState<CeoProject[]>([]);
@@ -289,6 +308,7 @@ export default function CeoSimplePage() {
   }, [messages.length, outputs.length, approvals.length]);
 
   const finalResult = useMemo(() => buildFinalResult(messages, companies, projects, sessions, outputs, approvals), [messages, companies, projects, sessions, outputs, approvals]);
+  const productAction = useMemo(() => latestProductAction(messages), [messages]);
   const visibleMessages = useMemo(() => messages.slice(-4).map((message) => ({ ...message, text: sanitizeMessage(message.text, message.role) })).filter((message) => message.text), [messages]);
   const simpleActivity = activitySummary(sessions, outputs);
 
@@ -451,6 +471,27 @@ export default function CeoSimplePage() {
           )}
         </AnimatePresence>
 
+        {productAction && (
+          <section className="product-artifact-card" aria-label="Projet créé">
+            <div className="product-artifact-head">
+              <span><FolderOpen size={15} /> Projet créé</span>
+              <strong>{productAction.label.replace(/^Projet créé:\s*/, "")}</strong>
+              <p>{productAction.summary ?? "Artifacts produit créés localement."}</p>
+            </div>
+            <details>
+              <summary><Files size={15} /> Voir les fichiers</summary>
+              <ul>
+                {productAction.artifactPaths?.slice(0, 10).map((artifact) => <li key={artifact}>{artifact}</li>)}
+              </ul>
+            </details>
+            <div className="product-artifact-actions">
+              <button type="button" onClick={() => setShowActivity(true)}>Ouvrir le workspace</button>
+              <button type="button" onClick={() => setShowActivity(true)}>Voir les fichiers</button>
+              <button type="button" onClick={() => document.querySelector<HTMLInputElement>(".ceo-composer input")?.focus()}>Continuer / Modifier</button>
+            </div>
+          </section>
+        )}
+
         <details className="activity-details" open={showActivity} onToggle={(event) => setShowActivity(event.currentTarget.open)}>
           <summary>Voir activité <ChevronDown size={14} /></summary>
           <div>
@@ -526,6 +567,7 @@ const styles = `
 }
 .ceo-chat,
 .final-result-card,
+.product-artifact-card,
 .activity-details,
 .ceo-composer {
   width: 100%;
@@ -607,6 +649,77 @@ const styles = `
   display: grid;
   gap: 18px;
   padding: clamp(16px, 3vw, 26px);
+}
+.product-artifact-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+.product-artifact-head {
+  display: grid;
+  gap: 7px;
+}
+.product-artifact-head span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.product-artifact-head strong {
+  color: var(--text);
+  font-size: 22px;
+  letter-spacing: -0.03em;
+}
+.product-artifact-head p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+.product-artifact-card details {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-soft);
+  padding: 12px;
+}
+.product-artifact-card summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+}
+.product-artifact-card ul {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.product-artifact-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.product-artifact-actions button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 850;
+  cursor: pointer;
+}
+.product-artifact-actions button:first-child {
+  border-color: transparent;
+  background: var(--accent);
+  color: white;
 }
 .final-result-head {
   display: flex;
