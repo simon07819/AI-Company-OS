@@ -7,7 +7,12 @@ const requiredAgents = [
   "brand_strategist",
   "logo_designer",
   "creative_director",
+  "ux_designer",
+  "web_designer",
+  "frontend_builder",
   "svg_illustrator",
+  "research_agent",
+  "browser_agent",
   "quality_director",
   "artifact_manager",
 ];
@@ -21,6 +26,7 @@ describe("agent registry", () => {
       expect(agent.mission.length).toBeGreaterThan(12);
       expect(agent.responsibilities.length).toBeGreaterThan(0);
       expect(agent.skills.length).toBeGreaterThan(0);
+      expect(agent.toolsAllowed.length).toBeGreaterThan(0);
       expect(agent.mustProduce.length).toBeGreaterThan(0);
       expect(agent.mustNeverDo.length).toBeGreaterThan(0);
       expect(agent.qualityChecklist.length).toBeGreaterThan(0);

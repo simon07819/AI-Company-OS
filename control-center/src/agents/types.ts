@@ -4,11 +4,25 @@ export type AgentRole =
   | "brand_strategist"
   | "creative_director"
   | "logo_designer"
+  | "ux_designer"
+  | "web_designer"
+  | "frontend_builder"
   | "svg_illustrator"
+  | "research_agent"
+  | "browser_agent"
   | "quality_director"
   | "artifact_manager";
 
-export type AgentSkillRun<Input = unknown, Output = unknown> = (input: Input) => Output;
+export interface AgentRunContext {
+  turnId: string;
+  missionId: string;
+  userPrompt: string;
+  conversationContext?: unknown;
+  previousDeliverable?: unknown;
+  mode: "simple" | "details";
+}
+
+export type AgentSkillRun<Input = unknown, Output = unknown> = (input: Input, context: AgentRunContext) => Promise<Output> | Output;
 
 export interface AgentSkill<Input = unknown, Output = unknown> {
   id: string;
@@ -26,6 +40,7 @@ export interface AgentMission {
   mission: string;
   responsibilities: string[];
   skills: string[];
+  toolsAllowed: string[];
   mustProduce: string[];
   mustNeverDo: string[];
   qualityChecklist: string[];
