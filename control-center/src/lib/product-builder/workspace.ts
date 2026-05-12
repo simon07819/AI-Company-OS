@@ -4,18 +4,22 @@ import { generatedProductsRoot } from "./artifactWriter";
 import type { ExecutionLedger, ProductArtifactManifest, ProductArtifactManifestVersion, ProductKind, ProductSpec, QualityGateResult } from "./types";
 import type { OutputQualityReport } from "@/lib/quality/outputQuality";
 
-type LooseManifest = Partial<ProductArtifactManifest> & {
+type LooseManifest = Omit<Partial<ProductArtifactManifest>, "requestType" | "kind"> & {
   artifacts?: { path: string; fake?: boolean }[];
-  kind?: ProductKind;
+  kind?: ProductKind | "branding" | "business-system" | "unknown";
+  requestType?: ProductKind | "branding" | "business-system" | "unknown";
   project?: string;
   generatedAt?: string;
+  qualityScore?: number;
+  revisionHistoryPath?: string;
+  finalSelectionPath?: string;
 };
 
 export interface GeneratedProjectSummary {
   id: string;
   slug: string;
   title: string;
-  requestType: ProductKind;
+  requestType: ProductKind | "branding" | "business-system" | "unknown";
   status: string;
   updatedAt: string;
   summary: string;
@@ -37,6 +41,8 @@ export interface GeneratedProjectWorkspace extends GeneratedProjectSummary {
   ledger: ExecutionLedger | null;
   qualityGate: QualityGateResult | null;
   outputQuality: OutputQualityReport | null;
+  revisionHistory: unknown[] | null;
+  finalSelection: unknown | null;
   preview: {
     title: string;
     body: string;
@@ -114,6 +120,8 @@ export function readGeneratedProject(slug: string): GeneratedProjectWorkspace | 
   const ledger = safeJson<ExecutionLedger>(path.join(projectDir, "execution-ledger.json"));
   const qualityGate = safeJson<QualityGateResult>(path.join(projectDir, "quality-report.json"));
   const outputQuality = safeJson<OutputQualityReport>(path.join(projectDir, "output-quality-report.json"));
+  const revisionHistory = safeJson<unknown[]>(path.join(projectDir, "revision-history.json"));
+  const finalSelection = safeJson<unknown>(path.join(projectDir, "final-selection.json"));
   const artifactPaths = (manifest.artifactPaths?.length ? manifest.artifactPaths : manifest.artifacts?.map((artifact) => artifact.path) ?? [])
     .map((artifactPath) => normalizeArtifactPath(projectDir, artifactPath));
   const title = manifest.title ?? manifest.project ?? productSpec?.name ?? slug;
@@ -146,6 +154,8 @@ export function readGeneratedProject(slug: string): GeneratedProjectWorkspace | 
     ledger,
     qualityGate,
     outputQuality,
+    revisionHistory,
+    finalSelection,
     preview: {
       title,
       body: readTextExcerpt(readmePath) || summary,

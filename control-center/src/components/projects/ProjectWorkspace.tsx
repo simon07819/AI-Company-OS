@@ -132,6 +132,15 @@ export default function ProjectWorkspace({ workspace }: { workspace: GeneratedPr
               ) : <p>Aucun ledger technique disponible.</p>}
             </article>
             <article className="os-card">
+              <h3>Quality report et révisions</h3>
+              <pre>{JSON.stringify({
+                qualityGate: workspace.qualityGate,
+                outputQuality: workspace.outputQuality,
+                revisionHistory: workspace.revisionHistory,
+                finalSelection: workspace.finalSelection,
+              }, null, 2)}</pre>
+            </article>
+            <article className="os-card">
               <h3>Raw outputs</h3>
               <pre>{JSON.stringify({
                 manifest: workspace.rawManifest,

@@ -110,6 +110,7 @@ describe("generated project workspaces", () => {
     await waitFor(() => expect(screen.getByText("Détails techniques")).toBeInTheDocument());
     expect(screen.getByText("projectId")).toBeInTheDocument();
     expect(screen.getByText("Ledger")).toBeInTheDocument();
+    expect(screen.getByText("Quality report et révisions")).toBeInTheDocument();
     expect(screen.getByText("Raw outputs")).toBeInTheDocument();
     expect(container.textContent ?? "").toContain("execution-ledger.json");
     expect(container.textContent ?? "").toContain("step-1");

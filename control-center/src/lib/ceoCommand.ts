@@ -22,7 +22,7 @@ import { generateBrandBrief } from "./brandGeneration";
 import { analyzeCeoIntent } from "./ai/ceoIntent";
 import { planCeoExecution } from "./ai/ceoPlanner";
 import type { CeoExecutionPlan, CeoIntentResult } from "./ai/schemas";
-import { buildProductArtifacts } from "./product-builder/artifactWriter";
+import { executeProductionMission } from "./orchestrator/missionExecutor";
 import type { ProductKind } from "./product-builder/types";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
@@ -69,7 +69,7 @@ export interface CeoAction {
   href?: string;
   artifactPaths?: string[];
   summary?: string;
-  kind?: ProductKind;
+  kind?: string;
   limitations?: string[];
   launchInstructions?: string[];
   qualityStatus?: string;
@@ -691,33 +691,22 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
         });
       }
 
-      if (isProductBuilderRequest(structuredIntent.requestType)) {
+      if (isProductBuilderRequest(structuredIntent.requestType) || structuredIntent.requestType === "logo" || structuredIntent.requestType === "branding") {
         const canWriteArtifacts = process.env.NODE_ENV !== "test" || !!process.env.AI_COMPANY_PRODUCTS_DIR;
         if (canWriteArtifacts) {
-          const productBuild = buildProductArtifacts({
-            requestText: text,
-            requestType: structuredIntent.requestType,
-            projectName,
-            brandName: structuredIntent.brandName,
-            industry: structuredIntent.industry,
-            targetUser: structuredIntent.targetUser,
-            goal: structuredIntent.goal,
-            constraints: structuredIntent.constraints,
-            coreFeatures: structuredIntent.coreFeatures,
-            language: structuredIntent.language,
-          });
+          const productionRun = executeProductionMission(text);
           actions.push({
             type: "product_artifacts_created",
-            label: `Projet créé: ${productBuild.spec.name}`,
-            targetId: productBuild.spec.slug,
-            href: productBuild.projectPath,
-            kind: structuredIntent.requestType,
-            artifactPaths: productBuild.artifactPaths,
-            summary: productBuild.qualityGate.summary,
-            limitations: productBuild.qualityGate.limits,
-            launchInstructions: productBuild.launchInstructions,
-            qualityStatus: productBuild.outputQuality.simpleLabel,
-            qualityScore: productBuild.outputQuality.score,
+            label: `Projet créé: ${productionRun.manifest.title}`,
+            targetId: productionRun.projectSlug,
+            href: `/projects/${productionRun.projectSlug}`,
+            kind: productionRun.plan.requestType,
+            artifactPaths: productionRun.manifest.artifactPaths,
+            summary: productionRun.manifest.summary,
+            limitations: productionRun.manifest.limitations,
+            launchInstructions: productionRun.manifest.launch,
+            qualityStatus: productionRun.status === "ready" ? "Prêt" : productionRun.status === "needs_revision" ? "À améliorer" : "Incomplet",
+            qualityScore: productionRun.manifest.qualityScore,
           });
         }
       }
