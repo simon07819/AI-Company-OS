@@ -64,7 +64,8 @@ describe("CEO command API", () => {
     expect(payload.title).toContain("ELEVIO");
     expect(JSON.stringify(payload)).not.toContain("Nouvelle Marque AI");
     expect(payload.requestType).toBe("branding");
-    expect(payload.artifactPaths.filter((artifactPath: string) => artifactPath.endsWith(".svg"))).toHaveLength(3);
+    expect(payload.artifactPaths.filter((artifactPath: string) => artifactPath.endsWith(".svg")).length).toBeGreaterThanOrEqual(3);
+    expect(payload.artifactPaths.some((artifactPath: string) => /final-logo\.svg$/.test(artifactPath))).toBe(true);
   });
 
   it("returns the requested logo deliverable for a bare EKIDA logo prompt", async () => {
@@ -79,6 +80,10 @@ describe("CEO command API", () => {
     expect(payload.title).toBe("Logo EKIDA");
     expect(payload.shortMessage).toBe("Voici une première version du logo EKIDA.");
     expect(payload.title).not.toContain("sur fond noir");
+    expect(payload.primaryVisualPath).toMatch(/final-logo\.svg$/);
+    expect(payload.primaryVisual).toContain("<svg");
+    expect(payload.primaryVisual).toContain("EKIDA");
+    expect(payload.expert.designTeam).toBeTruthy();
     expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
     expect(payload.title).not.toMatch(/Brand system/i);
   });

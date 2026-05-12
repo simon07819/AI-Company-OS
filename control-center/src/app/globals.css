@@ -5584,7 +5584,12 @@ html[data-theme="dark"] .ceo-os-result-details {
   width: 100%;
 }
 
-.ceo-logo-answer svg {
+.ceo-logo-answer-media {
+  width: 100%;
+}
+
+.ceo-logo-answer svg,
+.ceo-logo-answer-media svg {
   width: 100%;
   height: auto;
   max-height: min(56vh, 360px);

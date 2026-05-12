@@ -16,6 +16,7 @@ interface CommandResponse {
   deliverableType?: string;
   shortMessage?: string;
   primaryVisualPath?: string | null;
+  primaryVisual?: string | null;
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
   artifactPaths?: string[];
@@ -68,6 +69,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     deliverableType: payload.deliverableType,
     shortMessage: payload.shortMessage,
     primaryVisualPath: payload.primaryVisualPath,
+    primaryVisual: payload.primaryVisual,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
     artifactPaths: payload.artifactPaths ?? [],

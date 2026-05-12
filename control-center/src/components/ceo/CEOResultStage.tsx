@@ -112,7 +112,7 @@ export default function CEOResultStage({
         {hasArtifacts ? (
           <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
             {isBranding ? (
-              <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} />
+              <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
             ) : (
               <>
                 <strong>{result.title}</strong>

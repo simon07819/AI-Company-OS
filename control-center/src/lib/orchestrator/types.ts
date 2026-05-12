@@ -116,6 +116,8 @@ export interface ArtifactManifest {
   artifacts?: { path: string; fake: false }[];
   limitations?: string[];
   launch?: string[];
+  primaryVisualPath?: string;
+  designTeam?: unknown;
 }
 
 export interface FinalSelection {

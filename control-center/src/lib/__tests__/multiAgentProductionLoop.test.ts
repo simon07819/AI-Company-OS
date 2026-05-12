@@ -173,7 +173,9 @@ describe("multi-agent production loop", () => {
     expect(run.plan.brandName).toBe("ELEVIO");
     expect(run.status).not.toBe("running");
     expect(run.status).not.toBe("rejected");
-    expect(run.manifest.artifactPaths.filter((artifactPath) => artifactPath.endsWith(".svg"))).toHaveLength(3);
+    expect(run.manifest.artifactPaths.filter((artifactPath) => artifactPath.endsWith(".svg")).length).toBeGreaterThanOrEqual(3);
+    expect(run.manifest.artifactPaths.some((artifactPath) => /final-logo\.svg$/.test(artifactPath))).toBe(true);
+    expect(run.manifest.designTeam).toBeTruthy();
     expect(run.manifest.artifactPaths.every((artifactPath) => fs.existsSync(path.resolve(process.cwd(), artifactPath)))).toBe(true);
     expect(run.finalSelection?.readiness).toBe("ready");
     expect(run.tasks.every((task) => task.status !== "completed" || task.expert === "QualityDirector" || task.artifactPaths.length > 0 || task.title)).toBe(true);

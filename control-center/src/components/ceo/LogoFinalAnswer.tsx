@@ -5,7 +5,7 @@ function monogramFor(brandName: string) {
   return letters || "AI";
 }
 
-export default function LogoFinalAnswer({ brandName, darkBackground = false }: { brandName: string; darkBackground?: boolean }) {
+export default function LogoFinalAnswer({ brandName, darkBackground = false, svg }: { brandName: string; darkBackground?: boolean; svg?: string | null }) {
   const monogram = monogramFor(brandName);
   const bgStart = darkBackground ? "#05070b" : "#f8fafc";
   const bgEnd = darkBackground ? "#111827" : "#dbeafe";
@@ -16,6 +16,9 @@ export default function LogoFinalAnswer({ brandName, darkBackground = false }: {
 
   return (
     <div className="ceo-logo-answer" aria-label={`Visuel ${brandName}`}>
+      {svg ? (
+        <div className="ceo-logo-answer-media" aria-label={`Logo ${brandName}`} dangerouslySetInnerHTML={{ __html: svg }} />
+      ) : (
       <svg viewBox="0 0 520 320" role="img" aria-label={`Logo ${brandName}`}>
         <defs>
           <linearGradient id={`logo-${brandName}-bg`} x1="0" y1="0" x2="1" y2="1">
@@ -39,6 +42,7 @@ export default function LogoFinalAnswer({ brandName, darkBackground = false }: {
         <text x="220" y="154" fill={brandFill} fontSize="58" fontWeight="900" letterSpacing="2">{brandName}</text>
         <text x="222" y="192" fill={subFill} fontSize="19" fontWeight="800">{monogram}</text>
       </svg>
+      )}
     </div>
   );
 }

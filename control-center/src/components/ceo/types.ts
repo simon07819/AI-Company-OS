@@ -33,6 +33,7 @@ export interface CEOCurrentResult {
   deliverableType?: string;
   shortMessage?: string;
   primaryVisualPath?: string | null;
+  primaryVisual?: string | null;
   status: CEOMissionStatus;
   summary: string;
   artifactPaths: string[];

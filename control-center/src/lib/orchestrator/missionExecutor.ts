@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { generateBrandBrief } from "@/lib/brand-builder";
+import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 import { runBrandStrategist } from "@/lib/experts/BrandStrategist";
 import { runBusinessStrategist } from "@/lib/experts/BusinessStrategist";
 import { runCreativeDirector } from "@/lib/experts/CreativeDirector";
@@ -114,7 +115,20 @@ function createBrandingArtifacts(plan: MissionPlan) {
   fs.mkdirSync(projectDir, { recursive: true });
 
   const brief = generateBrandBrief(plan.sourcePrompt);
-  const directions = createLogoDirections(plan);
+  const designTeam = isLogoRequest(plan.sourcePrompt) ? runDesignTeamWorkflow(plan.sourcePrompt) : null;
+  const directions = designTeam ? designTeam.concepts.map((concept, index) => ({
+    id: concept.id,
+    label: ["A", "B", "C"][index] as "A" | "B" | "C",
+    title: concept.name,
+    brandName: plan.brandName ?? brief.brandName,
+    tagline: concept.visualDirection,
+    palette: brief.colorPalette,
+    typography: "Direction typographique définie par l'équipe design interne.",
+    rationale: concept.rationale,
+    keywords: concept.strengths,
+    layoutSignature: concept.id,
+    svg: concept.svg,
+  })) : createLogoDirections(plan);
   const initialOutputs: AgentOutput[] = [
     runBrandStrategist(plan),
     runCreativeDirector(plan),
@@ -129,6 +143,16 @@ function createBrandingArtifacts(plan: MissionPlan) {
     const relativePath = writeText(projectDir, fileName, direction.svg);
     artifactPaths.push(relativePath);
   }
+  if (designTeam) {
+    artifactPaths.push(writeText(projectDir, "final-logo.svg", designTeam.primaryVisual));
+    artifactPaths.push(writeJson(projectDir, "design-team-workflow.json", {
+      brief: designTeam.brief,
+      concepts: designTeam.concepts.map(({ svg: _svg, ...concept }) => concept),
+      artDirectorNotes: designTeam.artDirectorNotes,
+      selectedConcept: { ...designTeam.selectedConcept, svg: undefined },
+      visibleOutput: { ...designTeam.visibleOutput, primaryVisual: "[inline-svg]" },
+    }));
+  }
   const visualOutput: AgentOutput = {
     id: `${plan.id}-visual-artifacts`,
     missionId: plan.id,
@@ -138,7 +162,7 @@ function createBrandingArtifacts(plan: MissionPlan) {
     summary: `${directions.length} prototypes SVG distincts créés pour ${plan.brandName ?? "la marque"}.`,
     content: JSON.stringify(directions.map(({ svg: _svg, ...direction }) => direction), null, 2),
     artifactPaths,
-    metadata: { directions, layoutSignature: "multi-direction-brand-system" },
+    metadata: { directions, designTeam, layoutSignature: designTeam ? "design-team-selected-visual" : "multi-direction-brand-system" },
   };
   let report = scoreProductionOutput(plan, [...initialOutputs, visualOutput], artifactPaths);
   const loop = runRevisionLoop({
@@ -190,6 +214,13 @@ function createBrandingArtifacts(plan: MissionPlan) {
     artifacts: allArtifacts.map((artifactPath) => ({ path: artifactPath, fake: false as const })),
     limitations: ["Prototype visuel SVG/CSS seulement.", "Aucune image finale bitmap générée.", "Génération finale à brancher via NVIDIA adapter."],
     launch: ["Ouvrir les fichiers SVG dans le workspace projet."],
+    primaryVisualPath: designTeam ? path.relative(process.cwd(), path.join(projectDir, "final-logo.svg")) : undefined,
+    designTeam: designTeam ? {
+      brief: designTeam.brief,
+      selectedConcept: { ...designTeam.selectedConcept, svg: undefined },
+      artDirectorNotes: designTeam.artDirectorNotes,
+      conceptCount: designTeam.concepts.length,
+    } : undefined,
   };
   const manifestPath = writeJson(projectDir, "artifact-manifest.json", manifest);
   const finalArtifacts = Array.from(new Set([...allArtifacts, manifestPath]));

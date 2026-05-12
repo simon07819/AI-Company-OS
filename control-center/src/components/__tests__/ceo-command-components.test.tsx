@@ -136,6 +136,7 @@ describe("CEO command components", () => {
         brandName: "EKIDA",
         deliverableType: "logo",
         shortMessage: "Voici une première version du logo EKIDA.",
+        primaryVisual: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Logo EKIDA"><rect width="900" height="560" fill="#030712"/><path d="M100 100h120v120H100z" fill="#22C55E"/><text x="300" y="280">EKIDA</text><text x="120" y="300">EK</text></svg>`,
         summary: "Prototype visuel pour EKIDA.",
         artifactPaths: ["generated-products/logo-ekida/logo-concept-a.svg"],
         workspaceHref: "/projects/logo-ekida",
@@ -157,6 +158,8 @@ describe("CEO command components", () => {
     expect(screen.queryByText(/Marque à nommer/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Prototype visuel/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^A$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^B$/)).not.toBeInTheDocument();
     expect(screen.queryByText("84/100")).not.toBeInTheDocument();
     expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();

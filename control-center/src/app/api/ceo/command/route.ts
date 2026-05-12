@@ -13,7 +13,16 @@ function artifactExists(artifactPath: string) {
 }
 
 function firstVisualArtifact(artifactPaths: string[]) {
-  return artifactPaths.find((artifactPath) => /\.svg$/i.test(artifactPath)) ?? null;
+  return artifactPaths.find((artifactPath) => /final-logo\.svg$/i.test(artifactPath))
+    ?? artifactPaths.find((artifactPath) => /\.svg$/i.test(artifactPath))
+    ?? null;
+}
+
+function readTextArtifact(artifactPath: string | null) {
+  if (!artifactPath) return null;
+  const absolute = path.isAbsolute(artifactPath) ? artifactPath : path.resolve(process.cwd(), artifactPath);
+  if (!fs.existsSync(absolute)) return null;
+  return fs.readFileSync(absolute, "utf-8");
 }
 
 export async function POST(req: NextRequest) {
@@ -35,7 +44,10 @@ export async function POST(req: NextRequest) {
     const missingArtifacts = run.manifest.artifactPaths.filter((artifactPath) => !artifactExists(artifactPath));
     const workspace = readGeneratedProject(run.projectSlug);
     const hasArtifacts = artifactPaths.length > 0;
-    const primaryVisualPath = firstVisualArtifact(artifactPaths);
+    const primaryVisualPath = typeof run.manifest.primaryVisualPath === "string" && artifactExists(run.manifest.primaryVisualPath)
+      ? run.manifest.primaryVisualPath
+      : firstVisualArtifact(artifactPaths);
+    const primaryVisual = readTextArtifact(primaryVisualPath);
 
     if (!hasArtifacts) {
       return NextResponse.json({
@@ -70,6 +82,7 @@ export async function POST(req: NextRequest) {
         ? `Voici une première version du logo ${run.plan.brandName}.`
         : undefined,
       primaryVisualPath,
+      primaryVisual,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
         path: artifactPath,
@@ -87,6 +100,7 @@ export async function POST(req: NextRequest) {
         qualityReport: run.qualityReports.at(-1) ?? null,
         revisions: run.revisions,
         manifest: run.manifest,
+        designTeam: run.manifest.designTeam ?? null,
       },
     });
   } catch (error) {
