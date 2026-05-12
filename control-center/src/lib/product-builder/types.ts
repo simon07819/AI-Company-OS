@@ -19,6 +19,7 @@ export interface ProductSpec {
   slug: string;
   kind: ProductKind;
   name: string;
+  domain: string;
   industry: string;
   targetUser: string;
   goal: string;
@@ -78,4 +79,5 @@ export interface ProductBuildResult {
   artifactPaths: string[];
   ledger: ExecutionLedger;
   qualityGate: QualityGateResult;
+  launchInstructions: string[];
 }

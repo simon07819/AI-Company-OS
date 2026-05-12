@@ -25,6 +25,8 @@ interface CeoAction {
   artifactPaths?: string[];
   summary?: string;
   kind?: string;
+  limitations?: string[];
+  launchInstructions?: string[];
 }
 
 interface CeoProject {
@@ -484,6 +486,18 @@ export default function CeoSimplePage() {
                 {productAction.artifactPaths?.slice(0, 10).map((artifact) => <li key={artifact}>{artifact}</li>)}
               </ul>
             </details>
+            {productAction.launchInstructions?.length ? (
+              <div className="product-launch-box">
+                <strong>Comment lancer</strong>
+                <code>{productAction.launchInstructions.join(" && ")}</code>
+              </div>
+            ) : null}
+            {productAction.limitations?.length ? (
+              <div className="product-limitations">
+                <strong>Limites actuelles</strong>
+                <span>{productAction.limitations.slice(0, 2).join(" ")}</span>
+              </div>
+            ) : null}
             <div className="product-artifact-actions">
               <button type="button" onClick={() => setShowActivity(true)}>Ouvrir le workspace</button>
               <button type="button" onClick={() => setShowActivity(true)}>Voir les fichiers</button>
@@ -700,6 +714,33 @@ const styles = `
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 1.7;
+}
+.product-launch-box,
+.product-limitations {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.5);
+  padding: 12px;
+}
+.product-launch-box strong,
+.product-limitations strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 900;
+}
+.product-launch-box code {
+  width: 100%;
+  overflow-x: auto;
+  color: var(--text-2);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.product-limitations span {
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
 }
 .product-artifact-actions {
   display: flex;

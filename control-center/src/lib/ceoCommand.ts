@@ -70,6 +70,8 @@ export interface CeoAction {
   artifactPaths?: string[];
   summary?: string;
   kind?: ProductKind;
+  limitations?: string[];
+  launchInstructions?: string[];
 }
 
 export interface CeoOverview {
@@ -710,6 +712,8 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
             kind: structuredIntent.requestType,
             artifactPaths: productBuild.artifactPaths,
             summary: productBuild.qualityGate.summary,
+            limitations: productBuild.qualityGate.limits,
+            launchInstructions: productBuild.launchInstructions,
           });
         }
       }

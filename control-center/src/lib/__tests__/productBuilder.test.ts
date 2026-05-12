@@ -38,6 +38,56 @@ describe("AI Product Builder", () => {
     expect(fs.existsSync(path.join(projectDir, "next-app", "package.json"))).toBe(true);
   });
 
+  it("generates domain-aware gym SaaS routes and mock data", () => {
+    const result = buildProductArtifacts({
+      requestText: "je veux un SaaS pour gérer des gyms",
+      requestType: "saas",
+    });
+    const projectDir = path.join(root, result.spec.slug);
+    const mockData = fs.readFileSync(path.join(projectDir, "next-app", "lib", "mockData.ts"), "utf-8");
+
+    expect(fs.existsSync(path.join(projectDir, "next-app", "app", "members", "page.tsx"))).toBe(true);
+    expect(fs.existsSync(path.join(projectDir, "next-app", "app", "classes", "page.tsx"))).toBe(true);
+    expect(mockData).toContain("Active members");
+    expect(mockData).toContain("HIIT");
+  });
+
+  it("generates domain-aware clinic SaaS routes and mock data", () => {
+    const result = buildProductArtifacts({
+      requestText: "Je veux un SaaS pour gérer les rendez-vous d'une clinique",
+      requestType: "saas",
+    });
+    const projectDir = path.join(root, result.spec.slug);
+    const spec = JSON.parse(fs.readFileSync(path.join(projectDir, "product-spec.json"), "utf-8")) as { domain: string; features: string[]; routes: string[] };
+    const mockData = fs.readFileSync(path.join(projectDir, "next-app", "lib", "mockData.ts"), "utf-8");
+
+    expect(spec.domain).toBe("clinic");
+    expect(spec.features).toEqual(expect.arrayContaining(["patients", "rendez-vous", "praticiens", "facturation"]));
+    expect(spec.routes).toEqual(expect.arrayContaining(["/patients", "/appointments", "/practitioners", "/billing"]));
+    expect(fs.existsSync(path.join(projectDir, "next-app", "app", "patients", "page.tsx"))).toBe(true);
+    expect(fs.existsSync(path.join(projectDir, "next-app", "app", "appointments", "page.tsx"))).toBe(true);
+    expect(mockData).toContain("Appointments today");
+    expect(mockData).toContain("Dental hygiene");
+  });
+
+  it("writes launch commands and a complete non-fake artifact manifest", () => {
+    const result = buildProductArtifacts({
+      requestText: "Je veux un SaaS pour gérer les rendez-vous d'une clinique",
+      requestType: "saas",
+    });
+    const projectDir = path.join(root, result.spec.slug);
+    const readme = fs.readFileSync(path.join(projectDir, "README.md"), "utf-8");
+    const manifest = JSON.parse(fs.readFileSync(path.join(projectDir, "artifact-manifest.json"), "utf-8")) as { artifacts: { path: string; fake: boolean }[]; launch: string[] };
+
+    expect(readme).toContain("cd next-app");
+    expect(readme).toContain("npm install");
+    expect(readme).toContain("npm run dev");
+    expect(manifest.launch).toEqual(["cd next-app", "npm install", "npm run dev"]);
+    expect(manifest.artifacts.map((artifact) => artifact.path).join("\n")).toContain("next-app/app/dashboard/page.tsx");
+    expect(manifest.artifacts.map((artifact) => artifact.path).join("\n")).toContain("artifact-manifest.json");
+    expect(manifest.artifacts.every((artifact) => artifact.fake === false)).toBe(true);
+  });
+
   it("records artifact paths for every completed ledger step", () => {
     const result = buildProductArtifacts({
       requestText: "je veux un SaaS pour gérer des gyms",
