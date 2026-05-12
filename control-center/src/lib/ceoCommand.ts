@@ -72,6 +72,8 @@ export interface CeoAction {
   kind?: ProductKind;
   limitations?: string[];
   launchInstructions?: string[];
+  qualityStatus?: string;
+  qualityScore?: number;
 }
 
 export interface CeoOverview {
@@ -714,6 +716,8 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
             summary: productBuild.qualityGate.summary,
             limitations: productBuild.qualityGate.limits,
             launchInstructions: productBuild.launchInstructions,
+            qualityStatus: productBuild.outputQuality.simpleLabel,
+            qualityScore: productBuild.outputQuality.score,
           });
         }
       }

@@ -7,6 +7,8 @@ import { createSaasBlueprint } from "./saasBlueprint";
 import { validateGeneratedProduct } from "./qualityGate";
 import { createWebsiteBlueprint } from "./websiteBlueprint";
 import type { ProductBuildResult, ProductBuilderInput, ProductFile, ProductKind, ProductSpec, WrittenArtifact } from "./types";
+import { evaluateProductQuality } from "@/lib/quality/productQualityRubric";
+import { writeValidationReport } from "@/lib/quality/validationReport";
 
 export function generatedProductsRoot(): string {
   return path.resolve(process.env.AI_COMPANY_PRODUCTS_DIR ?? path.join(process.cwd(), "generated-products"));
@@ -103,13 +105,16 @@ export function buildProductArtifacts(input: ProductBuilderInput): ProductBuildR
   ledger = startLedgerStep(ledger, "step-4");
   ledger = completeLedgerStep(ledger, "step-4", [path.relative(process.cwd(), qualityReportPath)], qualityGate.summary);
   const ledgerPath = writeExecutionLedger(projectDir, ledger);
+  const outputQuality = evaluateProductQuality({ projectDir, spec });
+  const outputQualityPath = writeValidationReport(projectDir, outputQuality);
 
   return {
     spec,
     projectPath: path.relative(process.cwd(), projectDir),
-    artifactPaths: [...written.map((artifact) => artifact.relativePath), manifestPath, path.relative(process.cwd(), qualityReportPath), path.relative(process.cwd(), ledgerPath)],
+    artifactPaths: [...written.map((artifact) => artifact.relativePath), manifestPath, path.relative(process.cwd(), outputQualityPath), path.relative(process.cwd(), qualityReportPath), path.relative(process.cwd(), ledgerPath)],
     ledger,
     qualityGate,
+    outputQuality,
     launchInstructions: ["cd next-app", "npm install", "npm run dev"],
   };
 }

@@ -27,6 +27,8 @@ interface CeoAction {
   kind?: string;
   limitations?: string[];
   launchInstructions?: string[];
+  qualityStatus?: string;
+  qualityScore?: number;
 }
 
 interface CeoProject {
@@ -478,6 +480,7 @@ export default function CeoSimplePage() {
             <div className="product-artifact-head">
               <span><FolderOpen size={15} /> Projet créé</span>
               <strong>{productAction.label.replace(/^Projet créé:\s*/, "")}</strong>
+              {productAction.qualityStatus && <em className="product-quality-pill">{productAction.qualityStatus}</em>}
               <p>{productAction.summary ?? "Artifacts produit créés localement."}</p>
             </div>
             <details>
@@ -691,6 +694,19 @@ const styles = `
   margin: 0;
   color: var(--text-2);
   font-size: 14px;
+}
+.product-quality-pill {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(47,143,97,0.22);
+  border-radius: 999px;
+  background: rgba(47,143,97,0.1);
+  color: var(--green);
+  padding: 5px 9px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
 }
 .product-artifact-card details {
   border: 1px solid var(--border);

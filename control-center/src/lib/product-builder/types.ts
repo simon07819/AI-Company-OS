@@ -79,5 +79,6 @@ export interface ProductBuildResult {
   artifactPaths: string[];
   ledger: ExecutionLedger;
   qualityGate: QualityGateResult;
+  outputQuality: import("@/lib/quality/outputQuality").OutputQualityReport;
   launchInstructions: string[];
 }
