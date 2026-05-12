@@ -55,7 +55,7 @@ describe("CEO command components", () => {
     expect(screen.getByRole("button", { name: "Construire" })).toBeDisabled();
   });
 
-  it("renders artifacts, actions and workspace link in the result stage", () => {
+  it("renders a final-answer-first result with details hidden by default", () => {
     const { container } = render(React.createElement(CEOResultStage, {
       result,
       mission,
@@ -66,14 +66,19 @@ describe("CEO command components", () => {
       onContinue: vi.fn(),
     }));
 
-    expect(screen.getByRole("heading", { name: "Clinic appointments SaaS" })).toBeInTheDocument();
+    expect(screen.getByText("Le projet est prêt en première version.")).toBeInTheDocument();
+    expect(screen.getByText("Clinic appointments SaaS")).toBeInTheDocument();
+    expect(screen.queryByText("README.md")).not.toBeInTheDocument();
+    expect(screen.queryByText("product-spec.json")).not.toBeInTheDocument();
+    expect(screen.queryByText("88/100")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-saas");
+    expect(screen.getByRole("button", { name: /Voir détails/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.getByText("product-spec.json")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-saas");
-    expect(screen.getByRole("button", { name: /Voir fichiers/ })).not.toBeDisabled();
     expect(screen.queryByText(/raw output|runtime id|sessionId/i)).not.toBeInTheDocument();
-    expect(container.querySelector(".ceo-os-result-stage")).not.toHaveClass("text-white");
-    expect(container.querySelector(".ceo-os-result-stage")).not.toHaveClass("text-slate-50");
+    expect(container.querySelector(".ceo-os-conversation")).not.toHaveClass("text-white");
+    expect(container.querySelector(".ceo-os-conversation")).not.toHaveClass("text-slate-50");
   });
 
   it("does not fake success when artifacts are missing", () => {
@@ -87,9 +92,10 @@ describe("CEO command components", () => {
       onContinue: vi.fn(),
     }));
 
-    expect(screen.getByText("Aucun artifact réel créé.")).toBeInTheDocument();
+    expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /Ouvrir workspace/ })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Voir fichiers/ })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("Aucun artifact réel créé")).toBeInTheDocument();
   });
 
   it("shows quality report only in expert mode", () => {
@@ -115,6 +121,8 @@ describe("CEO command components", () => {
       onContinue: vi.fn(),
     }));
 
-    expect(screen.getByText("Mode expert · plan, qualité et révisions")).toBeInTheDocument();
+    expect(screen.queryByText(/Mode expert/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("Mode expert")).toBeInTheDocument();
   });
 });

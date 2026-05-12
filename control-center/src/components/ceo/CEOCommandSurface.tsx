@@ -1,11 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { useOptionalViewMode } from "@/components/os/ViewModeProvider";
 import CEOCommandComposer from "./CEOCommandComposer";
-import CEOMissionStatus from "./CEOMissionStatus";
 import CEOResultStage from "./CEOResultStage";
 import type { CEOActionResult, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
@@ -192,7 +190,7 @@ export default function CEOCommandSurface() {
     };
   }, []);
 
-  const historyItems = useMemo(() => history.filter(Boolean).slice(-3).reverse(), [history]);
+  const currentPrompt = useMemo(() => history.filter(Boolean).at(-1) ?? "", [history]);
 
   const submitCommand = async (prompt: string) => {
     const requestType = detectRequestType(prompt);
@@ -257,14 +255,12 @@ export default function CEOCommandSurface() {
 
         <section className="ceo-os-hero">
           <div>
-            <div className="ceo-os-eyebrow"><Sparkles size={14} /> Command Center</div>
+            <div className="ceo-os-eyebrow"><Sparkles size={14} /> Conversation CEO</div>
             <h1>Décris ce que tu veux construire.</h1>
-            <p>Le CEO comprend la demande, route les experts, génère des artifacts réels et refuse les faux succès.</p>
+            <p>Pose une demande. Le CEO répond ici avec le résultat final utile, sans exposer le procédé.</p>
           </div>
           <CEOCommandComposer loading={loading} onSubmit={submitCommand} />
         </section>
-
-        <CEOMissionStatus mission={mission} />
 
         <CEOResultStage
           result={result}
@@ -276,20 +272,7 @@ export default function CEOCommandSurface() {
           onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
         />
 
-        {historyItems.length > 0 && (
-          <details className="ceo-os-history">
-            <summary>Historique compact</summary>
-            <div>
-              {historyItems.map((item) => <span key={item}>{item}</span>)}
-            </div>
-          </details>
-        )}
-
-        <div className="ceo-os-footer-links">
-          <Link href="/projects">Projets</Link>
-          <Link href="/outputs">Résultats</Link>
-          <Link href="/ceo/expert">Vue CEO expert</Link>
-        </div>
+        {!result && !loading && currentPrompt && <p className="ceo-os-current-note">Dernière demande prête: {currentPrompt}</p>}
       </section>
     </main>
   );

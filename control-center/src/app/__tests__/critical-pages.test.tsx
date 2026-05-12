@@ -179,7 +179,7 @@ describe("critical Control Center pages", () => {
   it("renders CEO simple agency conversation", async () => {
     render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText(/Command Center/)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/Conversation CEO/)).length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
   });
 
@@ -189,7 +189,7 @@ describe("critical Control Center pages", () => {
     expect((await screen.findAllByText("CEO Cockpit")).length).toBeGreaterThan(0);
   });
 
-  it("renders submitted ELEVIO branding as a clean artifact result", async () => {
+  it("renders submitted ELEVIO branding as a simple final CEO answer", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
       if (String(url).includes("/api/ceo/command")) {
         return Promise.resolve({ ok: true, json: () => Promise.resolve({
@@ -212,11 +212,14 @@ describe("critical Control Center pages", () => {
     fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    expect(await screen.findByRole("heading", { name: "ELEVIO brand system" })).toBeInTheDocument();
+    expect(await screen.findByText("ELEVIO")).toBeInTheDocument();
     expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
-    expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
+    expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
+    expect(screen.queryByText("90/100")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });
 
   it("keeps CEO simple view final-result-first and free of stale technical content", async () => {

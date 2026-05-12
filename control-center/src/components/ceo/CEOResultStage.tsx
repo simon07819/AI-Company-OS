@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, CheckCircle2, FileText, FolderOpen, GitBranch, Layers3, RefreshCw, Wand2 } from "lucide-react";
+import { AlertTriangle, FolderOpen, Info, Wand2 } from "lucide-react";
+import { useState } from "react";
+import CEOResultDetails from "./CEOResultDetails";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function projectTypeLabel(type?: string) {
@@ -13,18 +15,27 @@ function projectTypeLabel(type?: string) {
   return "Projet";
 }
 
-function statusLabel(status: CEOCurrentResult["status"]) {
-  if (status === "ready") return "Prêt";
-  if (status === "needs_revision") return "À améliorer";
-  if (status === "rejected") return "Aucun succès";
-  if (status === "production") return "Production";
-  if (status === "validation") return "Validation";
-  if (status === "error") return "Erreur";
-  return "Préparation";
+function responseIntro(result: CEOCurrentResult) {
+  if (!result.artifactPaths.length) return "Je n’ai pas encore produit un résultat exploitable.";
+  if (result.requestType === "branding" || result.requestType === "logo") {
+    return "Voici une première direction visuelle.";
+  }
+  if (result.requestType === "website") return "J’ai préparé une première version du site.";
+  if (result.requestType === "saas") return "Le projet est prêt en première version.";
+  if (result.requestType === "app") return "J’ai préparé une première version de l’app.";
+  return "J’ai préparé un premier résultat exploitable.";
 }
 
-function artifactName(artifactPath: string) {
-  return artifactPath.replace(/^generated-products\/[^/]+\//, "");
+function brandNameFromTitle(title: string) {
+  return title.replace(/\s+(brand system|logo concept|branding)$/i, "").trim() || title;
+}
+
+function primaryArtifactLabel(result: CEOCurrentResult) {
+  if (!result.artifactPaths.length) return "Aucun fichier exploitable";
+  if (result.requestType === "branding" || result.requestType === "logo") return "Prototype visuel";
+  if (result.requestType === "website") return "Structure de site créée";
+  if (result.requestType === "saas") return "Starter produit créé";
+  return "Artifact principal créé";
 }
 
 export default function CEOResultStage({
@@ -34,7 +45,6 @@ export default function CEOResultStage({
   loading,
   error,
   onModify,
-  onContinue,
 }: {
   result: CEOCurrentResult | null;
   mission: CEOCurrentMission | null;
@@ -44,111 +54,124 @@ export default function CEOResultStage({
   onModify: () => void;
   onContinue: () => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
     return (
-      <section className="ceo-os-result-stage active" aria-label="Result Stage">
-        <div className="ceo-os-stage-orbit" />
-        <div className="ceo-os-stage-empty">
-          <span className="ceo-os-stage-kicker">Production en cours</span>
-          <h2>{mission?.prompt ?? "Nouvelle mission"}</h2>
-          <p>Le CEO prépare le plan, route les experts, crée les artifacts et lance la validation qualité.</p>
-          <div className="ceo-os-progress-line"><i /></div>
-        </div>
+      <section className="ceo-os-conversation" aria-label="Conversation CEO">
+        {mission?.prompt && (
+          <article className="ceo-os-bubble user">
+            <span>Toi</span>
+            <p>{mission.prompt}</p>
+          </article>
+        )}
+        <article className="ceo-os-bubble ceo">
+          <span>CEO AI</span>
+          <p>Je prépare le résultat.</p>
+          <div className="ceo-os-thinking" aria-label="Production en cours"><i /><i /><i /></div>
+        </article>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="ceo-os-result-stage error" aria-label="Result Stage">
-        <div className="ceo-os-stage-empty">
-          <AlertTriangle size={24} />
-          <span className="ceo-os-stage-kicker">Erreur</span>
-          <h2>La mission n’a pas pu être produite.</h2>
-          <p>{error}</p>
-        </div>
+      <section className="ceo-os-conversation" aria-label="Conversation CEO">
+        {mission?.prompt && (
+          <article className="ceo-os-bubble user">
+            <span>Toi</span>
+            <p>{mission.prompt}</p>
+          </article>
+        )}
+        <article className="ceo-os-bubble ceo error">
+          <span>CEO AI</span>
+          <p>Impossible de créer le projet. Détail disponible en mode expert.</p>
+          <small>{error}</small>
+        </article>
       </section>
     );
   }
 
   if (!result) {
     return (
-      <section className="ceo-os-result-stage" aria-label="Result Stage">
-        <div className="ceo-os-stage-orbit" />
-        <div className="ceo-os-stage-empty">
-          <span className="ceo-os-stage-kicker">CEO AI</span>
+      <section className="ceo-os-conversation empty" aria-label="Conversation CEO">
+        <article className="ceo-os-empty-card">
+          <span>CEO AI</span>
           <h2>Prêt à construire.</h2>
-          <p>Décris une compagnie, un SaaS, un site, une app ou un système business. Aucun résultat fictif ne sera affiché.</p>
-        </div>
+          <p>Écris ce que tu veux créer. Je répondrai ici avec le résultat final utile.</p>
+        </article>
       </section>
     );
   }
 
   const hasArtifacts = result.artifactPaths.length > 0;
-  const visibleArtifacts = result.artifactPaths.slice(0, 8);
+  const isBranding = result.requestType === "branding" || result.requestType === "logo";
 
   return (
-    <section className="ceo-os-result-stage ready" aria-label="Result Stage">
-      <div className="ceo-os-result-head">
-        <div>
-          <span className="ceo-os-stage-kicker">{projectTypeLabel(result.requestType)} · {statusLabel(result.status)}</span>
-          <h2>{result.title}</h2>
-          <p>{result.summary}</p>
-        </div>
-        <div className={`ceo-os-quality ${hasArtifacts ? "ok" : "bad"}`}>
-          {hasArtifacts ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-          <span>{hasArtifacts ? result.qualityStatus ?? "Artifacts réels" : "Aucun artifact réel créé"}</span>
-          {typeof result.qualityScore === "number" && <strong>{result.qualityScore}/100</strong>}
-        </div>
-      </div>
-
-      {hasArtifacts ? (
-        <div className="ceo-os-artifact-grid">
-          {visibleArtifacts.map((artifact) => (
-            <article key={artifact}>
-              <FileText size={15} />
-              <span>{artifactName(artifact)}</span>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <div className="ceo-os-no-artifacts">
-          <AlertTriangle size={18} />
-          <strong>Aucun artifact réel créé.</strong>
-          <span>Le système ne marquera pas cette mission comme prête tant qu’aucun fichier traçable n’existe.</span>
-        </div>
+    <section className="ceo-os-conversation" aria-label="Conversation CEO">
+      {mission?.prompt && (
+        <article className="ceo-os-bubble user">
+          <span>Toi</span>
+          <p>{mission.prompt}</p>
+        </article>
       )}
 
-      <div className="ceo-os-next-actions">
-        <strong>Prochaines actions</strong>
-        <span>{hasArtifacts ? "Ouvre le workspace, inspecte les fichiers, puis continue ou modifie le projet." : "Raffine la demande ou relance une production."}</span>
-      </div>
+      <article className={`ceo-os-bubble ceo ${hasArtifacts ? "ready" : "failed"}`}>
+        <span>CEO AI</span>
+        <p>{responseIntro(result)}</p>
 
-      <div className="ceo-os-result-actions">
-        {result.workspaceHref ? (
-          <Link className="primary" href={result.workspaceHref}><FolderOpen size={15} /> Ouvrir workspace</Link>
+        {hasArtifacts ? (
+          <div className={isBranding ? "ceo-os-final-preview brand" : "ceo-os-final-preview product"}>
+            <em>{projectTypeLabel(result.requestType)}</em>
+            {isBranding ? (
+              <>
+                <div className="ceo-os-logo-prototype" aria-label="Prototype visuel">
+                  <i>{brandNameFromTitle(result.title).slice(0, 1).toUpperCase()}</i>
+                  <strong>{brandNameFromTitle(result.title)}</strong>
+                  <small>Prototype visuel</small>
+                </div>
+                <p>{result.summary}</p>
+              </>
+            ) : (
+              <>
+                <strong>{result.title}</strong>
+                <p>{result.summary}</p>
+                <small>{primaryArtifactLabel(result)}</small>
+              </>
+            )}
+          </div>
         ) : (
-          <button type="button" disabled><FolderOpen size={15} /> Ouvrir workspace</button>
+          <div className="ceo-os-final-preview failed">
+            <AlertTriangle size={18} />
+            <strong>Je n’ai pas encore produit un résultat exploitable.</strong>
+            <p>{result.summary}</p>
+          </div>
         )}
-        <button type="button" disabled={!hasArtifacts}><Layers3 size={15} /> Voir fichiers</button>
-        <button type="button" onClick={onModify}><Wand2 size={15} /> Modifier</button>
-        <button type="button" onClick={onContinue}><RefreshCw size={15} /> Continuer</button>
-        <button type="button" disabled={!hasArtifacts}><GitBranch size={15} /> Exporter</button>
-      </div>
 
-      {expertMode && (
-        <details className="ceo-os-expert-panel">
-          <summary>Mode expert · plan, qualité et révisions</summary>
-          <pre>{JSON.stringify({
-            mission,
-            plan: result.expert?.plan,
-            qualityReport: result.expert?.qualityReport,
-            revisions: result.expert?.revisions,
-            manifest: result.expert?.manifest,
-            runtime: result.expert?.runtime,
-          }, null, 2)}</pre>
-        </details>
-      )}
+        <div className="ceo-os-minimal-actions">
+          <button type="button" onClick={onModify}>
+            <Wand2 size={15} />
+            Modifier
+          </button>
+          {result.workspaceHref ? (
+            <Link href={result.workspaceHref}>
+              <FolderOpen size={15} />
+              Ouvrir workspace
+            </Link>
+          ) : (
+            <button type="button" disabled>
+              <FolderOpen size={15} />
+              Ouvrir workspace
+            </button>
+          )}
+          <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
+            <Info size={15} />
+            Voir détails
+          </button>
+        </div>
+
+        {detailsOpen && <CEOResultDetails result={result} mission={mission} expertMode={expertMode} />}
+      </article>
     </section>
   );
 }

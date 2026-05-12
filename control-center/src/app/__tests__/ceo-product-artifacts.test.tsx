@@ -57,9 +57,12 @@ describe("CEO command surface flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
     await waitFor(() => expect(input).toHaveValue(""));
-    expect(await screen.findByRole("heading", { name: "Clinic appointments SaaS" })).toBeInTheDocument();
-    expect(screen.getByText("README.md")).toBeInTheDocument();
+    expect(await screen.findByText("Clinic appointments SaaS")).toBeInTheDocument();
+    expect(screen.queryByText("README.md")).not.toBeInTheDocument();
+    expect(screen.queryByText("91/100")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-appointments-saas");
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
   });
@@ -93,13 +96,13 @@ describe("CEO command surface flow", () => {
     const input = await screen.findByPlaceholderText("Décris ce que tu veux construire...");
     fireEvent.change(input, { target: { value: "Je veux un site web premium pour une entreprise de construction" } });
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
-    expect(await screen.findByRole("heading", { name: "Construction Website" })).toBeInTheDocument();
+    expect(await screen.findByText("Construction Website")).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: "Je veux un SaaS pour gérer les rendez-vous d'une clinique" } });
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    await waitFor(() => expect(screen.queryByRole("heading", { name: "Construction Website" })).not.toBeInTheDocument());
-    expect(await screen.findByRole("heading", { name: "Clinic appointments SaaS" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Construction Website")).not.toBeInTheDocument());
+    expect(await screen.findByText("Clinic appointments SaaS")).toBeInTheDocument();
   });
 
   it("does not show fake success when no artifacts are returned", async () => {
@@ -125,7 +128,7 @@ describe("CEO command surface flow", () => {
     fireEvent.change(input, { target: { value: "Je veux un système vague" } });
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    expect(await screen.findByRole("heading", { name: "Aucun artifact réel créé" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0));
     expect(screen.getAllByText(/Aucun fichier traçable/i).length).toBeGreaterThan(0);
   });
 });

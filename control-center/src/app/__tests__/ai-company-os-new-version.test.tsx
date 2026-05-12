@@ -110,7 +110,7 @@ describe("AI Company OS new version regression suite", () => {
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|sessionId|projectId|workspaceId/i);
   });
 
-  it("shows simple result actions on CEO logo artifact outputs", async () => {
+  it("shows final-answer-first CEO logo output with details hidden by default", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
       if (String(url).includes("/api/ceo/command")) {
         return jsonResponse({
@@ -138,9 +138,14 @@ describe("AI Company OS new version regression suite", () => {
     fireEvent.change(await screen.findByPlaceholderText("Décris ce que tu veux construire..."), { target: { value: "je veux un logo pour une compagnie qui s'appelle ELEVIO" } });
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
-    expect(await screen.findByRole("heading", { name: "ELEVIO brand system" })).toBeInTheDocument();
+    expect(await screen.findByText("ELEVIO")).toBeInTheDocument();
     expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
+    expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();
+    expect(screen.queryByText("brand-brief.json")).not.toBeInTheDocument();
+    expect(screen.queryByText("90/100")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });
 
