@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       ? run.manifest.primaryVisualPath
       : firstVisualArtifact(artifactPaths);
     const filePrimaryVisual = readTextArtifact(primaryVisualPath);
-    const workflowVisibleOutput = companyWorkflow.visibleOutput as { primaryVisual?: string } | null;
+    const workflowVisibleOutput = companyWorkflow.visibleOutput as { primaryVisual?: string; primaryArtifactId?: string } | null;
     const primaryVisual = workflowVisibleOutput?.primaryVisual ?? filePrimaryVisual;
 
     if (!hasArtifacts) {
@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
         : undefined,
       primaryVisualPath,
       primaryVisual,
+      primaryArtifactId: workflowVisibleOutput?.primaryArtifactId,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
         path: artifactPath,

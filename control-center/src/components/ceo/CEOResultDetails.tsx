@@ -18,6 +18,7 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     agentRuns?: { agentId?: string; role?: string; skillId?: string; status?: string }[];
     hiddenDetails?: {
       executionTrace?: { agentsCalled?: string[]; skillsCalled?: string[]; toolsCalled?: string[]; checkpoints?: unknown[]; qualityResults?: unknown[] };
+      artifacts?: { id?: string; name?: string; kind?: string; path?: string; fingerprint?: string }[];
       workflowDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
     };
   } | undefined;
@@ -27,6 +28,7 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     agents: workflow?.agentRuns ?? [],
     tools: workflow?.hiddenDetails?.workflowDetails?.toolTrace ?? [],
     executionTrace: workflow?.hiddenDetails?.executionTrace,
+    missionArtifacts: workflow?.hiddenDetails?.artifacts ?? [],
   };
 }
 
@@ -48,6 +50,20 @@ export default function CEOResultDetails({
         <div>
           <strong>Workspace</strong>
           <Link href={result.workspaceHref}>Ouvrir workspace</Link>
+        </div>
+      )}
+
+      {workflow.missionArtifacts.length > 0 && (
+        <div>
+          <strong>Artifacts runtime</strong>
+          <ul>
+            {workflow.missionArtifacts.map((artifact) => (
+              <li key={artifact.id ?? artifact.path ?? artifact.name}>
+                <FileText size={14} />
+                <span>{artifact.name ?? artifact.path ?? artifact.kind}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

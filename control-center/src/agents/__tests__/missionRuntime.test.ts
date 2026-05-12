@@ -89,15 +89,17 @@ describe("agent mission task runner", () => {
 describe("agent mission runtime", () => {
   it("returns clean visible logo output and hidden execution trace", () => {
     const result = runAgentMission("logo EKIDA sur fond noir");
-    const visible = result.visibleOutput as { kind?: string; deliverableType?: string; primaryVisual?: string };
+    const visible = result.visibleOutput as { kind?: string; deliverableType?: string; primaryVisual?: string; primaryArtifactId?: string };
 
     expect(visible.kind).toBe("visual");
     expect(visible.deliverableType).toBe("logo");
     expect(visible.primaryVisual).toContain("<svg");
+    expect(visible.primaryArtifactId).toMatch(/^logo_svg-/);
+    expect(result.hiddenDetails.artifacts?.length).toBeGreaterThan(0);
     expect(result.hiddenDetails.executionTrace.agentsCalled.length).toBeGreaterThan(3);
     expect(result.hiddenDetails.executionTrace.skillsCalled.length).toBeGreaterThan(3);
     expect(result.hiddenDetails.executionTrace.toolsCalled).toEqual(expect.arrayContaining(["visual.svg", "quality.evaluate", "artifact.store"]));
-    expect(JSON.stringify(visible)).not.toMatch(/executionTrace|artifact|score|process|checkpoint/i);
+    expect(JSON.stringify(visible)).not.toMatch(/executionTrace|artifacts|score|process|checkpoint/i);
   });
 
   it("returns website preview after a previous logo without recycling the logo", () => {
@@ -106,9 +108,10 @@ describe("agent mission runtime", () => {
     const result = runAgentMission("Je veux une page web bien simple avec le logo ekida, tu peux mettre du contenu temporaire ses une compagnie de linge", {
       previousDeliverable: { deliverableType: "logo", primaryVisual: previousVisible.primaryVisual },
     });
-    const visible = result.visibleOutput as { kind?: string; primaryVisual?: string; brandName?: string };
+    const visible = result.visibleOutput as { kind?: string; primaryVisual?: string; brandName?: string; primaryArtifactId?: string };
 
     expect(visible.kind).toBe("website_preview");
+    expect(visible.primaryArtifactId).toMatch(/^website_preview_svg-/);
     expect(visible.brandName).toBe("EKIDA");
     expect(visible.primaryVisual).not.toBe(previousVisible.primaryVisual);
     expect(visible.primaryVisual).toMatch(/aria-label="nav"|aria-label="hero"|aria-label="sections"|Voir la collection/);

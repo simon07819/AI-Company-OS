@@ -1,6 +1,18 @@
-import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
+import { runDesignTeamWorkflow, type DesignTeamResult } from "@/lib/design-team/logoWorkflow";
 import { type PreviousDeliverable } from "@/lib/ceoWorkOrder";
-import { runWebsiteDesignWorkflow } from "@/agents/workflows/website-design-workflow";
+import { buildLogoArtifact } from "@/agents/artifacts/logo-artifact-builder";
+import { createMissionArtifactStore } from "@/agents/artifacts/artifact-store";
+import { buildHiddenArtifacts } from "@/agents/artifacts/hidden-artifacts-builder";
+import {
+  validateArtifactIsolation,
+  validateLogoArtifact,
+  validateNoArtifactRecycle,
+  validatePrimaryArtifactExists,
+  validateSimpleChatDoesNotExposeArtifacts,
+  validateWebsiteArtifact,
+} from "@/agents/artifacts/artifact-quality";
+import { buildWebsiteArtifact } from "@/agents/artifacts/website-artifact-builder";
+import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workflows/website-design-workflow";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import { InMemoryCheckpointStore } from "./checkpoint-store";
@@ -27,12 +39,43 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
     store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace }));
   }
 
-  const workflow = workOrder.requestType === "website"
+  const workflow: WebsiteTeamResult | DesignTeamResult | null = workOrder.requestType === "website"
     ? runWebsiteDesignWorkflow(userPrompt, context?.previousDeliverable?.primaryVisual ?? null)
     : workOrder.deliverableType === "logo"
       ? runDesignTeamWorkflow(userPrompt)
       : null;
-  const visibleOutput = buildVisibleOutput(workOrder, workflow ?? {});
+  const websiteWorkflow = workOrder.requestType === "website" ? workflow as WebsiteTeamResult : null;
+  const logoWorkflow = workOrder.deliverableType === "logo" ? workflow as DesignTeamResult : null;
+  const artifactStore = createMissionArtifactStore({ missionId: workOrder.missionId, turnId: workOrder.turnId });
+  const primaryArtifactBuild = workOrder.requestType === "website"
+    ? buildWebsiteArtifact({
+      missionId: workOrder.missionId,
+      turnId: workOrder.turnId,
+      brandName: workOrder.brandName ?? "AI Company",
+      industry: workOrder.industry,
+      style: workOrder.style,
+      contentMode: workOrder.contentMode,
+      assetRequests: workOrder.assetRequests,
+      workflow: websiteWorkflow,
+      previousPrimaryVisual: context?.previousDeliverable?.primaryVisual ?? null,
+      store: artifactStore,
+    })
+    : workOrder.deliverableType === "logo"
+      ? buildLogoArtifact({
+        missionId: workOrder.missionId,
+        turnId: workOrder.turnId,
+        brandName: workOrder.brandName ?? "AI Company",
+        style: workOrder.style,
+        background: typeof logoWorkflow?.brief?.background === "string" ? logoWorkflow.brief.background : undefined,
+        selectedConcept: logoWorkflow?.selectedConcept,
+        primaryVisual: logoWorkflow?.primaryVisual,
+        constraints: workOrder.constraints,
+        store: artifactStore,
+      })
+      : null;
+  const visibleOutput = buildVisibleOutput(workOrder, primaryArtifactBuild
+    ? { primaryArtifact: primaryArtifactBuild.visibleDeliverable }
+    : workflow ?? {});
   const workflowDetails = workflow?.hiddenDetails ?? {};
   const workflowAgentRuns = "agentRuns" in workflowDetails && Array.isArray(workflowDetails.agentRuns) ? workflowDetails.agentRuns as AgentRunResult[] : [];
   const workflowToolTrace = "toolTrace" in workflowDetails && Array.isArray(workflowDetails.toolTrace) ? workflowDetails.toolTrace as ToolTraceEntry[] : [];
@@ -43,9 +86,25 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
     visibleOutput: visibleOutput as { kind?: string; deliverableType?: string; brandName?: string; primaryVisual?: string },
     previousDeliverable: context?.previousDeliverable ?? null,
   });
+  const artifactList = artifactStore.list();
+  const primaryArtifact = primaryArtifactBuild?.artifact ?? null;
+  const artifactQualityResults = [
+    validatePrimaryArtifactExists({ primaryArtifactId: primaryArtifact?.id, artifacts: artifactList }),
+    workOrder.deliverableType === "logo"
+      ? validateLogoArtifact({ artifact: primaryArtifact, brandName: workOrder.brandName })
+      : validateWebsiteArtifact({ artifact: primaryArtifact, brandName: workOrder.brandName }),
+    validateArtifactIsolation({ artifacts: artifactList, missionId: workOrder.missionId, turnId: workOrder.turnId }),
+    validateNoArtifactRecycle({
+      artifact: primaryArtifact,
+      previousPrimaryVisual: context?.previousDeliverable?.primaryVisual ?? null,
+      previousDeliverableType: context?.previousDeliverable?.deliverableType ?? null,
+      currentDeliverableType: workOrder.deliverableType,
+    }),
+    validateSimpleChatDoesNotExposeArtifacts(visibleOutput),
+  ];
   const retry = decideRetry(qualityResults, 0);
   const checkpoints = store.all();
-  const executionTrace = buildExecutionTrace({ workOrder, agentRuns, toolTrace, checkpoints, qualityResults: [...qualityResults, retry] });
+  const executionTrace = buildExecutionTrace({ workOrder, agentRuns, toolTrace, checkpoints, qualityResults: [...qualityResults, ...artifactQualityResults, retry] });
 
   return {
     workOrder,
@@ -55,10 +114,10 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       workOrder,
       missionPlan,
       executionTrace,
-      qualityResults: [...qualityResults, retry],
+      qualityResults: [...qualityResults, ...artifactQualityResults, retry],
       checkpoints,
       workflowDetails,
-      artifacts: [],
+      artifacts: buildHiddenArtifacts(artifactList),
     }),
   };
 }
