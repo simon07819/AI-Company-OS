@@ -149,6 +149,8 @@ function createBrandingArtifacts(plan: MissionPlan) {
       brief: designTeam.brief,
       concepts: designTeam.concepts.map(({ svg: _svg, ...concept }) => concept),
       artDirectorNotes: designTeam.artDirectorNotes,
+      agentRuns: designTeam.hiddenDetails.agentRuns,
+      qualityIssues: designTeam.hiddenDetails.qualityIssues,
       selectedConcept: { ...designTeam.selectedConcept, svg: undefined },
       visibleOutput: { ...designTeam.visibleOutput, primaryVisual: "[inline-svg]" },
     }));
@@ -219,6 +221,8 @@ function createBrandingArtifacts(plan: MissionPlan) {
       brief: designTeam.brief,
       selectedConcept: { ...designTeam.selectedConcept, svg: undefined },
       artDirectorNotes: designTeam.artDirectorNotes,
+      agentRuns: designTeam.hiddenDetails.agentRuns,
+      qualityIssues: designTeam.hiddenDetails.qualityIssues,
       conceptCount: designTeam.concepts.length,
     } : undefined,
   };

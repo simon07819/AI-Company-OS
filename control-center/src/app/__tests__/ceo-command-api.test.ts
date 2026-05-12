@@ -88,6 +88,22 @@ describe("CEO command API", () => {
     expect(payload.title).not.toMatch(/Brand system/i);
   });
 
+  it("routes PROSHOTS through the design team workflow for a sports photography logo", async () => {
+    const response = await postCommand("fais-moi un logo pour PROSHOTS ses des photographes sportifs");
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.brandName).toBe("PROSHOTS");
+    expect(payload.title).toBe("Logo PROSHOTS");
+    expect(payload.primaryVisual).toContain("PROSHOTS");
+    expect(payload.primaryVisual).toMatch(/camera|viewfinder|PROSHOTS|PS|>P</i);
+    expect(payload.expert.designTeam.agentRuns.map((run: { role: string }) => run.role)).toEqual(
+      expect.arrayContaining(["ceo", "product_owner", "brand_strategist", "logo_designer", "creative_director", "svg_illustrator", "quality_director"]),
+    );
+    expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
+  });
+
   it("refuses missing prompts instead of returning fake success", async () => {
     const response = await postCommand("");
     const payload = await response.json();

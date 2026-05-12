@@ -5,6 +5,7 @@ const UNNAMED_BRAND = "Marque à nommer";
 const STOP_WORDS = new Set([
   "logo", "site", "app", "application", "business", "compagnie", "company", "entreprise",
   "marque", "qui", "pour", "avec", "dans", "une", "un", "des", "les", "le", "la",
+  "ses", "photographe", "photographes", "sportifs", "sportives",
   "called", "named", "nommee", "nomme", "appelee", "appelle",
   "sur", "fond", "noir", "blanc", "transparent", "sportif", "premium", "moderne",
   "minimaliste", "simple", "professionnel", "style",
