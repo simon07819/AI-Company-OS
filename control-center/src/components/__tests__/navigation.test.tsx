@@ -123,7 +123,7 @@ describe("AppShell", () => {
     expect(screen.queryAllByRole("link", { name: "Agents" })).toHaveLength(0);
     fireEvent.click(screen.getByRole("button", { name: "Mode expert" }));
 
-    await waitFor(() => expect(store.get("ai-company-os-nav-mode")).toBe("expert"));
+    await waitFor(() => expect(store.get("ai-company-os-view-mode")).toBe("expert"));
     expect(screen.getAllByRole("link", { name: "Agents" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Approvals" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("link", { name: "Mission Rooms" }).length).toBeGreaterThan(0);
@@ -140,5 +140,33 @@ describe("AppShell", () => {
     );
 
     await waitFor(() => expect(screen.getAllByRole("link", { name: "Runtime" }).length).toBeGreaterThan(0));
+  });
+
+  it("applies expert mode globally beyond the CEO page", async () => {
+    const store = new Map<string, string>([["ai-company-os-view-mode", "expert"]]);
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => store.set(key, value),
+        removeItem: (key: string) => store.delete(key),
+      },
+    });
+    globalThis.__TEST_PATHNAME__ = "/projects";
+
+    render(
+      React.createElement(
+        AppShell,
+        null,
+        React.createElement("main", null, React.createElement("h1", null, "Projects child content"))
+      )
+    );
+
+    await waitFor(() => expect(screen.getAllByRole("link", { name: "Agents" }).length).toBeGreaterThan(0));
+    expect(screen.getAllByRole("link", { name: "Approvals" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Mission Rooms" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Workspaces" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("link", { name: "Settings" }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("heading", { name: "Projects child content" })).toBeInTheDocument();
   });
 });

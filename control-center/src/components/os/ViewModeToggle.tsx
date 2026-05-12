@@ -1,8 +1,9 @@
 "use client";
 
-export const NAV_MODE_STORAGE_KEY = "ai-company-os-nav-mode";
+import type { ViewMode } from "@/lib/viewMode";
 
-export default function ViewModeToggle({ expertMode, onToggle }: { expertMode: boolean; onToggle: () => void }) {
+export default function ViewModeToggle({ mode, onToggle }: { mode: ViewMode; onToggle: () => void }) {
+  const expertMode = mode === "expert";
   return (
     <button className="desktop-mode-toggle view-mode-toggle" type="button" onClick={onToggle}>
       {expertMode ? "Mode simple" : "Mode expert"}

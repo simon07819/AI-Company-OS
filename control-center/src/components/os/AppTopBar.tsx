@@ -4,15 +4,16 @@ import { Sparkles } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import CommandPalette from "./CommandPalette";
 import ViewModeToggle from "./ViewModeToggle";
+import type { ViewMode } from "@/lib/viewMode";
 
 export default function AppTopBar({
   activeLabel,
-  expertMode,
-  onToggleExpertMode,
+  mode,
+  onToggleMode,
 }: {
   activeLabel: string;
-  expertMode: boolean;
-  onToggleExpertMode: () => void;
+  mode: ViewMode;
+  onToggleMode: () => void;
 }) {
   return (
     <header className="app-top-bar desktop-appbar">
@@ -32,7 +33,7 @@ export default function AppTopBar({
           Agence AI active
         </div>
         <ThemeToggle />
-        <ViewModeToggle expertMode={expertMode} onToggle={onToggleExpertMode} />
+        <ViewModeToggle mode={mode} onToggle={onToggleMode} />
       </div>
     </header>
   );
