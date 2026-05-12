@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, FolderOpen, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
 import CEOResultDetails from "./CEOResultDetails";
+import LogoFinalAnswer from "./LogoFinalAnswer";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function projectTypeLabel(type?: string) {
@@ -16,9 +17,10 @@ function projectTypeLabel(type?: string) {
 }
 
 function responseIntro(result: CEOCurrentResult) {
+  if (result.shortMessage) return result.shortMessage;
   if (!result.artifactPaths.length) return "Je n’ai pas encore produit un résultat exploitable.";
   if (result.requestType === "branding" || result.requestType === "logo") {
-    return "Voici une première direction visuelle.";
+    return `Voici une première version du logo ${brandNameFromResult(result)}.`;
   }
   if (result.requestType === "website") return "J’ai préparé une première version du site.";
   if (result.requestType === "saas") return "Le projet est prêt en première version.";
@@ -27,7 +29,14 @@ function responseIntro(result: CEOCurrentResult) {
 }
 
 function brandNameFromTitle(title: string) {
-  return title.replace(/\s+(brand system|logo concept|branding)$/i, "").trim() || title;
+  return title
+    .replace(/^Logo\s+/i, "")
+    .replace(/\s+(brand system|logo concept|branding)$/i, "")
+    .trim() || title;
+}
+
+function brandNameFromResult(result: CEOCurrentResult) {
+  return result.brandName || brandNameFromTitle(result.title);
 }
 
 function primaryArtifactLabel(result: CEOCurrentResult) {
@@ -106,6 +115,8 @@ export default function CEOResultStage({
 
   const hasArtifacts = result.artifactPaths.length > 0;
   const isBranding = result.requestType === "branding" || result.requestType === "logo";
+  const isLogoDeliverable = isBranding && (result.deliverableType === "logo" || /^Logo\s+/i.test(result.title) || Boolean(result.brandName));
+  const brandName = brandNameFromResult(result);
 
   return (
     <section className="ceo-os-conversation" aria-label="Conversation CEO">
@@ -122,15 +133,11 @@ export default function CEOResultStage({
 
         {hasArtifacts ? (
           <div className={isBranding ? "ceo-os-final-preview brand" : "ceo-os-final-preview product"}>
-            <em>{projectTypeLabel(result.requestType)}</em>
+            <em>{isLogoDeliverable ? "Logo" : projectTypeLabel(result.requestType)}</em>
             {isBranding ? (
               <>
-                <div className="ceo-os-logo-prototype" aria-label="Prototype visuel">
-                  <i>{brandNameFromTitle(result.title).slice(0, 1).toUpperCase()}</i>
-                  <strong>{brandNameFromTitle(result.title)}</strong>
-                  <small>Prototype visuel</small>
-                </div>
-                <p>{result.summary}</p>
+                <LogoFinalAnswer brandName={brandName} />
+                <p>{isLogoDeliverable ? `Prototype visuel pour ${brandName}.` : result.summary}</p>
               </>
             ) : (
               <>
@@ -153,17 +160,17 @@ export default function CEOResultStage({
             <Wand2 size={15} />
             Modifier
           </button>
-          {result.workspaceHref ? (
+          {!isLogoDeliverable && result.workspaceHref ? (
             <Link href={result.workspaceHref}>
               <FolderOpen size={15} />
               Ouvrir workspace
             </Link>
-          ) : (
+          ) : !isLogoDeliverable ? (
             <button type="button" disabled>
               <FolderOpen size={15} />
               Ouvrir workspace
             </button>
-          )}
+          ) : null}
           <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
             <Info size={15} />
             Voir détails

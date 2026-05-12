@@ -80,13 +80,17 @@ function requirementsFor(requestType: ProductionRequestType) {
   return ["artifact-manifest.json", "quality-report.json"];
 }
 
+function isLogoRequest(input: string) {
+  return /\blogo\b/i.test(input.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+}
+
 export function createMissionPlan(input: string): MissionPlan {
   const requestType = requestTypeFrom(input);
   const intent = inferCeoIntentFallback(input);
   const brandBrief = generateBrandBrief(input);
   const brandName = brandBrief.explicitBrandName ? brandBrief.brandName : intent.brandName;
   const industry = industryFor(input, requestType);
-  const projectName = intent.projectName ?? (brandName ? `${brandName} brand system` : null);
+  const projectName = intent.projectName ?? (brandName ? (isLogoRequest(input) ? `Logo ${brandName}` : `${brandName} brand system`) : null);
   return {
     id: idFrom(input),
     requestType,

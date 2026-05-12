@@ -125,4 +125,41 @@ describe("CEO command components", () => {
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
   });
+
+  it("renders a requested logo as the primary deliverable without generic brand-system copy", () => {
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        title: "Logo EKIDA",
+        requestType: "branding",
+        brandName: "EKIDA",
+        deliverableType: "logo",
+        shortMessage: "Voici une première version du logo EKIDA.",
+        summary: "Prototype visuel pour EKIDA.",
+        artifactPaths: ["generated-products/logo-ekida/logo-concept-a.svg"],
+        workspaceHref: "/projects/logo-ekida",
+        qualityScore: 84,
+      },
+      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding" },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByText("Voici une première version du logo EKIDA.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prototype visuel EKIDA")).toBeInTheDocument();
+    expect(screen.getByText("EKIDA")).toBeInTheDocument();
+    expect(screen.queryByText(/Brand system/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Marque à nommer/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("84/100")).not.toBeInTheDocument();
+    expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/logo-ekida");
+  });
 });

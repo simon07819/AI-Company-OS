@@ -67,6 +67,21 @@ describe("CEO command API", () => {
     expect(payload.artifactPaths.filter((artifactPath: string) => artifactPath.endsWith(".svg"))).toHaveLength(3);
   });
 
+  it("returns the requested logo deliverable for a bare EKIDA logo prompt", async () => {
+    const response = await postCommand("logo EKIDA");
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.requestType).toBe("branding");
+    expect(payload.deliverableType).toBe("logo");
+    expect(payload.brandName).toBe("EKIDA");
+    expect(payload.title).toBe("Logo EKIDA");
+    expect(payload.shortMessage).toBe("Voici une première version du logo EKIDA.");
+    expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
+    expect(payload.title).not.toMatch(/Brand system/i);
+  });
+
   it("refuses missing prompts instead of returning fake success", async () => {
     const response = await postCommand("");
     const payload = await response.json();

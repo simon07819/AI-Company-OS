@@ -35,6 +35,10 @@ interface CommandResponse {
   projectId?: string;
   title?: string;
   requestType?: string;
+  brandName?: string | null;
+  deliverableType?: string;
+  shortMessage?: string;
+  primaryVisualPath?: string | null;
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
   artifactPaths?: string[];
@@ -147,6 +151,10 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
   return {
     title: payload.title || (payload.ok ? "Projet généré" : "Aucun artifact réel créé"),
     requestType: (payload.requestType as CEORequestType) || detectRequestType(prompt),
+    brandName: payload.brandName,
+    deliverableType: payload.deliverableType,
+    shortMessage: payload.shortMessage,
+    primaryVisualPath: payload.primaryVisualPath,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
     artifactPaths: payload.artifactPaths ?? [],
@@ -240,7 +248,7 @@ export default function CEOCommandSurface() {
 
   return (
     <main className="ceo-os-page">
-      <section className="ceo-os-shell" aria-label="Command Surface">
+      <section className={`ceo-os-shell ${result || loading ? "has-conversation" : ""}`} aria-label="Command Surface">
         <header className="ceo-os-topbar">
           <div>
             <span>AI Company OS</span>

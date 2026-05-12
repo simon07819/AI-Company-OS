@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { generateBrandBrief, generateLogoConcepts, generateLogoImagePrompt } from "@/lib/brandGeneration";
 
 describe("brandGeneration", () => {
+  it("extracts bare logo brand names without using unnamed fallbacks", () => {
+    expect(generateBrandBrief("logo EKIDA")).toMatchObject({
+      requestType: "logo",
+      brandName: "EKIDA",
+      explicitBrandName: true,
+    });
+    expect(generateBrandBrief("je veux un logo pour EKIDA")).toMatchObject({
+      requestType: "logo",
+      brandName: "EKIDA",
+      explicitBrandName: true,
+    });
+    expect(generateBrandBrief("logo sportif ELEVIO")).toMatchObject({
+      requestType: "logo",
+      brandName: "ELEVIO",
+      explicitBrandName: true,
+    });
+    expect(JSON.stringify(generateBrandBrief("logo EKIDA"))).not.toContain("Marque à nommer");
+  });
+
   it("extracts explicit brand name and elevator-oriented industry", () => {
     const brief = generateBrandBrief("je veux un logo pour une compagnie qui s'appelle ELEVIO");
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText } from "lucide-react";
+import Link from "next/link";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function artifactName(artifactPath: string) {
@@ -23,6 +24,13 @@ export default function CEOResultDetails({
 
   return (
     <div className="ceo-os-result-details" aria-label="Détails du résultat">
+      {result.workspaceHref && (
+        <div>
+          <strong>Workspace</strong>
+          <Link href={result.workspaceHref}>Ouvrir workspace</Link>
+        </div>
+      )}
+
       {hasArtifacts ? (
         <div>
           <strong>Artifacts créés</strong>

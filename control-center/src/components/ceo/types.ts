@@ -29,6 +29,10 @@ export interface CEOCurrentMission {
 export interface CEOCurrentResult {
   title: string;
   requestType: CEORequestType;
+  brandName?: string | null;
+  deliverableType?: string;
+  shortMessage?: string;
+  primaryVisualPath?: string | null;
   status: CEOMissionStatus;
   summary: string;
   artifactPaths: string[];

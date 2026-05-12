@@ -99,9 +99,15 @@ Ces fichiers SVG sont des prototypes visuels traçables. Ils ne prétendent pas 
 `;
 }
 
+function isLogoRequest(input: string) {
+  return /\blogo\b/i.test(input.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+}
+
 function createBrandingArtifacts(plan: MissionPlan) {
   const root = generatedProductsRoot();
-  const title = plan.brandName ? `${plan.brandName} brand system` : plan.projectName ?? "Brand system";
+  const title = plan.brandName
+    ? isLogoRequest(plan.sourcePrompt) ? `Logo ${plan.brandName}` : `${plan.brandName} brand system`
+    : plan.projectName ?? "Brand system";
   const slug = slugify(title);
   const projectDir = path.join(root, slug);
   assertInsideRoot(root, projectDir);
@@ -170,7 +176,9 @@ function createBrandingArtifacts(plan: MissionPlan) {
       artifactPaths: allArtifacts,
     }],
     sourcePrompt: plan.sourcePrompt,
-    summary: `Direction de marque pour ${plan.brandName ?? brief.brandName}: ${directions.length} concepts distincts, score qualité ${report.score}/100.`,
+    summary: plan.brandName && isLogoRequest(plan.sourcePrompt)
+      ? `Première version de logo prototype pour ${plan.brandName}.`
+      : `Direction de marque pour ${plan.brandName ?? brief.brandName}: ${directions.length} concepts distincts, score qualité ${report.score}/100.`,
     qualityScore: report.score,
     qualityReportPath: qualityPath,
     revisionHistoryPath: revisionPath,

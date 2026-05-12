@@ -115,7 +115,10 @@ describe("AI Company OS new version regression suite", () => {
       if (String(url).includes("/api/ceo/command")) {
         return jsonResponse({
           ok: true,
-          title: "ELEVIO brand system",
+          title: "Logo ELEVIO",
+          brandName: "ELEVIO",
+          deliverableType: "logo",
+          shortMessage: "Voici une première version du logo ELEVIO.",
           projectId: "elevio-brand-system",
           workspaceHref: "/projects/elevio-brand-system",
           requestType: "branding",
@@ -139,13 +142,15 @@ describe("AI Company OS new version regression suite", () => {
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
     expect(await screen.findByText("ELEVIO")).toBeInTheDocument();
+    expect(screen.getByText("Voici une première version du logo ELEVIO.")).toBeInTheDocument();
     expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
+    expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();
     expect(screen.queryByText("brand-brief.json")).not.toBeInTheDocument();
     expect(screen.queryByText("90/100")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });
 

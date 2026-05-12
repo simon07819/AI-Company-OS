@@ -12,6 +12,10 @@ function artifactExists(artifactPath: string) {
   return fs.existsSync(absolute);
 }
 
+function firstVisualArtifact(artifactPaths: string[]) {
+  return artifactPaths.find((artifactPath) => /\.svg$/i.test(artifactPath)) ?? null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -31,6 +35,7 @@ export async function POST(req: NextRequest) {
     const missingArtifacts = run.manifest.artifactPaths.filter((artifactPath) => !artifactExists(artifactPath));
     const workspace = readGeneratedProject(run.projectSlug);
     const hasArtifacts = artifactPaths.length > 0;
+    const primaryVisualPath = firstVisualArtifact(artifactPaths);
 
     if (!hasArtifacts) {
       return NextResponse.json({
@@ -39,6 +44,8 @@ export async function POST(req: NextRequest) {
         projectId: run.projectSlug,
         title: run.manifest.title,
         requestType: run.plan.requestType,
+        brandName: run.plan.brandName ?? null,
+        deliverableType: run.plan.requestType === "branding" && /\blogo\b/i.test(prompt) ? "logo" : run.plan.requestType,
         status: "failed",
         summary: "La production n'a créé aucun artifact réel.",
         artifactPaths: [],
@@ -55,8 +62,14 @@ export async function POST(req: NextRequest) {
       projectId: run.projectSlug,
       title: run.manifest.title,
       requestType: run.plan.requestType,
+      brandName: run.plan.brandName ?? null,
+      deliverableType: run.plan.requestType === "branding" && /\blogo\b/i.test(prompt) ? "logo" : run.plan.requestType,
       status: run.status === "ready" ? "ready" : run.status === "needs_revision" ? "needs_revision" : "rejected",
       summary: run.manifest.summary,
+      shortMessage: run.plan.requestType === "branding" && run.plan.brandName && /\blogo\b/i.test(prompt)
+        ? `Voici une première version du logo ${run.plan.brandName}.`
+        : undefined,
+      primaryVisualPath,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
         path: artifactPath,

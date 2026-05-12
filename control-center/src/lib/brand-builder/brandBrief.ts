@@ -43,6 +43,8 @@ function cleanBrandCandidate(candidate: string) {
 export function extractBrandName(input: string): { brandName: string; explicit: boolean } {
   const patterns = [
     /(?:s['’]?\s*appelle|se\s+nomme|nommee?|nommée?|appelee?|appelée?|called|named)\s+([A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ&\- ]{1,48})/i,
+    /^\s*logo\s+(?:sportif|premium|moderne|minimaliste|simple|professionnel)?\s*([A-Z0-9][A-Z0-9&\- ]{1,32})(?:\s|$|[.,;!?])/i,
+    /(?:^|\s)logo\s+(?:pour\s+)?([A-Z0-9][A-Z0-9&\- ]{1,32})(?:\s|$|[.,;!?])/,
     /(?:pour|de|d['’])\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
     /(?:marque|compagnie|entreprise)\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
   ];
@@ -182,4 +184,3 @@ export function generateBrandBrief(input: string): BrandBrief {
     recommendedConcept: "A. Premium / corporate",
   };
 }
-
