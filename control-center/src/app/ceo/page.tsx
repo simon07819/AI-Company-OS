@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, Files, FolderOpen, Moon, Play, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
-import { generateBrandBrief, generateLogoConcepts, type BrandBrief, type LogoConcept } from "@/lib/brandGeneration";
+import { generateBrandBrief, generateLogoConcepts, type BrandBrief, type LogoConcept } from "@/lib/brand-builder";
 
 interface CeoMessage {
   id: string;
@@ -231,13 +231,29 @@ function LogoConceptCard({ concept, onAccept, onModify, onRemake, disabled }: {
         </div>
         <p className="prototype-notice">{concept.prototypeNotice}</p>
         <p>{concept.rationale}</p>
+        <div className="concept-detail-block">
+          <span>Typographie</span>
+          <p>{concept.typography}</p>
+        </div>
+        <div className="concept-detail-block">
+          <span>Palette</span>
+          <ul>
+            {concept.palette.slice(0, 4).map((color) => (
+              <li key={`${concept.id}-${color.hex}-detail`}>
+                <i style={{ background: color.hex }} />
+                <strong>{color.name}</strong>
+                <em>{color.justification}</em>
+              </li>
+            ))}
+          </ul>
+        </div>
         <div className="concept-swatches">
           {concept.palette.slice(0, 4).map((color) => <i key={`${concept.id}-${color.hex}`} style={{ background: color.hex }} title={`${color.name}: ${color.justification}`} />)}
         </div>
         <div className="concept-keywords">{concept.keywords.map((keyword) => <b key={keyword}>{keyword}</b>)}</div>
       </div>
       <div className="concept-actions">
-        <button className="accept" onClick={onAccept} disabled={disabled}><CheckCircle2 size={15} /> Accepter</button>
+        <button className="accept" onClick={onAccept} disabled={disabled}><CheckCircle2 size={15} /> Accepter cette direction</button>
         <button onClick={onModify} disabled={disabled}><Wand2 size={15} /> Modifier</button>
         <button onClick={onRemake} disabled={disabled}><RotateCcw size={15} /> Refaire</button>
       </div>
@@ -520,6 +536,7 @@ export default function CeoSimplePage() {
                 <div>
                   <span>Secteur</span>
                   <strong>{finalResult.brief.industry}</strong>
+                  {finalResult.brief.industryConfidence === "weak" && <p>{finalResult.brief.industryAssumption}</p>}
                 </div>
                 <div>
                   <span>Audience</span>
@@ -1129,6 +1146,53 @@ const styles = `
   color: var(--text-2);
   font-size: 13px;
   line-height: 1.55;
+}
+.concept-detail-block {
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-2);
+  padding: 10px;
+}
+.concept-detail-block > span {
+  color: var(--text-3);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.concept-detail-block ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.concept-detail-block li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(92px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.concept-detail-block li i {
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(15,23,42,0.14);
+}
+.concept-detail-block li strong {
+  color: var(--text);
+  font-size: 12px;
+}
+.concept-detail-block li em {
+  min-width: 0;
+  color: var(--text-2);
+  font-style: normal;
+  line-height: 1.35;
 }
 .concept-actions {
   grid-column: 1 / -1;

@@ -244,10 +244,11 @@ describe("critical Control Center pages", () => {
     expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
     expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
-    expect(screen.getByText("A. Premium construction tech")).toBeInTheDocument();
-    expect(screen.getByText("B. Fast vertical movement / elevator signal")).toBeInTheDocument();
-    expect(screen.getByText("C. Safety + reliability")).toBeInTheDocument();
-    expect(screen.getAllByText("Concept visuel généré en prototype")).toHaveLength(3);
+    expect(screen.getByText("A. Premium / corporate")).toBeInTheDocument();
+    expect(screen.getByText("B. Mouvement / vitesse / verticalité")).toBeInTheDocument();
+    expect(screen.getByText("C. Sécurité / fiabilité / infrastructure")).toBeInTheDocument();
+    expect(screen.getAllByText("Prototype visuel — prêt pour génération finale")).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /Accepter cette direction/ })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: /Accepter/ })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: /Modifier/ })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: /Refaire/ })).toHaveLength(3);

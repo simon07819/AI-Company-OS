@@ -395,7 +395,7 @@ function inferCompanyWorkspace(text: string, missionType: string, structured?: C
     };
   }
   return {
-    name: missionType === "branding_pack" ? "Nouvelle Marque AI" : "Nouvelle Entreprise AI",
+    name: missionType === "branding_pack" ? "Marque a nommer" : "Entreprise a nommer",
     industry: missionType.replace(/_/g, " "),
     description: "Entreprise creee avec les agents AI.",
   };

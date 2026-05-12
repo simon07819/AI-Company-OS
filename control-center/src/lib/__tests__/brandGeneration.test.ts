@@ -9,6 +9,8 @@ describe("brandGeneration", () => {
     expect(brief.brandName).toBe("ELEVIO");
     expect(brief.explicitBrandName).toBe(true);
     expect(brief.industry).toMatch(/élévateurs|elevateurs|construction verticale/i);
+    expect(brief.industryConfidence).toBe("weak");
+    expect(brief.industryAssumption).toMatch(/Hypothèse faible|elevation/i);
     expect(brief.brandName).not.toBe("Nouvelle Marque AI");
   });
 
@@ -18,11 +20,24 @@ describe("brandGeneration", () => {
 
     expect(concepts).toHaveLength(3);
     expect(concepts.map((concept) => concept.title)).toEqual([
-      "Premium construction tech",
-      "Fast vertical movement / elevator signal",
-      "Safety + reliability",
+      "Premium / corporate",
+      "Mouvement / vitesse / verticalité",
+      "Sécurité / fiabilité / infrastructure",
     ]);
     expect(concepts.every((concept) => concept.brandName === "ELEVIO")).toBe(true);
+    expect(concepts.every((concept) => concept.palette.length >= 4)).toBe(true);
+    expect(concepts.every((concept) => concept.palette.every((color) => color.justification.length > 12))).toBe(true);
+    expect(concepts.every((concept) => concept.typography.length > 20)).toBe(true);
+    expect(concepts.every((concept) => concept.rationale.length > 20)).toBe(true);
+    expect(concepts.every((concept) => concept.prototypeNotice === "Prototype visuel — prêt pour génération finale")).toBe(true);
+    expect(concepts.every((concept) => concept.imagePrompt.includes("ELEVIO"))).toBe(true);
     expect(generateLogoImagePrompt(concepts[0])).toContain("ELEVIO");
+  });
+
+  it("does not fall back to Nouvelle Marque AI when no name is provided", () => {
+    const brief = generateBrandBrief("je veux un logo pour une compagnie de photo");
+
+    expect(brief.brandName).toBe("Marque à nommer");
+    expect(JSON.stringify(brief)).not.toContain("Nouvelle Marque AI");
   });
 });

@@ -77,7 +77,7 @@ describe("CEO product artifacts", () => {
 
     expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
     expect(screen.getAllByText("ELEVIO").length).toBeGreaterThan(0);
-    expect(screen.getByText(/Prototype visuel/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Prototype visuel/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/Nouvelle Marque AI/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
