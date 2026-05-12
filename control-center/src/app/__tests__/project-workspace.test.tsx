@@ -115,6 +115,23 @@ describe("generated project workspaces", () => {
     expect(container.textContent ?? "").toContain("step-1");
   });
 
+  it("shows an honest empty state when a manifest has no real artifacts", () => {
+    const workspace = buildClinicWorkspace();
+    globalThis.__TEST_PATHNAME__ = `/projects/${workspace.slug}`;
+
+    render(React.createElement(AppShell, null, React.createElement(ProjectWorkspace, {
+      workspace: {
+        ...workspace,
+        artifactPaths: [],
+        primaryArtifactPaths: [],
+        artifactCount: 0,
+        versions: [{ ...workspace.versions[0], artifactPaths: [] }],
+      },
+    })));
+
+    expect(screen.getByText("Aucun artifact réel trouvé.")).toBeInTheDocument();
+  });
+
   it("keeps simple mode free of technical logs and ids while expert navigation remains global", async () => {
     const workspace = buildClinicWorkspace();
     globalThis.__TEST_PATHNAME__ = `/projects/${workspace.slug}`;

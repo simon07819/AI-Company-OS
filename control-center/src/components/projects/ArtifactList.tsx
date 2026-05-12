@@ -24,7 +24,7 @@ export default function ArtifactList({ artifacts, expert = false }: { artifacts:
           </div>
         </div>
       ))}
-      {visibleArtifacts.length === 0 && <p className="project-workspace-muted">Aucun fichier visible pour le moment.</p>}
+      {visibleArtifacts.length === 0 && <p className="project-workspace-muted">Aucun artifact réel trouvé.</p>}
     </div>
   );
 }
