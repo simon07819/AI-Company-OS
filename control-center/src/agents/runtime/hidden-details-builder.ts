@@ -9,6 +9,9 @@ export function buildHiddenDetails(input: {
   qualityResults: unknown[];
   checkpoints: RuntimeCheckpoint[];
   artifacts?: unknown[];
+  qualityReview?: unknown;
+  refinement?: unknown;
+  finalApproval?: unknown;
 }) {
   return {
     workOrder: input.workOrder,
@@ -23,6 +26,9 @@ export function buildHiddenDetails(input: {
       status: "ok" as const,
     }))),
     artifacts: input.artifacts ?? [],
+    qualityReview: input.qualityReview,
+    refinement: input.refinement,
+    finalApproval: input.finalApproval,
     workflowDetails: input.workflowDetails,
   };
 }

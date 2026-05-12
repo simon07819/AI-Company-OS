@@ -19,6 +19,8 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     hiddenDetails?: {
       executionTrace?: { agentsCalled?: string[]; skillsCalled?: string[]; toolsCalled?: string[]; checkpoints?: unknown[]; qualityResults?: unknown[] };
       artifacts?: { id?: string; name?: string; kind?: string; path?: string; fingerprint?: string }[];
+      qualityReview?: { status?: string; score?: number; issues?: { id?: string; message?: string; suggestedFix?: string }[] };
+      refinement?: { finalStatus?: string; attempts?: { attempt?: number; status?: string; outputArtifactId?: string }[]; reviews?: { status?: string; score?: number }[] };
       workflowDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
     };
   } | undefined;
@@ -29,6 +31,8 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     tools: workflow?.hiddenDetails?.workflowDetails?.toolTrace ?? [],
     executionTrace: workflow?.hiddenDetails?.executionTrace,
     missionArtifacts: workflow?.hiddenDetails?.artifacts ?? [],
+    qualityReview: workflow?.hiddenDetails?.qualityReview,
+    refinement: workflow?.hiddenDetails?.refinement,
   };
 }
 
@@ -50,6 +54,36 @@ export default function CEOResultDetails({
         <div>
           <strong>Workspace</strong>
           <Link href={result.workspaceHref}>Ouvrir workspace</Link>
+        </div>
+      )}
+
+      {(workflow.qualityReview || workflow.refinement) && (
+        <div>
+          <strong>Quality review</strong>
+          {workflow.qualityReview && (
+            <p>{workflow.qualityReview.status} · {workflow.qualityReview.score}/100</p>
+          )}
+          {workflow.qualityReview?.issues?.length ? (
+            <ul>
+              {workflow.qualityReview.issues.map((issue) => (
+                <li key={issue.id ?? issue.message}>
+                  <span>{issue.message}</span>
+                  {issue.suggestedFix && <span>{issue.suggestedFix}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {workflow.refinement?.attempts?.length ? (
+            <ul>
+              {workflow.refinement.attempts.map((attempt) => (
+                <li key={`${attempt.attempt}-${attempt.outputArtifactId}`}>
+                  <span>Attempt {attempt.attempt}</span>
+                  <span>{attempt.status}</span>
+                  {attempt.outputArtifactId && <span>{attempt.outputArtifactId}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       )}
 

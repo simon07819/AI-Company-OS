@@ -77,5 +77,8 @@ export interface MissionRuntimeResult<VisibleOutput = unknown> {
     checkpoints?: RuntimeCheckpoint[];
     toolTrace?: ToolTraceEntry[];
     workflowDetails?: unknown;
+    qualityReview?: unknown;
+    refinement?: unknown;
+    finalApproval?: unknown;
   };
 }

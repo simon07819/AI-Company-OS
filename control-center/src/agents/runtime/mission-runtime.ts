@@ -13,6 +13,9 @@ import {
 } from "@/agents/artifacts/artifact-quality";
 import { buildWebsiteArtifact } from "@/agents/artifacts/website-artifact-builder";
 import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workflows/website-design-workflow";
+import { approveFinalDeliverable } from "@/agents/quality/final-approval";
+import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
+import { runRefinementLoop } from "@/agents/quality/refinement-loop";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import { InMemoryCheckpointStore } from "./checkpoint-store";
@@ -76,6 +79,36 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   const visibleOutput = buildVisibleOutput(workOrder, primaryArtifactBuild
     ? { primaryArtifact: primaryArtifactBuild.visibleDeliverable }
     : workflow ?? {});
+  const initialReview = evaluateDeliverable({
+    workOrder,
+    visibleOutput: visibleOutput as { kind?: string; deliverableType?: string; brandName?: string; mediaType?: string; primaryArtifactId?: string; primaryVisual?: string },
+    primaryArtifact: primaryArtifactBuild?.artifact ?? null,
+    previousDeliverable: context?.previousDeliverable ?? null,
+    mode: "simple",
+  });
+  const refinement = runRefinementLoop({
+    workOrder,
+    visibleOutput: visibleOutput as { kind?: string; deliverableType?: string; brandName?: string; mediaType?: string; primaryArtifactId?: string; primaryVisual?: string },
+    primaryArtifact: primaryArtifactBuild?.artifact ?? null,
+    previousDeliverable: context?.previousDeliverable ?? null,
+    maxAttempts: 2,
+  });
+  const finalVisibleOutput = refinement.finalStatus === "approved" && refinement.finalVisibleOutput
+    ? refinement.finalVisibleOutput
+    : visibleOutput;
+  const finalPrimaryArtifact = refinement.finalStatus === "approved"
+    ? refinement.finalArtifact ?? primaryArtifactBuild?.artifact ?? null
+    : primaryArtifactBuild?.artifact ?? null;
+  const finalReview = refinement.reviews.at(-1) ?? initialReview;
+  const finalApproval = finalPrimaryArtifact
+    ? approveFinalDeliverable({
+      workOrder,
+      visibleOutput: finalVisibleOutput as { kind?: string; deliverableType?: string; brandName?: string; mediaType?: string; primaryArtifactId?: string; primaryVisual?: string },
+      primaryArtifact: finalPrimaryArtifact,
+      qualityReview: finalReview,
+      mode: "simple",
+    })
+    : null;
   const workflowDetails = workflow?.hiddenDetails ?? {};
   const workflowAgentRuns = "agentRuns" in workflowDetails && Array.isArray(workflowDetails.agentRuns) ? workflowDetails.agentRuns as AgentRunResult[] : [];
   const workflowToolTrace = "toolTrace" in workflowDetails && Array.isArray(workflowDetails.toolTrace) ? workflowDetails.toolTrace as ToolTraceEntry[] : [];
@@ -83,24 +116,29 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   const toolTrace = [...runtimeToolTrace, ...workflowToolTrace];
   const qualityResults = runQualityGates({
     workOrder,
-    visibleOutput: visibleOutput as { kind?: string; deliverableType?: string; brandName?: string; primaryVisual?: string },
+    visibleOutput: finalVisibleOutput as { kind?: string; deliverableType?: string; brandName?: string; primaryVisual?: string },
     previousDeliverable: context?.previousDeliverable ?? null,
   });
   const artifactList = artifactStore.list();
-  const primaryArtifact = primaryArtifactBuild?.artifact ?? null;
+  const primaryArtifact = finalPrimaryArtifact;
+  const hiddenArtifactList = primaryArtifact && !artifactList.some((artifact) => artifact.id === primaryArtifact.id)
+    ? [...artifactList, primaryArtifact]
+    : artifactList;
   const artifactQualityResults = [
-    validatePrimaryArtifactExists({ primaryArtifactId: primaryArtifact?.id, artifacts: artifactList }),
+    validatePrimaryArtifactExists({ primaryArtifactId: primaryArtifact?.id, artifacts: hiddenArtifactList }),
     workOrder.deliverableType === "logo"
       ? validateLogoArtifact({ artifact: primaryArtifact, brandName: workOrder.brandName })
       : validateWebsiteArtifact({ artifact: primaryArtifact, brandName: workOrder.brandName }),
-    validateArtifactIsolation({ artifacts: artifactList, missionId: workOrder.missionId, turnId: workOrder.turnId }),
+    validateArtifactIsolation({ artifacts: hiddenArtifactList, missionId: workOrder.missionId, turnId: workOrder.turnId }),
     validateNoArtifactRecycle({
       artifact: primaryArtifact,
       previousPrimaryVisual: context?.previousDeliverable?.primaryVisual ?? null,
       previousDeliverableType: context?.previousDeliverable?.deliverableType ?? null,
       currentDeliverableType: workOrder.deliverableType,
     }),
-    validateSimpleChatDoesNotExposeArtifacts(visibleOutput),
+    validateSimpleChatDoesNotExposeArtifacts(finalVisibleOutput),
+    { gate: "qualityReview", ok: finalReview.status === "approved", issues: finalReview.issues.map((issue) => issue.message) },
+    { gate: "finalApproval", ok: Boolean(finalApproval?.approved), issues: finalApproval?.approved ? [] : ["final approval missing"] },
   ];
   const retry = decideRetry(qualityResults, 0);
   const checkpoints = store.all();
@@ -109,7 +147,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   return {
     workOrder,
     missionPlan,
-    visibleOutput,
+    visibleOutput: finalVisibleOutput,
     hiddenDetails: buildHiddenDetails({
       workOrder,
       missionPlan,
@@ -117,7 +155,10 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       qualityResults: [...qualityResults, ...artifactQualityResults, retry],
       checkpoints,
       workflowDetails,
-      artifacts: buildHiddenArtifacts(artifactList),
+      artifacts: buildHiddenArtifacts(hiddenArtifactList),
+      qualityReview: finalReview,
+      refinement,
+      finalApproval,
     }),
   };
 }

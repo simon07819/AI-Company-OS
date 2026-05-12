@@ -40,7 +40,7 @@ export function validateWebsiteArtifact(input: { artifact?: MissionArtifact | nu
 
 export function validateArtifactIsolation(input: { artifacts: MissionArtifact[]; missionId: string; turnId: string }) {
   const issues = input.artifacts
-    .filter((artifact) => artifact.missionId !== input.missionId || artifact.turnId !== input.turnId)
+    .filter((artifact) => artifact.missionId !== input.missionId || (artifact.turnId !== input.turnId && !artifact.turnId.startsWith(`${input.turnId}-refine-`)))
     .map((artifact) => `artifact isolé incorrectement: ${artifact.id}`);
   return { gate: "validateArtifactIsolation", ok: issues.length === 0, issues };
 }
