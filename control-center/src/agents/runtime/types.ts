@@ -18,6 +18,9 @@ export interface WorkOrder {
   industry?: string;
   style?: string;
   metadata: Record<string, unknown>;
+  forbiddenPrimaryArtifactFingerprints?: string[];
+  selectedReusableAssets?: unknown[];
+  contextSelection?: unknown;
 }
 
 export interface MissionTask {
@@ -80,5 +83,6 @@ export interface MissionRuntimeResult<VisibleOutput = unknown> {
     qualityReview?: unknown;
     refinement?: unknown;
     finalApproval?: unknown;
+    contextSelection?: unknown;
   };
 }

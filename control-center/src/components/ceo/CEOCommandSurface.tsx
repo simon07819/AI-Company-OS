@@ -17,6 +17,8 @@ interface CommandResponse {
   shortMessage?: string;
   primaryVisualPath?: string | null;
   primaryVisual?: string | null;
+  primaryArtifactId?: string | null;
+  primaryArtifactFingerprint?: string | null;
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
   artifactPaths?: string[];
@@ -70,6 +72,8 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     shortMessage: payload.shortMessage,
     primaryVisualPath: payload.primaryVisualPath,
     primaryVisual: payload.primaryVisual,
+    primaryArtifactId: payload.primaryArtifactId,
+    primaryArtifactFingerprint: payload.primaryArtifactFingerprint,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
     artifactPaths: payload.artifactPaths ?? [],
@@ -88,6 +92,8 @@ export default function CEOCommandSurface() {
   const toggleMode = viewMode?.toggleMode ?? (() => undefined);
   const [mission, setMission] = useState<CEOCurrentMission | null>(null);
   const [result, setResult] = useState<CEOCurrentResult | null>(null);
+  const [conversationId] = useState(() => `ceo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
+  const [turns, setTurns] = useState<Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,22 +116,28 @@ export default function CEOCommandSurface() {
       const response = await fetch("/api/ceo/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, expertMode: isExpert }),
+        body: JSON.stringify({ prompt, expertMode: isExpert, conversationId }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
-        setMission(missionFromCommand(prompt, payload));
-        setResult(resultFromCommand(prompt, {
+        const failedMission = missionFromCommand(prompt, payload);
+        const failedResult = resultFromCommand(prompt, {
           ...payload,
           title: payload.title || "Aucun artifact réel créé",
           status: payload.status || "failed",
           summary: payload.error || "Impossible de créer le projet. Détail disponible en mode expert.",
           artifactPaths: payload.artifactPaths ?? [],
-        }));
+        });
+        setMission(failedMission);
+        setResult(failedResult);
+        setTurns((items) => [...items, { id: failedMission.id, mission: failedMission, result: failedResult }]);
         return;
       }
-      setMission(missionFromCommand(prompt, payload));
-      setResult(resultFromCommand(prompt, payload));
+      const nextMission = missionFromCommand(prompt, payload);
+      const nextResult = resultFromCommand(prompt, payload);
+      setMission(nextMission);
+      setResult(nextResult);
+      setTurns((items) => [...items, { id: nextMission.id, mission: nextMission, result: nextResult }]);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue.";
       setMission({ ...pendingMission, status: "error" });
@@ -153,6 +165,7 @@ export default function CEOCommandSurface() {
         <CEOResultStage
           result={result}
           mission={mission}
+          turns={turns}
           expertMode={isExpert}
           loading={loading}
           error={error}

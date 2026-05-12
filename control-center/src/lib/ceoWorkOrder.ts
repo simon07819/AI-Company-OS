@@ -20,6 +20,8 @@ export interface CeoWorkOrder {
 export interface PreviousDeliverable {
   deliverableType?: string | null;
   primaryVisual?: string | null;
+  primaryArtifactFingerprint?: string | null;
+  brandName?: string | null;
 }
 
 function normalize(input: string) {
@@ -40,7 +42,7 @@ function isLogoPrompt(lower: string) {
 }
 
 function isModificationPrompt(lower: string) {
-  return /\b(modifie|modifier|change|changer|variante|reprends|reprendre|le meme|le même|celui-la|celui là|ce logo|mets-le|met le|agrandis|raffine|ameliore|améliore)\b/.test(lower);
+  return /(modifie|modifier|change|changer|variante|reprends|reprendre|le meme|le même|celui-la|celui là|ce logo|mets-le|met le|agrandis|raffine|ameliore|améliore|fond noir|en noir|plus sportif|plus moderne)/.test(lower);
 }
 
 function inferStyle(lower: string) {
@@ -59,15 +61,19 @@ function inferIndustry(lower: string) {
 
 export function createWorkOrderFromPrompt(userPrompt: string, previousDeliverable?: PreviousDeliverable | null): CeoWorkOrder {
   const lower = normalize(userPrompt);
+  const modification = isModificationPrompt(lower);
   const brandBrief = generateBrandBrief(userPrompt);
-  const brandName = brandBrief.explicitBrandName
+  const extractedBrandName = brandBrief.explicitBrandName
     ? /^[a-z0-9]+$/.test(brandBrief.brandName) ? brandBrief.brandName.toUpperCase() : brandBrief.brandName
     : null;
+  const brandName = modification && previousDeliverable?.brandName
+    ? previousDeliverable.brandName
+    : extractedBrandName;
   const website = isWebsitePrompt(lower);
   const logo = isLogoPrompt(lower);
   const assetRequests = logo && website ? ["logo"] : [];
   const contentMode = /temporaire|placeholder|faux contenu|contenu temporaire|lorem/.test(lower) ? "temporary" : undefined;
-  const deliverableType: CeoDeliverableType = website
+  const explicitDeliverableType: CeoDeliverableType = website
     ? lower.includes("landing") || lower.includes("page web") || lower.includes("page d'accueil")
       ? "landing_page"
       : "website"
@@ -80,6 +86,9 @@ export function createWorkOrderFromPrompt(userPrompt: string, previousDeliverabl
           : /automation|automatisation|workflow|systeme|système/.test(lower)
             ? "business-system"
             : "unknown";
+  const deliverableType = (explicitDeliverableType === "unknown" || (modification && !website && !logo)) && previousDeliverable?.deliverableType
+    ? previousDeliverable.deliverableType as CeoDeliverableType
+    : explicitDeliverableType;
   const requestType = deliverableType === "landing_page" || deliverableType === "website"
     ? "website"
     : deliverableType === "logo"
@@ -109,7 +118,7 @@ export function shouldReusePreviousDeliverable(
   current: { prompt: string; deliverableType: CeoDeliverableType },
   previous?: PreviousDeliverable | null,
 ) {
-  if (!previous?.primaryVisual || !previous.deliverableType) return false;
+  if (!previous?.deliverableType) return false;
   const lower = normalize(current.prompt);
   if (!isModificationPrompt(lower)) return false;
   if (current.deliverableType !== previous.deliverableType) return false;

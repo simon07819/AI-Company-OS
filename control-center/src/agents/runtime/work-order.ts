@@ -5,8 +5,15 @@ function idSafe(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "mission";
 }
 
-export function createWorkOrderFromPrompt(userPrompt: string, context?: { previousDeliverable?: PreviousDeliverable | null; mode?: "simple" | "details" }): WorkOrder {
-  const base = createCeoWorkOrder(userPrompt, context?.previousDeliverable ?? null);
+export function createWorkOrderFromPrompt(
+  userPrompt: string,
+  context?: { previousDeliverable?: PreviousDeliverable | null; mode?: "simple" | "details" } | PreviousDeliverable | null,
+): WorkOrder {
+  const runtimeContext = context && ("previousDeliverable" in context || "mode" in context)
+    ? context
+    : { previousDeliverable: context as PreviousDeliverable | null | undefined };
+  const previousDeliverable = runtimeContext?.previousDeliverable ?? null;
+  const base = createCeoWorkOrder(userPrompt, previousDeliverable);
   const stamp = Date.now().toString(36);
   const turnId = base.turnId;
   const missionId = `mission-${idSafe(userPrompt)}-${stamp}`;
@@ -18,10 +25,10 @@ export function createWorkOrderFromPrompt(userPrompt: string, context?: { previo
     requestType: base.requestType,
     deliverableType: base.deliverableType,
     brandName: base.brandName ?? undefined,
-    currentMode: context?.mode ?? "simple",
+    currentMode: runtimeContext?.mode ?? "simple",
     isNewDeliverable: !base.shouldReusePreviousLogo,
     mayReusePreviousDeliverable: base.shouldReusePreviousLogo,
-    previousDeliverableId: context?.previousDeliverable?.primaryVisual ? "previous-primary-visual" : undefined,
+    previousDeliverableId: previousDeliverable?.primaryVisual || previousDeliverable?.primaryArtifactFingerprint ? "previous-primary-visual" : undefined,
     constraints: [
       `visibleKind:${base.visibleKind}`,
       ...(base.style ? [`style:${base.style}`] : []),

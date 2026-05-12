@@ -12,6 +12,7 @@ export function buildHiddenDetails(input: {
   qualityReview?: unknown;
   refinement?: unknown;
   finalApproval?: unknown;
+  contextSelection?: unknown;
 }) {
   return {
     workOrder: input.workOrder,
@@ -29,6 +30,7 @@ export function buildHiddenDetails(input: {
     qualityReview: input.qualityReview,
     refinement: input.refinement,
     finalApproval: input.finalApproval,
+    contextSelection: input.contextSelection,
     workflowDetails: input.workflowDetails,
   };
 }

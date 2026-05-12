@@ -16,6 +16,7 @@ import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workf
 import { approveFinalDeliverable } from "@/agents/quality/final-approval";
 import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
 import { runRefinementLoop } from "@/agents/quality/refinement-loop";
+import type { ContextSelection } from "@/agents/memory/types";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import { InMemoryCheckpointStore } from "./checkpoint-store";
@@ -30,8 +31,13 @@ import type { MissionRuntimeResult } from "./types";
 import { buildVisibleOutput } from "./visible-output-builder";
 import { createWorkOrderFromPrompt } from "./work-order";
 
-export function runAgentMission(userPrompt: string, context?: { previousDeliverable?: PreviousDeliverable | null; mode?: "simple" | "details" }): MissionRuntimeResult {
+export function runAgentMission(userPrompt: string, context?: { previousDeliverable?: PreviousDeliverable | null; mode?: "simple" | "details"; contextSelection?: ContextSelection | null }): MissionRuntimeResult {
   const workOrder = createWorkOrderFromPrompt(userPrompt, context);
+  if (context?.contextSelection) {
+    workOrder.forbiddenPrimaryArtifactFingerprints = context.contextSelection.forbiddenPrimaryArtifactFingerprints;
+    workOrder.selectedReusableAssets = context.contextSelection.selectedReusableAssets;
+    workOrder.contextSelection = context.contextSelection;
+  }
   const missionPlan = createMissionPlan(workOrder);
   const graph = buildTaskGraph(missionPlan);
   const store = new InMemoryCheckpointStore();
@@ -159,6 +165,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       qualityReview: finalReview,
       refinement,
       finalApproval,
+      contextSelection: context?.contextSelection ?? null,
     }),
   };
 }

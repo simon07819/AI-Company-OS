@@ -34,9 +34,66 @@ function usesDarkLogoBackground(prompt?: string) {
   return /sur\s+fond\s+noir|fond\s+noir/i.test(prompt ?? "");
 }
 
+function CEOResultMessage({
+  result,
+  mission,
+  expertMode,
+  onModify,
+}: {
+  result: CEOCurrentResult;
+  mission: CEOCurrentMission | null;
+  expertMode: boolean;
+  onModify: () => void;
+}) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const hasArtifacts = result.artifactPaths.length > 0;
+  const isBranding = result.requestType === "branding" || result.requestType === "logo";
+  const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
+  const isLogoDeliverable = isBranding && (result.deliverableType === "logo" || /^Logo\s+/i.test(result.title) || Boolean(result.brandName));
+  const brandName = brandNameFromResult(result);
+
+  return (
+    <article className={`ceo-chat-message ceo ${hasArtifacts ? "ready" : "failed"}`}>
+      {!isLogoDeliverable && !isWebsite && <p>{responseIntro(result)}</p>}
+      {hasArtifacts ? (
+        <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
+          {isBranding ? (
+            <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
+          ) : isWebsite ? (
+            <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
+          ) : (
+            <>
+              <strong>{result.title}</strong>
+              <p>{result.summary}</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="ceo-chat-visual-reply failed">
+          <AlertTriangle size={18} />
+          <strong>Je n’ai pas encore produit un résultat exploitable.</strong>
+          <p>{result.summary}</p>
+        </div>
+      )}
+      <div className="ceo-chat-actions">
+        <button type="button" onClick={onModify}>
+          <Wand2 size={15} />
+          Modifier
+        </button>
+        <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
+          <Info size={15} />
+          Voir détails
+        </button>
+      </div>
+      {detailsOpen && <CEOResultDetails result={result} mission={mission} expertMode={expertMode} />}
+    </article>
+  );
+}
+
 export default function CEOResultStage({
   result,
   mission,
+  turns = [],
   expertMode,
   loading,
   error,
@@ -44,14 +101,13 @@ export default function CEOResultStage({
 }: {
   result: CEOCurrentResult | null;
   mission: CEOCurrentMission | null;
+  turns?: Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>;
   expertMode: boolean;
   loading: boolean;
   error: string | null;
   onModify: () => void;
   onContinue: () => void;
 }) {
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
     return (
       <section className="ceo-chat-messages" aria-label="Messages CEO">
@@ -94,11 +150,20 @@ export default function CEOResultStage({
     );
   }
 
-  const hasArtifacts = result.artifactPaths.length > 0;
-  const isBranding = result.requestType === "branding" || result.requestType === "logo";
-  const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
-  const isLogoDeliverable = isBranding && (result.deliverableType === "logo" || /^Logo\s+/i.test(result.title) || Boolean(result.brandName));
-  const brandName = brandNameFromResult(result);
+  if (turns.length > 0) {
+    return (
+      <section className="ceo-chat-messages" aria-label="Messages CEO">
+        {turns.map((turn) => (
+          <div key={turn.id} className="ceo-chat-turn">
+            <article className="ceo-chat-message user">
+              <p>{turn.mission.prompt}</p>
+            </article>
+            <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} />
+          </div>
+        ))}
+      </section>
+    );
+  }
 
   return (
     <section className="ceo-chat-messages" aria-label="Messages CEO">
@@ -108,43 +173,7 @@ export default function CEOResultStage({
         </article>
       )}
 
-      <article className={`ceo-chat-message ceo ${hasArtifacts ? "ready" : "failed"}`}>
-        {!isLogoDeliverable && !isWebsite && <p>{responseIntro(result)}</p>}
-
-        {hasArtifacts ? (
-          <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
-            {isBranding ? (
-              <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
-            ) : isWebsite ? (
-              <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
-            ) : (
-              <>
-                <strong>{result.title}</strong>
-                <p>{result.summary}</p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="ceo-chat-visual-reply failed">
-            <AlertTriangle size={18} />
-            <strong>Je n’ai pas encore produit un résultat exploitable.</strong>
-            <p>{result.summary}</p>
-          </div>
-        )}
-
-        <div className="ceo-chat-actions">
-          <button type="button" onClick={onModify}>
-            <Wand2 size={15} />
-            Modifier
-          </button>
-          <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
-            <Info size={15} />
-            Voir détails
-          </button>
-        </div>
-
-        {detailsOpen && <CEOResultDetails result={result} mission={mission} expertMode={expertMode} />}
-      </article>
+      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} />
     </section>
   );
 }

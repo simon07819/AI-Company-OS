@@ -2,6 +2,7 @@ import { runAgentMission } from "@/agents/runtime/mission-runtime";
 import type { MissionRuntimeResult } from "@/agents/runtime/types";
 import type { AgentRunResult } from "@/agents/types";
 import type { PreviousDeliverable } from "@/lib/ceoWorkOrder";
+import type { ContextSelection } from "@/agents/memory/types";
 
 export type CompanyWorkflowResult =
   | {
@@ -21,8 +22,8 @@ export type CompanyWorkflowResult =
       agentRuns: AgentRunResult[];
     };
 
-export function runCompanyWorkflow(userPrompt: string, context?: { previousDeliverable?: PreviousDeliverable | null }): CompanyWorkflowResult {
-  const runtime = runAgentMission(userPrompt, { previousDeliverable: context?.previousDeliverable ?? null, mode: "simple" });
+export function runCompanyWorkflow(userPrompt: string, context?: { previousDeliverable?: PreviousDeliverable | null; contextSelection?: ContextSelection | null }): CompanyWorkflowResult {
+  const runtime = runAgentMission(userPrompt, { previousDeliverable: context?.previousDeliverable ?? null, contextSelection: context?.contextSelection ?? null, mode: "simple" });
   const workflow = runtime.workOrder.requestType === "website"
     ? "website"
     : runtime.workOrder.deliverableType === "logo"

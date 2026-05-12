@@ -200,6 +200,52 @@ describe("CEO command components", () => {
     expect(screen.queryByText(/Brand system|Marque à nommer|README|workspace|90\/100/i)).not.toBeInTheDocument();
   });
 
+  it("keeps successive CEO messages tied to their own output and details", () => {
+    const logoResult: CEOCurrentResult = {
+      ...result,
+      title: "Logo EKIDA",
+      requestType: "branding",
+      brandName: "EKIDA",
+      deliverableType: "logo",
+      primaryVisual: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560"><rect width="900" height="560" fill="#030712"/><path d="M0 0h1"/><text>EKIDA</text><text>EK</text></svg>`,
+      artifactPaths: ["generated-products/logo-ekida/final-logo.svg"],
+      expert: { companyWorkflow: { hiddenDetails: { qualityReview: { status: "approved", score: 100 } } } },
+    };
+    const websiteResult: CEOCurrentResult = {
+      ...result,
+      title: "EKIDA website",
+      requestType: "website",
+      brandName: "EKIDA",
+      deliverableType: "landing_page",
+      primaryVisual: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 760" role="img" aria-label="Preview site web EKIDA"><g aria-label="nav"><text>EKIDA</text></g><g aria-label="hero"><text>Essentiels</text></g><g aria-label="sections"><text>Voir la collection</text></g></svg>`,
+      artifactPaths: ["generated-products/ekida-website/README.md"],
+      expert: { companyWorkflow: { hiddenDetails: { qualityReview: { status: "approved", score: 95 } } } },
+    };
+
+    render(React.createElement(CEOResultStage, {
+      result: websiteResult,
+      mission: { ...mission, prompt: "Je veux une page web bien simple avec le logo ekida", requestType: "website" },
+      turns: [
+        { id: "turn-logo", mission: { ...mission, id: "turn-logo", prompt: "logo EKIDA", requestType: "branding" }, result: logoResult },
+        { id: "turn-site", mission: { ...mission, id: "turn-site", prompt: "Je veux une page web bien simple avec le logo ekida", requestType: "website" }, result: websiteResult },
+      ],
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByText("logo EKIDA")).toBeInTheDocument();
+    expect(screen.getByText("Je veux une page web bien simple avec le logo ekida")).toBeInTheDocument();
+    expect(screen.getByLabelText("Visuel EKIDA")).toBeInTheDocument();
+    expect(screen.getByLabelText("Preview EKIDA website")).toBeInTheDocument();
+    const detailsButtons = screen.getAllByRole("button", { name: /Voir détails/ });
+    fireEvent.click(detailsButtons[1]);
+    expect(screen.getByText("README.md")).toBeInTheDocument();
+    expect(screen.queryByText("final-logo.svg")).not.toBeInTheDocument();
+  });
+
   it("keeps tool traces hidden until details are opened", () => {
     render(React.createElement(CEOResultStage, {
       result: {

@@ -34,6 +34,8 @@ export interface CEOCurrentResult {
   shortMessage?: string;
   primaryVisualPath?: string | null;
   primaryVisual?: string | null;
+  primaryArtifactId?: string | null;
+  primaryArtifactFingerprint?: string | null;
   status: CEOMissionStatus;
   summary: string;
   artifactPaths: string[];

@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { executeProductionMission } from "@/lib/orchestrator/missionExecutor";
 import { readGeneratedProject } from "@/lib/product-builder/workspace";
 import { runCompanyWorkflow } from "@/agents/workflows/company-workflow";
+import { createArtifactFingerprint } from "@/agents/artifacts/artifact-fingerprint";
+import { createMissionMemoryStore, reusableAssetFromMission } from "@/agents/memory/mission-memory-store";
+import { decideContextReuse } from "@/agents/memory/reuse-policy";
+import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
+import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -30,6 +35,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const conversationId = typeof body.conversationId === "string" && body.conversationId.trim() ? body.conversationId.trim() : "ceo-default";
     if (!prompt) {
       return NextResponse.json({
         ok: false,
@@ -40,8 +46,32 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    const memoryStore = createMissionMemoryStore({ conversationId });
+    const preliminaryWorkOrder = createWorkOrderFromPrompt(prompt);
+    const contextSelection = decideContextReuse({
+      currentPrompt: prompt,
+      currentWorkOrder: preliminaryWorkOrder,
+      memory: memoryStore.snapshot(),
+    });
+    const latest = memoryStore.lastApprovedDeliverable();
+    const selectedPrimary = contextSelection.selectedPreviousArtifactId && latest?.primaryArtifactId === contextSelection.selectedPreviousArtifactId
+      ? latest
+      : null;
+    const previousDeliverable = selectedPrimary
+      ? {
+        deliverableType: selectedPrimary.deliverableType,
+        primaryArtifactFingerprint: selectedPrimary.primaryArtifactFingerprint,
+        brandName: selectedPrimary.brandName,
+      }
+      : latest
+        ? {
+          deliverableType: latest.deliverableType,
+          primaryArtifactFingerprint: latest.primaryArtifactFingerprint,
+          brandName: latest.brandName,
+        }
+        : null;
     const run = executeProductionMission(prompt);
-    const companyWorkflow = runCompanyWorkflow(prompt);
+    const companyWorkflow = runCompanyWorkflow(prompt, { previousDeliverable, contextSelection });
     const workOrder = companyWorkflow.workOrder;
     const artifactPaths = run.manifest.artifactPaths.filter(artifactExists);
     const missingArtifacts = run.manifest.artifactPaths.filter((artifactPath) => !artifactExists(artifactPath));
@@ -53,6 +83,7 @@ export async function POST(req: NextRequest) {
     const filePrimaryVisual = readTextArtifact(primaryVisualPath);
     const workflowVisibleOutput = companyWorkflow.visibleOutput as { primaryVisual?: string; primaryArtifactId?: string } | null;
     const primaryVisual = workflowVisibleOutput?.primaryVisual ?? filePrimaryVisual;
+    const primaryArtifactFingerprint = primaryVisual ? createArtifactFingerprint(primaryVisual) : undefined;
 
     if (!hasArtifacts) {
       return NextResponse.json({
@@ -73,7 +104,7 @@ export async function POST(req: NextRequest) {
       }, { status: 500 });
     }
 
-    return NextResponse.json({
+    const responsePayload = {
       ok: true,
       missionId: run.id,
       projectId: run.projectSlug,
@@ -89,6 +120,7 @@ export async function POST(req: NextRequest) {
       primaryVisualPath,
       primaryVisual,
       primaryArtifactId: workflowVisibleOutput?.primaryArtifactId,
+      primaryArtifactFingerprint,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
         path: artifactPath,
@@ -115,7 +147,48 @@ export async function POST(req: NextRequest) {
           hiddenDetails: companyWorkflow.hiddenDetails,
         },
       },
+    };
+
+    memoryStore.addTurn({
+      id: workOrder.turnId,
+      userPrompt: prompt,
+      workOrderId: workOrder.id,
+      missionId: workOrder.missionId,
+      deliverableType: workOrder.deliverableType,
+      brandName: workOrder.brandName,
+      visibleOutputKind: workflowVisibleOutput && "kind" in workflowVisibleOutput ? String((workflowVisibleOutput as { kind?: string }).kind ?? "") : undefined,
+      primaryArtifactId: workflowVisibleOutput?.primaryArtifactId,
+      primaryArtifactFingerprint,
+      status: responsePayload.status === "ready" ? "approved" : "failed",
     });
+    if (responsePayload.status === "ready" && workflowVisibleOutput?.primaryArtifactId && primaryArtifactFingerprint) {
+      const memory = {
+        id: `memory-${workOrder.missionId}`,
+        turnId: workOrder.turnId,
+        missionId: workOrder.missionId,
+        workOrderId: workOrder.id,
+        deliverableType: workOrder.deliverableType,
+        brandName: workOrder.brandName,
+        primaryArtifactId: workflowVisibleOutput.primaryArtifactId,
+        primaryArtifactFingerprint,
+        reusableAssets: [
+          reusableAssetFromMission({
+            id: `asset-${workflowVisibleOutput.primaryArtifactId}`,
+            deliverableType: workOrder.deliverableType,
+            brandName: workOrder.brandName,
+            primaryArtifactId: workflowVisibleOutput.primaryArtifactId,
+            primaryArtifactFingerprint,
+            constraints: workOrder.constraints,
+          }),
+        ],
+        summary: "",
+        hiddenDetailsRef: `hidden:${workOrder.missionId}`,
+      };
+      memory.summary = summarizeMissionMemory(memory);
+      memoryStore.addApprovedMission(memory);
+    }
+
+    return NextResponse.json(responsePayload);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue.";
     return NextResponse.json({

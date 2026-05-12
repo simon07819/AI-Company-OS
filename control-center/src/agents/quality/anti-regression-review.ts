@@ -21,5 +21,13 @@ export function reviewNoPreviousDeliverableRegression(input: {
       suggestedFix: "Créer un nouvel artifact primaire pour la demande actuelle.",
     }));
   }
+  if (input.workOrder.forbiddenPrimaryArtifactFingerprints?.includes(input.primaryArtifact.fingerprint)) {
+    issues.push(issue({
+      id: "forbidden-primary-artifact",
+      category: "recycled_output",
+      message: "Le livrable primaire utilise un fingerprint interdit par la mémoire.",
+      suggestedFix: "Créer un nouvel artifact primaire pour ce tour.",
+    }));
+  }
   return issues;
 }
