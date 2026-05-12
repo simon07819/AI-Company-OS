@@ -6,7 +6,7 @@ import { createProductSpec } from "./productSpec";
 import { createSaasBlueprint } from "./saasBlueprint";
 import { validateGeneratedProduct } from "./qualityGate";
 import { createWebsiteBlueprint } from "./websiteBlueprint";
-import type { ProductBuildResult, ProductBuilderInput, ProductFile, ProductKind, ProductSpec, WrittenArtifact } from "./types";
+import type { ProductArtifactManifest, ProductBuildResult, ProductBuilderInput, ProductFile, ProductKind, ProductSpec, WrittenArtifact } from "./types";
 import { evaluateProductQuality } from "@/lib/quality/productQualityRubric";
 import { writeValidationReport } from "@/lib/quality/validationReport";
 
@@ -41,24 +41,46 @@ function writeFiles(projectDir: string, files: ProductFile[]): WrittenArtifact[]
   });
 }
 
-function writeArtifactManifest(projectDir: string, spec: ProductSpec, artifactPaths: string[]): string {
+function writeArtifactManifest(projectDir: string, spec: ProductSpec, artifactPaths: string[], sourcePrompt: string): string {
   const manifestPath = path.join(projectDir, "artifact-manifest.json");
   const manifestRelativePath = path.relative(process.cwd(), manifestPath);
-  const allArtifacts = [...artifactPaths, manifestRelativePath, path.relative(process.cwd(), path.join(projectDir, "quality-report.json")), path.relative(process.cwd(), path.join(projectDir, "execution-ledger.json"))];
-  const manifest = {
+  const generatedAt = new Date().toISOString();
+  const qualityReportPath = path.relative(process.cwd(), path.join(projectDir, "quality-report.json"));
+  const ledgerPath = path.relative(process.cwd(), path.join(projectDir, "execution-ledger.json"));
+  const allArtifacts = Array.from(new Set([...artifactPaths, manifestRelativePath, qualityReportPath, ledgerPath]));
+  const limitations = [
+    "Prototype local seulement.",
+    "Données mockées.",
+    "Aucun déploiement automatique.",
+    "Authentification, base de données et intégrations externes restent à brancher.",
+  ];
+  const launch = ["cd next-app", "npm install", "npm run dev"];
+  const summary = `${spec.name} contient un brief produit, des artifacts de cadrage et un prototype Next.js local traçable.`;
+  const manifest: ProductArtifactManifest = {
+    projectId: spec.slug,
+    title: spec.name,
+    requestType: spec.kind,
+    createdAt: spec.createdAt,
+    updatedAt: generatedAt,
+    artifactPaths: allArtifacts,
+    status: "generated",
+    versions: [{
+      id: "v1",
+      label: "Version 1",
+      createdAt: generatedAt,
+      summary,
+      artifactPaths: allArtifacts,
+    }],
+    sourcePrompt,
+    summary,
     project: spec.name,
     slug: spec.slug,
     kind: spec.kind,
     domain: spec.domain,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     artifacts: allArtifacts.map((artifactPath) => ({ path: artifactPath, fake: false })),
-    limitations: [
-      "Prototype local seulement.",
-      "Données mockées.",
-      "Aucun déploiement automatique.",
-      "Authentification, base de données et intégrations externes restent à brancher.",
-    ],
-    launch: ["cd next-app", "npm install", "npm run dev"],
+    limitations,
+    launch,
   };
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf-8");
   return manifestRelativePath;
@@ -96,7 +118,7 @@ export function buildProductArtifacts(input: ProductBuilderInput): ProductBuildR
   ledger = startLedgerStep(ledger, "step-3");
   ledger = completeLedgerStep(ledger, "step-3", prototypeArtifacts, "Runnable prototype scaffold written.");
 
-  const manifestPath = writeArtifactManifest(projectDir, spec, written.map((artifact) => artifact.relativePath));
+  const manifestPath = writeArtifactManifest(projectDir, spec, written.map((artifact) => artifact.relativePath), input.requestText);
 
   const qualityGate = validateGeneratedProduct(projectDir);
   const qualityReportPath = path.join(projectDir, "quality-report.json");

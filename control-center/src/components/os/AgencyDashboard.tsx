@@ -78,12 +78,24 @@ interface SimpleApproval {
   canApprove: boolean;
 }
 
+interface GeneratedProjectSummary {
+  id: string;
+  slug: string;
+  title: string;
+  requestType: "saas" | "website" | "app";
+  status: string;
+  updatedAt: string;
+  summary: string;
+  artifactCount: number;
+}
+
 interface SimpleAgencyView {
   companies: SimpleCompany[];
   projects: CeoProject[];
   sessions: AutopilotSession[];
   outputs: VisibleOutput[];
   approvals: SimpleApproval[];
+  generatedProjects: GeneratedProjectSummary[];
 }
 
 interface AgentSummary {
@@ -102,6 +114,7 @@ const EMPTY_VIEW: SimpleAgencyView = {
   sessions: [],
   outputs: [],
   approvals: [],
+  generatedProjects: [],
 };
 
 const AGENT_NAMES: Record<string, { name: string; role: string; avatar: string }> = {
@@ -352,6 +365,27 @@ function ProjectCard({ project, view }: { project: CeoProject; view: SimpleAgenc
   );
 }
 
+function GeneratedProjectCard({ project }: { project: GeneratedProjectSummary }) {
+  const stateLabel = project.status === "ready" ? "Pret" : project.status === "needs_review" ? "A ameliorer" : "Projet cree";
+  return (
+    <article className="os-card os-project-card generated">
+      <div className="os-card-top">
+        <span className={`os-pill ${project.status === "needs_review" ? "warning" : "approved"}`}>{stateLabel}</span>
+        <span className="os-muted">{displayDate(project.updatedAt)}</span>
+      </div>
+      <h3>{project.title}</h3>
+      <p>{project.requestType.toUpperCase()} · {project.artifactCount} artifacts reels</p>
+      <div className="os-meta-line">
+        <span>{project.summary}</span>
+      </div>
+      <div className="os-card-actions">
+        <Link className="os-button primary" href={`/projects/${project.slug}`}>Ouvrir le workspace</Link>
+        <Link className="os-button subtle" href="/ceo">Continuer</Link>
+      </div>
+    </article>
+  );
+}
+
 function ResultCard({ output }: { output: VisibleOutput }) {
   return (
     <article className="os-card os-result-card">
@@ -496,7 +530,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
 
   const metrics = [
     { label: "Entreprises", value: view.companies.length, icon: <Building2 size={16} /> },
-    { label: "Projets actifs", value: view.projects.length, icon: <FolderKanban size={16} /> },
+    { label: "Projets actifs", value: view.projects.length + view.generatedProjects.length, icon: <FolderKanban size={16} /> },
     { label: "Agents visibles", value: agents.length, icon: <Bot size={16} /> },
     { label: "A approuver", value: pendingApprovals.length, icon: <CheckCircle2 size={16} /> },
   ];
@@ -587,10 +621,13 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             <div><span className="os-eyebrow">Projets</span><h2>Projets actifs</h2></div>
             <Link href="/projects">Tout voir</Link>
           </div>
-          {view.projects.length === 0 ? (
+          {view.projects.length === 0 && view.generatedProjects.length === 0 ? (
             <EmptyState title="Aucun projet actif" description="Ecrivez au CEO: Je veux un logo pour une compagnie de photo." />
           ) : (
-            <div className="os-grid cards">{view.projects.map((project) => <ProjectCard key={project.id} project={project} view={view} />)}</div>
+            <div className="os-grid cards">
+              {view.generatedProjects.map((project) => <GeneratedProjectCard key={project.id} project={project} />)}
+              {view.projects.map((project) => <ProjectCard key={project.id} project={project} view={view} />)}
+            </div>
           )}
         </section>
       )}

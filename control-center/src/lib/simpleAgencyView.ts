@@ -3,6 +3,7 @@ import { listSessions, type AutopilotLog, type AutopilotSession } from "./autopi
 import { listCeoProjects, type CeoProject } from "./ceoProjectStore";
 import { collectPendingApprovals, getApprovalPreview, type ApprovalItem, type ApprovalPreview } from "./approvalPreview";
 import { listWorkspaces, type CompanyWorkspace } from "./companyWorkspace";
+import { listGeneratedProjects, type GeneratedProjectSummary } from "./product-builder/workspace";
 import { getAllOutputs, type OutputVisualPreview, type VisibleOutput } from "./visibleOutputs";
 
 export interface SimpleCompany {
@@ -31,6 +32,7 @@ export interface SimpleAgencyViewModel {
   outputs: VisibleOutput[];
   approvals: SimpleApproval[];
   companies: SimpleCompany[];
+  generatedProjects: GeneratedProjectSummary[];
   logs: AutopilotLog[];
 }
 
@@ -72,6 +74,7 @@ export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
   const outputs = getAllOutputs();
   const workspaces = listWorkspaces();
   const pendingApprovals = collectPendingApprovals();
+  const generatedProjects = listGeneratedProjects();
 
   const approvals = pendingApprovals
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -119,6 +122,7 @@ export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
     outputs,
     approvals,
     companies,
+    generatedProjects,
     logs,
   };
 }

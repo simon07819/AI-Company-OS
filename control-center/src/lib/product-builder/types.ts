@@ -82,3 +82,32 @@ export interface ProductBuildResult {
   outputQuality: import("@/lib/quality/outputQuality").OutputQualityReport;
   launchInstructions: string[];
 }
+
+export interface ProductArtifactManifestVersion {
+  id: string;
+  label: string;
+  createdAt: string;
+  summary: string;
+  artifactPaths: string[];
+}
+
+export interface ProductArtifactManifest {
+  projectId: string;
+  title: string;
+  requestType: ProductKind;
+  createdAt: string;
+  updatedAt: string;
+  artifactPaths: string[];
+  status: "generated" | "ready" | "needs_review" | "failed";
+  versions: ProductArtifactManifestVersion[];
+  sourcePrompt: string;
+  summary: string;
+  slug: string;
+  kind: ProductKind;
+  domain: string;
+  project: string;
+  generatedAt: string;
+  artifacts: { path: string; fake: false }[];
+  limitations: string[];
+  launch: string[];
+}

@@ -4,6 +4,8 @@ import Link from "next/link";
 import fs from "fs";
 import path from "path";
 import ProjectActions from "@/components/ProjectActions";
+import ProjectWorkspace from "@/components/projects/ProjectWorkspace";
+import { readGeneratedProject } from "@/lib/product-builder/workspace";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 
@@ -31,6 +33,9 @@ function statusClass(status?: string) {
 
 export default async function ProjectPage({ params }: { params: Promise<{ project: string }> }) {
   const { project: projectName } = await params;
+  const generatedProject = readGeneratedProject(projectName);
+  if (generatedProject) return <ProjectWorkspace workspace={generatedProject} />;
+
   const project = getProject(projectName);
   if (!project) notFound();
 
