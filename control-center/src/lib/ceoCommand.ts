@@ -19,6 +19,9 @@ import {
 import { syncCeoMessageToConversation } from "./conversationStore";
 import { assignMissionToWorkspace, createWorkspace, listWorkspaces, type CompanyWorkspace } from "./companyWorkspace";
 import { generateBrandBrief } from "./brandGeneration";
+import { analyzeCeoIntent } from "./ai/ceoIntent";
+import { planCeoExecution } from "./ai/ceoPlanner";
+import type { CeoExecutionPlan, CeoIntentResult } from "./ai/schemas";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -193,14 +196,31 @@ function inferActionableIntent(text: string): CeoIntent {
   return "unknown";
 }
 
-function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
+function intentFromStructured(structured: CeoIntentResult, fallback: CeoIntent): CeoIntent {
+  if ((structured.requestType === "unknown" || structured.requestType === "business") && fallback !== "unknown") return fallback;
+  const map: Partial<Record<CeoIntentResult["requestType"], CeoIntent>> = {
+    logo: "redesign_logo",
+    branding: "branding_pack",
+    website: "create_website",
+    saas: "launch_mission",
+    app: "launch_mission",
+    automation: "launch_mission",
+    business: "launch_mission",
+  };
+  return map[structured.requestType] ?? fallback;
+}
+
+function buildAssumptions(text: string, intent: CeoIntent, structured?: CeoIntentResult): Assumption[] {
   const assumptions: Assumption[] = [];
   const lower = text.toLowerCase();
   const brandBrief = intent === "redesign_logo" || intent === "branding_pack" ? generateBrandBrief(text) : null;
 
   // Smart project name inference (French-first, descriptive)
   let projectName = "";
-  if (brandBrief?.explicitBrandName && lower.includes("logo")) projectName = `Logo ${brandBrief.brandName}`;
+  if (structured?.projectName) projectName = structured.projectName;
+  else if (structured?.brandName && (structured.requestType === "logo" || structured.requestType === "branding")) projectName = structured.requestType === "logo" ? `Logo ${structured.brandName}` : `Identité ${structured.brandName}`;
+  else if (structured?.requestType === "saas" && structured.industry !== "unknown") projectName = `${structured.industry} SaaS`;
+  else if (brandBrief?.explicitBrandName && lower.includes("logo")) projectName = `Logo ${brandBrief.brandName}`;
   else if (brandBrief?.explicitBrandName) projectName = `Identité ${brandBrief.brandName}`;
   else if (lower.includes("logo") && lower.includes("photo")) projectName = "Logo pour compagnie de photo";
   else if (lower.includes("refaire le logo") || lower.includes("redesign logo") || lower.includes("nouveau logo")) projectName = "Refonte logo";
@@ -220,11 +240,25 @@ function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
   else projectName = "Nouvelle mission";
 
   assumptions.push({ field: "Project name", value: projectName, source: "inferred" });
+  if (structured?.projectName) {
+    assumptions.push({ field: "Structured project", value: structured.projectName, source: "message" });
+  }
+  if (structured?.brandName) {
+    assumptions.push({ field: "Brand name", value: structured.brandName, source: "message" });
+  }
+  if (structured?.industry && structured.industry !== "unknown") {
+    assumptions.push({ field: "Industry", value: structured.industry, source: "inferred" });
+  }
+  if (structured?.coreFeatures?.length) {
+    assumptions.push({ field: "Core features", value: structured.coreFeatures.join(", "), source: "inferred" });
+  }
   if (brandBrief?.explicitBrandName) {
-    assumptions.push({ field: "Brand name", value: brandBrief.brandName, source: "message" });
+    const exists = assumptions.some((a) => a.field === "Brand name" && a.value === brandBrief.brandName);
+    if (!exists) assumptions.push({ field: "Brand name", value: brandBrief.brandName, source: "message" });
   }
   if (brandBrief) {
-    assumptions.push({ field: "Industry", value: brandBrief.industry, source: "inferred" });
+    const exists = assumptions.some((a) => a.field === "Industry");
+    if (!exists) assumptions.push({ field: "Industry", value: brandBrief.industry, source: "inferred" });
     assumptions.push({ field: "Creative direction", value: brandBrief.creativeDirection, source: "inferred" });
   }
 
@@ -306,8 +340,16 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
   return map[intent] ?? null;
 }
 
-function inferCompanyWorkspace(text: string, missionType: string): { name: string; industry: string; description: string } {
+function inferCompanyWorkspace(text: string, missionType: string, structured?: CeoIntentResult): { name: string; industry: string; description: string } {
   const lower = text.toLowerCase();
+  if (structured?.brandName || structured?.projectName) {
+    const name = structured.brandName ?? structured.projectName ?? "Nouvelle Entreprise";
+    return {
+      name,
+      industry: structured.industry === "unknown" ? missionType.replace(/_/g, " ") : structured.industry,
+      description: `Entreprise ${structured.industry === "unknown" ? missionType.replace(/_/g, " ") : structured.industry} creee avec les agents AI.`,
+    };
+  }
   if (missionType === "branding_pack") {
     const brandBrief = generateBrandBrief(text);
     if (brandBrief.explicitBrandName) {
@@ -346,8 +388,8 @@ function inferCompanyWorkspace(text: string, missionType: string): { name: strin
   };
 }
 
-function findOrCreateCompanyWorkspace(text: string, missionType: string): CompanyWorkspace {
-  const inferred = inferCompanyWorkspace(text, missionType);
+function findOrCreateCompanyWorkspace(text: string, missionType: string, structured?: CeoIntentResult): CompanyWorkspace {
+  const inferred = inferCompanyWorkspace(text, missionType, structured);
   try {
     const existing = listWorkspaces().find((workspace) =>
       workspace.name.toLowerCase() === inferred.name.toLowerCase() ||
@@ -377,11 +419,17 @@ async function buildProactiveResponse(
   actions: CeoAction[],
   assumptions: Assumption[],
   delegation: Delegation[],
+  executionPlan?: CeoExecutionPlan,
 ): Promise<string> {
   // For non-actionable intents, use the existing smart response system
   const nonActionable: CeoIntent[] = ["greeting", "unknown"];
   if (nonActionable.includes(intent) || intent === "review_business" || intent === "status_check") {
     return buildCeoResponse(intent, userText, actions);
+  }
+
+  if (executionPlan?.visibleResponse) {
+    const notice = executionPlan.mode === "prototype" ? "\nMode prototype: analyse locale structurée, génération NVIDIA non utilisée pour cette étape." : "";
+    return `${executionPlan.visibleResponse}${notice}`;
   }
 
   // For actionable intents, build proactive response
@@ -535,10 +583,12 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
   // Sync to conversationStore
   syncCeoMessageToConversation("user", text);
 
-  // Detect intent (proactive inference included)
-  const intent = detectIntent(text);
+  // Detect intent with structured CEO intelligence, then keep legacy intent names for orchestration compatibility.
+  const structuredIntent = await analyzeCeoIntent(text);
+  const intent = intentFromStructured(structuredIntent, detectIntent(text));
+  const executionPlan = await planCeoExecution(structuredIntent);
   const actions: CeoAction[] = [];
-  const assumptions = buildAssumptions(text, intent);
+  const assumptions = buildAssumptions(text, intent, structuredIntent);
   const delegation = buildDelegation(intent);
 
   // Update conversation memory
@@ -568,7 +618,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
       // 1. Create autopilot session
       const session = createSession({ name: projectName, missionType: missionTypeKey ?? null });
       sessionId = session.sessionId;
-      const workspace = findOrCreateCompanyWorkspace(text, missionTypeKey ?? "saas_project");
+      const workspace = findOrCreateCompanyWorkspace(text, missionTypeKey ?? "saas_project", structuredIntent);
       try {
         assignMissionToWorkspace(workspace.id, session.sessionId);
       } catch {
@@ -671,7 +721,7 @@ export async function sendMessage(text: string): Promise<{ ceoMessage: CeoMessag
   const discussion = createDiscussion(text, intent);
 
   // Build proactive CEO response
-  const responseText = await buildProactiveResponse(intent, text, actions, assumptions, delegation);
+  const responseText = await buildProactiveResponse(intent, text, actions, assumptions, delegation, executionPlan);
   const thinkingState = getThinkingState(intent);
 
   const ceoMsg: CeoMessage = {
