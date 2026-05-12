@@ -127,9 +127,9 @@ describe("critical Control Center pages", () => {
   it("renders CEO chat controls", async () => {
     const { container } = render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/CEO AI/)).length).toBeGreaterThan(0);
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Je veux un logo/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
     expect(screen.getByLabelText("Command Surface")).toBeInTheDocument();
     expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
@@ -179,8 +179,8 @@ describe("critical Control Center pages", () => {
   it("renders CEO simple agency conversation", async () => {
     render(React.createElement(CeoPage));
 
-    expect((await screen.findAllByText("CEO AI")).length).toBeGreaterThan(0);
-    expect(screen.getByPlaceholderText(/Je veux un logo/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/CEO AI/)).length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText(/Décris ce que tu veux construire/)).toBeInTheDocument();
   });
 
   it("keeps CEO expert mode available", async () => {
@@ -207,7 +207,7 @@ describe("critical Control Center pages", () => {
 
     render(React.createElement(CeoPage));
 
-    expect(await screen.findByRole("heading", { name: "Logo Concept — Studio Lumiere" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Concept de marque — Studio Lumiere" })).toBeInTheDocument();
     expect(screen.getAllByText("Prêt").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /Accepter/ }).length).toBeGreaterThanOrEqual(3);
     expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBeGreaterThanOrEqual(3);
@@ -241,7 +241,7 @@ describe("critical Control Center pages", () => {
 
     const { container } = render(React.createElement(CeoPage));
 
-    expect(await screen.findByRole("heading", { name: "Logo Concept — ELEVIO" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Concept de marque — ELEVIO" })).toBeInTheDocument();
     expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
     expect(screen.getByText("A. Premium construction tech")).toBeInTheDocument();
@@ -291,7 +291,7 @@ describe("critical Control Center pages", () => {
 
   it("keeps CEO simple view final-result-first and free of stale technical content", async () => {
     const { container } = render(React.createElement(CeoPage));
-    await screen.findByText("Demande, reçois, décide.");
+    await screen.findByText("Décris ce que tu veux construire.");
     expect(container.textContent ?? "").not.toMatch(/ELEVIO|Mission Room|autopilot|sessionId|projectId|workspaceId|À approuver|A approuver/);
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
     expect(container.querySelector(".left-rail")).not.toBeInTheDocument();

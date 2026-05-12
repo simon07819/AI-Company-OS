@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, Files, FolderOpen, Moon, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
+import { CheckCircle2, ChevronDown, Files, FolderOpen, Moon, Play, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
 import { generateBrandBrief, generateLogoConcepts, type BrandBrief, type LogoConcept } from "@/lib/brandGeneration";
@@ -96,6 +96,8 @@ const LOGO_OUTPUT_TYPES = new Set(["logo_direction", "style_direction", "color_p
 const HIDDEN_MESSAGE_PATTERNS = [
   /Mission Room/gi,
   /autopilot/gi,
+  /Action terminée/gi,
+  /Action terminee/gi,
   /sessionId/gi,
   /projectId/gi,
   /workspaceId/gi,
@@ -104,6 +106,7 @@ const HIDDEN_MESSAGE_PATTERNS = [
   /\d+\s+etapes executees[\s\S]*/gi,
   /Mission créée[\s\S]*/gi,
   /Projet créé[\s\S]*/gi,
+  /created[\s\S]*/gi,
 ];
 
 function sanitizeMessage(text: string, role: "user" | "ceo") {
@@ -242,7 +245,8 @@ function LogoConceptCard({ concept, onAccept, onModify, onRemake, disabled }: {
   );
 }
 
-function activitySummary(sessions: AutopilotSession[], outputs: VisibleOutput[]) {
+function activitySummary(sessions: AutopilotSession[], outputs: VisibleOutput[], productAction?: CeoAction | null) {
+  if (productAction) return "Projet produit généré avec fichiers de départ.";
   if (outputs.length > 0) return "L'équipe AI a préparé le concept.";
   if (sessions.some((session) => session.status === "running")) return "Création du concept en cours...";
   if (sessions.some((session) => session.status === "waiting_approval")) return "Le concept est prêt.";
@@ -255,6 +259,21 @@ function latestProductAction(messages: CeoMessage[]): CeoAction | null {
     if (action) return action;
   }
   return null;
+}
+
+function productTypeLabel(kind?: string) {
+  if (kind === "saas") return "SaaS";
+  if (kind === "website") return "Site web";
+  if (kind === "app") return "App";
+  return "Produit";
+}
+
+function artifactName(path: string) {
+  return path.replace(/^generated-products\/[^/]+\//, "");
+}
+
+function hasProductIntent(text: string) {
+  return /\bsaas\b|site web|site internet|website|\bapp\b|application/i.test(text);
 }
 
 export default function CeoSimplePage() {
@@ -314,7 +333,7 @@ export default function CeoSimplePage() {
   const finalResult = useMemo(() => buildFinalResult(messages, companies, projects, sessions, outputs, approvals), [messages, companies, projects, sessions, outputs, approvals]);
   const productAction = useMemo(() => latestProductAction(messages), [messages]);
   const visibleMessages = useMemo(() => messages.slice(-4).map((message) => ({ ...message, text: sanitizeMessage(message.text, message.role) })).filter((message) => message.text), [messages]);
-  const simpleActivity = activitySummary(sessions, outputs);
+  const simpleActivity = activitySummary(sessions, outputs, productAction);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -326,8 +345,10 @@ export default function CeoSimplePage() {
       id: `local-ceo-${Date.now()}`,
       role: "ceo",
       text: /logo/i.test(text)
-        ? `Parfait. Je prépare un premier concept de logo pour ${generateBrandBrief(text).brandName}.`
-        : "Parfait. Je prépare une première version claire.",
+        ? `Parfait. Je prépare un premier concept de marque pour ${generateBrandBrief(text).brandName}.`
+        : hasProductIntent(text)
+          ? "Parfait. Je prépare une première version produit avec structure, pages, dashboard et fichiers de départ."
+          : "Parfait. Je prépare une première version claire.",
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, localUser, localCeo]);
@@ -395,20 +416,20 @@ export default function CeoSimplePage() {
       <section className="ceo-simple-shell command-surface" aria-label="Command Surface">
         <header className="ceo-simple-header">
           <div>
-            <div className="ceo-eyebrow"><Sparkles size={14} /> CEO AI</div>
-            <h1>Demande, reçois, décide.</h1>
-            <p>Le CEO transforme ta demande en résultat final. Les détails techniques restent en mode expert.</p>
+            <div className="ceo-eyebrow"><Sparkles size={14} /> CEO AI · Command Surface</div>
+            <h1>Décris ce que tu veux construire.</h1>
+            <p>Le CEO transforme ta demande en premier résultat concret: concept, fichiers, prototype ou prochaine version.</p>
           </div>
           <Link className="ceo-expert-link" href="/ceo/expert">Mode expert</Link>
         </header>
 
-        <div className="ceo-chat">
+        <div className="ceo-chat ceo-command-surface">
           {loading && <div className="ceo-status">Connexion au CEO...</div>}
           {!loading && visibleMessages.length === 0 && (
             <div className="ceo-empty">
               <Moon size={22} />
-              <strong>Prêt pour une nouvelle demande.</strong>
-              <span>Exemple: Je veux un logo pour une compagnie de photo</span>
+              <strong>Commence par une demande naturelle.</strong>
+              <span>Exemple: Je veux un SaaS pour gérer les rendez-vous d&apos;une clinique</span>
             </div>
           )}
           {visibleMessages.map((message) => (
@@ -417,17 +438,80 @@ export default function CeoSimplePage() {
               <p>{message.text}</p>
             </motion.div>
           ))}
-          {(sessions.length > 0 || outputs.length > 0) && <div className="ceo-status">{simpleActivity}</div>}
+          {(sessions.length > 0 || outputs.length > 0 || productAction) && <div className="ceo-status">{simpleActivity}</div>}
           <div ref={endRef} />
         </div>
 
+        {productAction && (
+          <section className="product-artifact-card current-result-card" aria-label="Résultat courant">
+            <div className="product-artifact-head">
+              <span><FolderOpen size={15} /> Résultat courant</span>
+              <strong>{productAction.label.replace(/^Projet créé:\s*/, "")}</strong>
+              <div className="product-meta-row">
+                <em>{productTypeLabel(productAction.kind)}</em>
+                {productAction.qualityStatus && <em className="product-quality-pill">{productAction.qualityStatus}</em>}
+                <em>{Math.min(productAction.artifactPaths?.length ?? 0, 100)} artifacts</em>
+              </div>
+              <p>{productAction.summary ?? "Première version produit générée avec fichiers locaux et structure de départ."}</p>
+            </div>
+
+            <div className="product-progress">
+              <span>Progression</span>
+              <div><i style={{ width: `${productAction.qualityStatus === "Prêt" ? 100 : 72}%` }} /></div>
+              <strong>{productAction.qualityStatus === "Prêt" ? "Prêt à explorer" : "À améliorer"}</strong>
+            </div>
+
+            <div className="artifact-preview-grid">
+              {(productAction.artifactPaths ?? []).slice(0, 6).map((artifact) => (
+                <article key={artifact}>
+                  <Files size={14} />
+                  <span>{artifactName(artifact)}</span>
+                </article>
+              ))}
+            </div>
+
+            <div className="next-actions-card">
+              <strong>Prochaines actions</strong>
+              <span>Ouvre le workspace, inspecte les fichiers, puis demande au CEO de continuer ou modifier le produit.</span>
+            </div>
+
+            <details>
+              <summary><Files size={15} /> Voir les fichiers</summary>
+              <ul>
+                {productAction.artifactPaths?.map((artifact) => <li key={artifact}>{artifact}</li>)}
+              </ul>
+            </details>
+            {productAction.launchInstructions?.length ? (
+              <div className="product-launch-box">
+                <strong>Comment lancer</strong>
+                <code>{productAction.launchInstructions.join(" && ")}</code>
+              </div>
+            ) : null}
+            {productAction.limitations?.length ? (
+              <div className="product-limitations">
+                <strong>Limites actuelles</strong>
+                <span>{productAction.limitations.slice(0, 2).join(" ")}</span>
+              </div>
+            ) : null}
+            <div className="product-artifact-actions">
+              <button type="button"><CheckCircle2 size={15} /> Accepter</button>
+              <button type="button" onClick={() => document.querySelector<HTMLInputElement>(".ceo-composer input")?.focus()}><Wand2 size={15} /> Modifier</button>
+              <button type="button" onClick={() => setMessages((prev) => [...prev, { id: `product-remake-${Date.now()}`, role: "ceo", text: "Je prépare une nouvelle version du projet.", timestamp: new Date().toISOString() }])}><RotateCcw size={15} /> Refaire</button>
+              <button type="button" onClick={() => setShowActivity(true)}><FolderOpen size={15} /> Ouvrir le workspace</button>
+              <button type="button" onClick={() => setShowActivity(true)}><Files size={15} /> Voir les fichiers</button>
+              <button type="button" onClick={() => document.querySelector<HTMLInputElement>(".ceo-composer input")?.focus()}><Play size={15} /> Continuer le projet</button>
+            </div>
+          </section>
+        )}
+
         <AnimatePresence>
-          {finalResult && (
+          {finalResult && !productAction && (
             <motion.section className="final-result-card" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 12 }}>
               <div className="final-result-head">
                 <div>
-                  <span>{finalResult.status === "ready" ? "Version prête" : finalResult.status === "accepted" ? "Version acceptée" : "Préparation"}</span>
-                  <h2>{finalResult.title}</h2>
+                  <span>{finalResult.status === "ready" ? "Concept de marque prêt" : finalResult.status === "accepted" ? "Concept accepté" : "Préparation"}</span>
+                  <h2>Concept de marque — {finalResult.brandName}</h2>
+                  <p className="prototype-disclosure">Prototype visuel: ces directions sont rendues en SVG/CSS. Aucune image finale bitmap n&apos;a encore été générée.</p>
                 </div>
                 <div className={`final-result-pill ${finalResult.status}`}>{finalResult.status === "ready" ? "Prêt" : finalResult.status === "accepted" ? "Accepté" : "En cours"}</div>
               </div>
@@ -475,40 +559,6 @@ export default function CeoSimplePage() {
           )}
         </AnimatePresence>
 
-        {productAction && (
-          <section className="product-artifact-card" aria-label="Projet créé">
-            <div className="product-artifact-head">
-              <span><FolderOpen size={15} /> Projet créé</span>
-              <strong>{productAction.label.replace(/^Projet créé:\s*/, "")}</strong>
-              {productAction.qualityStatus && <em className="product-quality-pill">{productAction.qualityStatus}</em>}
-              <p>{productAction.summary ?? "Artifacts produit créés localement."}</p>
-            </div>
-            <details>
-              <summary><Files size={15} /> Voir les fichiers</summary>
-              <ul>
-                {productAction.artifactPaths?.slice(0, 10).map((artifact) => <li key={artifact}>{artifact}</li>)}
-              </ul>
-            </details>
-            {productAction.launchInstructions?.length ? (
-              <div className="product-launch-box">
-                <strong>Comment lancer</strong>
-                <code>{productAction.launchInstructions.join(" && ")}</code>
-              </div>
-            ) : null}
-            {productAction.limitations?.length ? (
-              <div className="product-limitations">
-                <strong>Limites actuelles</strong>
-                <span>{productAction.limitations.slice(0, 2).join(" ")}</span>
-              </div>
-            ) : null}
-            <div className="product-artifact-actions">
-              <button type="button" onClick={() => setShowActivity(true)}>Ouvrir le workspace</button>
-              <button type="button" onClick={() => setShowActivity(true)}>Voir les fichiers</button>
-              <button type="button" onClick={() => document.querySelector<HTMLInputElement>(".ceo-composer input")?.focus()}>Continuer / Modifier</button>
-            </div>
-          </section>
-        )}
-
         <details className="activity-details" open={showActivity} onToggle={(event) => setShowActivity(event.currentTarget.open)}>
           <summary>Voir activité <ChevronDown size={14} /></summary>
           <div>
@@ -520,7 +570,7 @@ export default function CeoSimplePage() {
         </details>
 
         <form className="ceo-composer" onSubmit={(event) => { event.preventDefault(); void sendMessage(); }}>
-          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Je veux un logo pour une compagnie de photo" />
+          <input value={input} onChange={(event) => setInput(event.target.value)} placeholder="Décris ce que tu veux construire..." />
           <button disabled={sending || !input.trim()}><Send size={17} /></button>
         </form>
       </section>
@@ -533,14 +583,14 @@ const styles = `
   width: 100%;
   min-width: 0;
   min-height: calc(100vh - 62px);
-  padding: 34px 24px 72px;
+  padding: 42px 24px 72px;
   color: var(--text);
 }
 .ceo-simple-shell {
-  width: min(100%, 1040px);
+  width: min(100%, 1080px);
   margin: 0 auto;
   display: grid;
-  gap: 18px;
+  gap: 20px;
 }
 .ceo-simple-header {
   display: flex;
@@ -561,14 +611,15 @@ const styles = `
 .ceo-simple-header h1 {
   margin: 8px 0 6px;
   color: var(--text);
-  font-size: clamp(31px, 4vw, 48px);
-  line-height: 1.02;
-  letter-spacing: -0.04em;
+  font-size: clamp(38px, 6vw, 74px);
+  line-height: 0.96;
+  letter-spacing: -0.06em;
 }
 .ceo-simple-header p {
-  max-width: 620px;
+  max-width: 680px;
   color: var(--text-2);
-  font-size: 15px;
+  font-size: 16px;
+  line-height: 1.55;
 }
 .ceo-expert-link {
   flex: 0 0 auto;
@@ -596,11 +647,26 @@ const styles = `
   box-shadow: var(--shadow);
 }
 .ceo-chat {
-  min-height: 260px;
+  min-height: 320px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 18px;
+  padding: clamp(18px, 3vw, 28px);
+}
+.ceo-command-surface {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(47,111,237,0.1), transparent 44%),
+    rgba(255,255,255,0.82);
+}
+.ceo-command-surface::before {
+  content: "";
+  position: absolute;
+  inset: 14px;
+  pointer-events: none;
+  border: 1px solid rgba(47,111,237,0.08);
+  border-radius: 18px;
 }
 .ceo-empty {
   margin: auto;
@@ -669,8 +735,13 @@ const styles = `
 }
 .product-artifact-card {
   display: grid;
-  gap: 14px;
-  padding: 20px;
+  gap: 16px;
+  padding: clamp(18px, 3vw, 28px);
+}
+.current-result-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,246,241,0.78));
+  border-radius: 28px;
 }
 .product-artifact-head {
   display: grid;
@@ -687,8 +758,9 @@ const styles = `
 }
 .product-artifact-head strong {
   color: var(--text);
-  font-size: 22px;
-  letter-spacing: -0.03em;
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.02;
+  letter-spacing: -0.045em;
 }
 .product-artifact-head p {
   margin: 0;
@@ -707,6 +779,93 @@ const styles = `
   font-size: 12px;
   font-style: normal;
   font-weight: 900;
+}
+.product-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.product-meta-row em {
+  width: max-content;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-2);
+  color: var(--text-2);
+  padding: 5px 9px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+.product-progress {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-2);
+  padding: 12px;
+}
+.product-progress span,
+.product-progress strong {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 900;
+}
+.product-progress div {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-3);
+}
+.product-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+}
+.artifact-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.artifact-preview-grid article {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--surface);
+  color: var(--text-2);
+  padding: 11px;
+}
+.artifact-preview-grid span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+}
+.next-actions-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid rgba(47,111,237,0.18);
+  border-radius: 16px;
+  background: rgba(47,111,237,0.07);
+  padding: 13px;
+}
+.next-actions-card strong {
+  color: var(--text);
+  font-size: 13px;
+}
+.next-actions-card span {
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.45;
 }
 .product-artifact-card details {
   border: 1px solid var(--border);
@@ -772,11 +931,23 @@ const styles = `
   color: var(--text);
   font-weight: 850;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
 }
 .product-artifact-actions button:first-child {
   border-color: transparent;
   background: var(--accent);
   color: white;
+}
+.prototype-disclosure {
+  max-width: 640px;
+  margin: 8px 0 0;
+  color: var(--yellow);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.45;
 }
 .final-result-head {
   display: flex;
