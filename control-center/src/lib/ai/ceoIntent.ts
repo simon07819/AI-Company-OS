@@ -17,10 +17,10 @@ function languageOf(input: string): CeoIntentResult["language"] {
 
 function detectRequestType(input: string): CeoRequestType {
   const lower = normalize(input);
+  if (/\bsaas\b|software as a service|logiciel/.test(lower)) return "saas";
+  if (/site web|site internet|website|landing page|page web|page d'accueil|homepage|web page|cree une page|crée une page/.test(lower)) return "website";
   if (/\blogo\b/.test(lower)) return "logo";
   if (/branding|identite visuelle|charte|marque|plus premium|plus sportif|plus moderne|plus elegant|style plus/.test(lower)) return "branding";
-  if (/\bsaas\b|software as a service|logiciel/.test(lower)) return "saas";
-  if (/site web|site internet|website|landing page/.test(lower)) return "website";
   if (/\bapp\b|application mobile|ios|android/.test(lower)) return "app";
   if (/automation|automatisation|workflow|zapier|processus/.test(lower)) return "automation";
   if (/business|compagnie|entreprise|startup|commerce/.test(lower)) return "business";
@@ -35,6 +35,7 @@ function inferIndustry(input: string, brandName: string | null): string {
   if (/construction|chantier|contracteur|batiment/.test(lower)) return "construction";
   if (/restaurant|cafe|bistro|food/.test(lower)) return "restaurant";
   if (/vetement|vêtements|fashion|mode/.test(lower)) return "fashion";
+  if (/linge|apparel|clothing/.test(lower)) return "fashion";
   return "unknown";
 }
 

@@ -36,6 +36,7 @@ function inferName(input: ProductBuilderInput): string {
   if (input.requestType === "saas" && /e-?commerce|boutique|produit|commande|revenu|shop/.test(text)) return "E-commerce operations SaaS";
   if (input.requestType === "website" && /restaurant|cafe|bistro/.test(text)) return "Restaurant website";
   if (input.requestType === "website" && /construction|contractor|building|renovation|chantier|entrepreneur/.test(text)) return "Construction website";
+  if (input.requestType === "website" && /linge|vetement|vêtement|apparel|clothing|mode|fashion/.test(text)) return "Apparel website";
   if (input.requestType === "app" && /gym|fitness/.test(text)) return "Fitness mobile app";
 
   const industry = clean(input.industry);
@@ -93,6 +94,7 @@ export function inferDomain(input: ProductBuilderInput): string {
   if (/ecommerce|commerce|shop/.test(industry)) return "ecommerce";
   if (/restaurant/.test(industry)) return "restaurant";
   if (/construction|contractor|building|renovation|chantier|entrepreneur/.test(industry)) return "construction";
+  if (/apparel|clothing|fashion|mode|linge|vetement|vêtement/.test(industry)) return "apparel";
   const text = input.requestText.toLowerCase();
   if (/gym|fitness/.test(text)) return "fitness";
   if (/clinique|clinic|patient|rendez[- ]?vous|appointment|praticien|doctor|medecin|médecin|santé|sante/.test(text)) return "clinic";
@@ -100,6 +102,7 @@ export function inferDomain(input: ProductBuilderInput): string {
   if (/e-?commerce|boutique|produit|commande|revenu|shop/.test(text)) return "ecommerce";
   if (/restaurant|cafe|bistro/.test(text)) return "restaurant";
   if (/construction|contractor|building|renovation|chantier|entrepreneur/.test(text)) return "construction";
+  if (/linge|vetement|vêtement|apparel|clothing|mode|fashion/.test(text)) return "apparel";
   if (/photo|photograph|camera/.test(text)) return "photography";
   return "general business";
 }

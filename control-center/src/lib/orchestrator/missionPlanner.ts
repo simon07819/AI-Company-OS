@@ -1,4 +1,5 @@
 import { generateBrandBrief } from "@/lib/brand-builder";
+import { createWorkOrderFromPrompt } from "@/lib/ceoWorkOrder";
 import { inferCeoIntentFallback } from "@/lib/ai/ceoIntent";
 import { inferDomain } from "@/lib/product-builder/productSpec";
 import { routeExperts } from "./expertRouter";
@@ -20,6 +21,12 @@ function normalize(input: string) {
 }
 
 function requestTypeFrom(input: string): ProductionRequestType {
+  const workOrder = createWorkOrderFromPrompt(input);
+  if (workOrder.requestType === "website") return "website";
+  if (workOrder.requestType === "branding") return "branding";
+  if (workOrder.requestType === "saas") return "saas";
+  if (workOrder.requestType === "app") return "app";
+  if (workOrder.requestType === "business-system") return "business-system";
   const intent = inferCeoIntentFallback(input);
   if (intent.requestType === "logo" || intent.requestType === "branding") return "branding";
   if (intent.requestType === "saas") return "saas";
@@ -32,6 +39,7 @@ function requestTypeFrom(input: string): ProductionRequestType {
 function industryFor(input: string, requestType: ProductionRequestType) {
   const lower = normalize(input);
   if (/sport|sportif|athlet|performance|fitness|gym|entrainement/.test(lower)) return "sport/performance";
+  if (/linge|vetement|vêtement|apparel|clothing|mode|fashion/.test(lower)) return "apparel";
   if (requestType === "branding") return generateBrandBrief(input).industry;
   const domain = inferDomain({ requestText: input, requestType: requestType === "website" ? "website" : requestType === "app" ? "app" : "saas" });
   return domain === "general business" ? "unknown" : domain;
@@ -81,16 +89,19 @@ function requirementsFor(requestType: ProductionRequestType) {
 }
 
 function isLogoRequest(input: string) {
-  return /\blogo\b/i.test(input.normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  return createWorkOrderFromPrompt(input).deliverableType === "logo";
 }
 
 export function createMissionPlan(input: string): MissionPlan {
   const requestType = requestTypeFrom(input);
   const intent = inferCeoIntentFallback(input);
+  const workOrder = createWorkOrderFromPrompt(input);
   const brandBrief = generateBrandBrief(input);
-  const brandName = brandBrief.explicitBrandName ? brandBrief.brandName : intent.brandName;
+  const brandName = workOrder.brandName ?? (brandBrief.explicitBrandName ? brandBrief.brandName : intent.brandName);
   const industry = industryFor(input, requestType);
-  const projectName = intent.projectName ?? (brandName ? (isLogoRequest(input) ? `Logo ${brandName}` : `${brandName} brand system`) : null);
+  const projectName = requestType === "website" && brandName
+    ? `${brandName} website`
+    : intent.projectName ?? (brandName ? (workOrder.deliverableType === "logo" ? `Logo ${brandName}` : `${brandName} brand system`) : null);
   return {
     id: idFrom(input),
     requestType,

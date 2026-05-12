@@ -4,6 +4,7 @@ import { AlertTriangle, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
 import CEOResultDetails from "./CEOResultDetails";
 import LogoFinalAnswer from "./LogoFinalAnswer";
+import WebsitePreviewReply from "./WebsitePreviewReply";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function responseIntro(result: CEOCurrentResult) {
@@ -95,6 +96,7 @@ export default function CEOResultStage({
 
   const hasArtifacts = result.artifactPaths.length > 0;
   const isBranding = result.requestType === "branding" || result.requestType === "logo";
+  const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
   const isLogoDeliverable = isBranding && (result.deliverableType === "logo" || /^Logo\s+/i.test(result.title) || Boolean(result.brandName));
   const brandName = brandNameFromResult(result);
 
@@ -107,12 +109,14 @@ export default function CEOResultStage({
       )}
 
       <article className={`ceo-chat-message ceo ${hasArtifacts ? "ready" : "failed"}`}>
-        {!isLogoDeliverable && <p>{responseIntro(result)}</p>}
+        {!isLogoDeliverable && !isWebsite && <p>{responseIntro(result)}</p>}
 
         {hasArtifacts ? (
           <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
             {isBranding ? (
               <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
+            ) : isWebsite ? (
+              <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
             ) : (
               <>
                 <strong>{result.title}</strong>

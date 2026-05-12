@@ -169,4 +169,34 @@ describe("CEO command components", () => {
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/logo-ekida");
   });
+
+  it("renders website requests as a page preview instead of a logo reply", () => {
+    const websiteSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 760" role="img" aria-label="Preview site web EKIDA"><text>EKIDA</text><text>Collection</text><text>Voir la collection</text></svg>`;
+
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        title: "EKIDA website",
+        requestType: "website",
+        brandName: "EKIDA",
+        deliverableType: "website",
+        primaryVisual: websiteSvg,
+        summary: "Preview de page web EKIDA.",
+        artifactPaths: ["generated-products/ekida-website/README.md"],
+        workspaceHref: "/projects/ekida-website",
+      },
+      mission: { ...mission, prompt: "Je veux une page web bien simple avec le logo ekida", requestType: "website" },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByLabelText("Preview EKIDA website")).toBeInTheDocument();
+    expect(screen.getByText("EKIDA")).toBeInTheDocument();
+    expect(screen.getByText("Collection")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Visuel EKIDA")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Brand system|Marque à nommer|README|workspace|90\/100/i)).not.toBeInTheDocument();
+  });
 });

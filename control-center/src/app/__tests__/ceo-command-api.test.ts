@@ -104,6 +104,27 @@ describe("CEO command API", () => {
     expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
   });
 
+  it("routes a page web request with a logo asset to a website preview, not the previous logo", async () => {
+    const logoResponse = await postCommand("logo EKIDA");
+    const logoPayload = await logoResponse.json();
+    const websiteResponse = await postCommand("Je veux une page web bien simple avec le logo ekida, tu peux mettre du contenu temporaire ses une compagnie de linge");
+    const websitePayload = await websiteResponse.json();
+
+    expect(websiteResponse.status).toBe(200);
+    expect(websitePayload.ok).toBe(true);
+    expect(websitePayload.requestType).toBe("website");
+    expect(websitePayload.deliverableType).toBe("website");
+    expect(websitePayload.brandName).toBe("EKIDA");
+    expect(websitePayload.title).toMatch(/EKIDA website|EKIDA/i);
+    expect(websitePayload.primaryVisual).toContain("<svg");
+    expect(websitePayload.primaryVisual).toContain("Preview site web");
+    expect(websitePayload.primaryVisual).toContain("EKIDA");
+    expect(websitePayload.primaryVisual).toMatch(/Collection|hero|Voir la collection|Essentiels de linge/i);
+    expect(websitePayload.primaryVisual).not.toBe(logoPayload.primaryVisual);
+    expect(String(websitePayload.primaryVisualPath ?? "")).not.toMatch(/final-logo\.svg$/);
+    expect(websitePayload.title).not.toMatch(/^Logo /);
+  });
+
   it("refuses missing prompts instead of returning fake success", async () => {
     const response = await postCommand("");
     const payload = await response.json();
