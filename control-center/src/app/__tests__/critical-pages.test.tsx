@@ -191,18 +191,19 @@ describe("critical Control Center pages", () => {
 
   it("renders submitted ELEVIO branding as a clean artifact result", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
-      if (String(url).includes("/api/ceo/chat")) {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, response: { id: "ceo-logo", role: "ceo", text: "Branding créé.", timestamp: "2026-05-11T12:00:00.000Z", actions: [{
-          type: "product_artifacts_created",
-          label: "Projet créé: ELEVIO brand system",
-          targetId: "elevio-brand-system",
-          href: "/projects/elevio-brand-system",
-          kind: "branding",
+      if (String(url).includes("/api/ceo/command")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          ok: true,
+          title: "ELEVIO brand system",
+          projectId: "elevio-brand-system",
+          workspaceHref: "/projects/elevio-brand-system",
+          requestType: "branding",
+          status: "ready",
           qualityStatus: "Prêt",
           qualityScore: 90,
           summary: "Direction de marque pour ELEVIO avec prototypes SVG.",
           artifactPaths: ["generated-products/elevio-brand-system/logo-concept-a.svg", "generated-products/elevio-brand-system/logo-concept-b.svg", "generated-products/elevio-brand-system/logo-concept-c.svg"],
-        }] } }) });
+        }) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, view: { messages: [], companies: [], projects: [], sessions: [], outputs: [], approvals: [] } }) });
     }));

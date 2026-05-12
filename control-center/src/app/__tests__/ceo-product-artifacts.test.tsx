@@ -22,35 +22,27 @@ afterEach(() => {
 describe("CEO command surface flow", () => {
   it("creates a current product result from real artifact actions", async () => {
     const fetchMock = vi.fn((url: string, init?: RequestInit) => {
-      if (String(url).includes("/api/ceo/chat")) {
+      if (String(url).includes("/api/ceo/command")) {
         expect(String(init?.body)).toContain("clinique");
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
             ok: true,
-            response: {
-              id: "ceo-product",
-              role: "ceo",
-              text: "Projet créé avec des artifacts locaux.",
-              timestamp: "2026-05-11T12:00:00.000Z",
-              actions: [{
-                type: "product_artifacts_created",
-                label: "Projet créé: Clinic appointments SaaS",
-                targetId: "clinic-appointments-saas",
-                href: "/projects/clinic-appointments-saas",
-                kind: "saas",
-                qualityStatus: "Prêt",
-                qualityScore: 91,
-                summary: "Generated product passed the local artifact quality gate.",
-                artifactPaths: [
-                  "generated-products/clinic-appointments-saas/README.md",
-                  "generated-products/clinic-appointments-saas/product-spec.json",
-                  "generated-products/clinic-appointments-saas/next-app/package.json",
-                  "generated-products/clinic-appointments-saas/next-app/app/dashboard/page.tsx",
-                ],
-                launchInstructions: ["cd next-app", "npm install", "npm run dev"],
-              }],
-            },
+            title: "Clinic appointments SaaS",
+            projectId: "clinic-appointments-saas",
+            workspaceHref: "/projects/clinic-appointments-saas",
+            requestType: "saas",
+            status: "ready",
+            qualityStatus: "Prêt",
+            qualityScore: 91,
+            summary: "Generated product passed the local artifact quality gate.",
+            artifactPaths: [
+              "generated-products/clinic-appointments-saas/README.md",
+              "generated-products/clinic-appointments-saas/product-spec.json",
+              "generated-products/clinic-appointments-saas/next-app/package.json",
+              "generated-products/clinic-appointments-saas/next-app/app/dashboard/page.tsx",
+            ],
+            launchInstructions: ["cd next-app", "npm install", "npm run dev"],
           }),
         });
       }
@@ -75,7 +67,7 @@ describe("CEO command surface flow", () => {
   it("resets the current result when a second command starts", async () => {
     let chatCount = 0;
     vi.stubGlobal("fetch", vi.fn((url: string) => {
-      if (String(url).includes("/api/ceo/chat")) {
+      if (String(url).includes("/api/ceo/command")) {
         chatCount += 1;
         const title = chatCount === 1 ? "Construction Website" : "Clinic appointments SaaS";
         const slug = chatCount === 1 ? "construction-website" : "clinic-appointments-saas";
@@ -83,22 +75,14 @@ describe("CEO command surface flow", () => {
           ok: true,
           json: () => Promise.resolve({
             ok: true,
-            response: {
-              id: `ceo-${chatCount}`,
-              role: "ceo",
-              text: "Projet créé.",
-              timestamp: "2026-05-11T12:00:00.000Z",
-              actions: [{
-                type: "product_artifacts_created",
-                label: `Projet créé: ${title}`,
-                targetId: slug,
-                href: `/projects/${slug}`,
-                kind: chatCount === 1 ? "website" : "saas",
-                qualityStatus: "Prêt",
-                artifactPaths: [`generated-products/${slug}/README.md`],
-                summary: `${title} summary`,
-              }],
-            },
+            title,
+            projectId: slug,
+            workspaceHref: `/projects/${slug}`,
+            requestType: chatCount === 1 ? "website" : "saas",
+            status: "ready",
+            qualityStatus: "Prêt",
+            artifactPaths: [`generated-products/${slug}/README.md`],
+            summary: `${title} summary`,
           }),
         });
       }
@@ -120,12 +104,16 @@ describe("CEO command surface flow", () => {
 
   it("does not show fake success when no artifacts are returned", async () => {
     vi.stubGlobal("fetch", vi.fn((url: string) => {
-      if (String(url).includes("/api/ceo/chat")) {
+      if (String(url).includes("/api/ceo/command")) {
         return Promise.resolve({
-          ok: true,
+          ok: false,
           json: () => Promise.resolve({
-            ok: true,
-            response: { id: "ceo-empty", role: "ceo", text: "Réponse sans artifact", timestamp: "2026-05-11T12:00:00.000Z", actions: [] },
+            ok: false,
+            status: "failed",
+            title: "Aucun artifact réel créé",
+            summary: "Le système refuse de l’afficher comme résultat prêt.",
+            error: "Aucun fichier traçable n'a été créé.",
+            artifactPaths: [],
           }),
         });
       }
@@ -138,6 +126,6 @@ describe("CEO command surface flow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Construire" }));
 
     expect(await screen.findByRole("heading", { name: "Aucun artifact réel créé" })).toBeInTheDocument();
-    expect(screen.getByText(/refuse de l’afficher comme résultat prêt/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Aucun fichier traçable/i).length).toBeGreaterThan(0);
   });
 });

@@ -31,6 +31,24 @@ interface ApiMessage {
   timestamp: string;
 }
 
+interface CommandResponse {
+  ok: boolean;
+  missionId?: string;
+  projectId?: string;
+  title?: string;
+  requestType?: string;
+  status?: "ready" | "needs_revision" | "rejected" | "failed";
+  summary?: string;
+  artifactPaths?: string[];
+  workspaceHref?: string | null;
+  qualityScore?: number;
+  qualityStatus?: string;
+  limitations?: string[];
+  launchInstructions?: string[];
+  error?: string;
+  expert?: CEOCurrentResult["expert"];
+}
+
 function detectRequestType(prompt: string): CEORequestType {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/\blogo\b/.test(normalized)) return "branding";
@@ -106,6 +124,43 @@ function resultFromAction(prompt: string, action: CEOActionResult): CEOCurrentRe
   };
 }
 
+function statusFromCommand(status?: CommandResponse["status"]): CEOCurrentMission["status"] {
+  if (status === "ready") return "ready";
+  if (status === "needs_revision") return "needs_revision";
+  if (status === "rejected") return "rejected";
+  if (status === "failed") return "error";
+  return "validation";
+}
+
+function missionFromCommand(prompt: string, payload: CommandResponse): CEOCurrentMission {
+  return {
+    id: payload.missionId ?? payload.projectId ?? `mission-${Date.now()}`,
+    prompt,
+    requestType: (payload.requestType as CEORequestType) || detectRequestType(prompt),
+    status: statusFromCommand(payload.status),
+    createdAt: new Date().toISOString(),
+    artifactCount: payload.artifactPaths?.length ?? 0,
+    workspaceHref: payload.workspaceHref ?? undefined,
+    qualityScore: payload.qualityScore,
+  };
+}
+
+function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrentResult {
+  return {
+    title: payload.title || (payload.ok ? "Projet généré" : "Aucun artifact réel créé"),
+    requestType: (payload.requestType as CEORequestType) || detectRequestType(prompt),
+    status: statusFromCommand(payload.status),
+    summary: payload.summary || payload.error || "Production terminée sans résumé.",
+    artifactPaths: payload.artifactPaths ?? [],
+    workspaceHref: payload.workspaceHref ?? undefined,
+    qualityScore: payload.qualityScore,
+    qualityStatus: payload.qualityStatus,
+    limitations: payload.limitations,
+    launchInstructions: payload.launchInstructions,
+    expert: payload.expert,
+  };
+}
+
 export default function CEOCommandSurface() {
   const viewMode = useOptionalViewMode();
   const isExpert = viewMode?.isExpert ?? false;
@@ -156,27 +211,25 @@ export default function CEOCommandSurface() {
     setHistory((items) => [...items.filter((item) => item !== prompt), prompt].slice(-6));
 
     try {
-      const response = await fetch("/api/ceo/chat", {
+      const response = await fetch("/api/ceo/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: prompt }),
+        body: JSON.stringify({ prompt, expertMode: isExpert }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload.ok) throw new Error(payload.message || "La production a échoué.");
-      const action = actionFromMessage(payload.response ?? null);
-      if (!action) {
-        setMission({ ...pendingMission, status: "rejected" });
-        setResult({
-          title: "Aucun artifact réel créé",
-          requestType,
-          status: "rejected",
-          summary: "La mission a répondu sans artifact traçable. Le système refuse de l’afficher comme résultat prêt.",
-          artifactPaths: [],
-        });
+      if (!response.ok || !payload.ok) {
+        setMission(missionFromCommand(prompt, payload));
+        setResult(resultFromCommand(prompt, {
+          ...payload,
+          title: payload.title || "Aucun artifact réel créé",
+          status: payload.status || "failed",
+          summary: payload.error || "Impossible de créer le projet. Détail disponible en mode expert.",
+          artifactPaths: payload.artifactPaths ?? [],
+        }));
         return;
       }
-      setMission(missionFromAction(prompt, action));
-      setResult(resultFromAction(prompt, action));
+      setMission(missionFromCommand(prompt, payload));
+      setResult(resultFromCommand(prompt, payload));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Erreur inconnue.";
       setMission({ ...pendingMission, status: "error" });
