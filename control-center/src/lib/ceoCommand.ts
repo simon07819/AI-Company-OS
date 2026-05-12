@@ -18,6 +18,7 @@ import {
 } from "./ceoConversation";
 import { syncCeoMessageToConversation } from "./conversationStore";
 import { assignMissionToWorkspace, createWorkspace, listWorkspaces, type CompanyWorkspace } from "./companyWorkspace";
+import { generateBrandBrief } from "./brandGeneration";
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
@@ -195,10 +196,13 @@ function inferActionableIntent(text: string): CeoIntent {
 function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
   const assumptions: Assumption[] = [];
   const lower = text.toLowerCase();
+  const brandBrief = intent === "redesign_logo" || intent === "branding_pack" ? generateBrandBrief(text) : null;
 
   // Smart project name inference (French-first, descriptive)
   let projectName = "";
-  if (lower.includes("logo") && lower.includes("photo")) projectName = "Logo pour compagnie de photo";
+  if (brandBrief?.explicitBrandName && lower.includes("logo")) projectName = `Logo ${brandBrief.brandName}`;
+  else if (brandBrief?.explicitBrandName) projectName = `Identité ${brandBrief.brandName}`;
+  else if (lower.includes("logo") && lower.includes("photo")) projectName = "Logo pour compagnie de photo";
   else if (lower.includes("refaire le logo") || lower.includes("redesign logo") || lower.includes("nouveau logo")) projectName = "Refonte logo";
   else if (lower.includes("logo") && (lower.includes("sportif"))) projectName = "Logo sportif";
   else if (lower.includes("logo") && (lower.includes("premium"))) projectName = "Logo premium";
@@ -216,6 +220,13 @@ function buildAssumptions(text: string, intent: CeoIntent): Assumption[] {
   else projectName = "Nouvelle mission";
 
   assumptions.push({ field: "Project name", value: projectName, source: "inferred" });
+  if (brandBrief?.explicitBrandName) {
+    assumptions.push({ field: "Brand name", value: brandBrief.brandName, source: "message" });
+  }
+  if (brandBrief) {
+    assumptions.push({ field: "Industry", value: brandBrief.industry, source: "inferred" });
+    assumptions.push({ field: "Creative direction", value: brandBrief.creativeDirection, source: "inferred" });
+  }
 
   // Objective inference
   let objective = text;
@@ -297,6 +308,16 @@ function missionTypeForIntent(intent: CeoIntent): string | null {
 
 function inferCompanyWorkspace(text: string, missionType: string): { name: string; industry: string; description: string } {
   const lower = text.toLowerCase();
+  if (missionType === "branding_pack") {
+    const brandBrief = generateBrandBrief(text);
+    if (brandBrief.explicitBrandName) {
+      return {
+        name: brandBrief.brandName,
+        industry: brandBrief.industry,
+        description: `Entreprise ${brandBrief.industry} creee avec les agents AI.`,
+      };
+    }
+  }
   if (lower.includes("photo") || lower.includes("photographie") || lower.includes("photographe")) {
     return {
       name: "Studio Lumiere",
@@ -366,6 +387,7 @@ async function buildProactiveResponse(
   // For actionable intents, build proactive response
   const projectName = assumptions.find((a) => a.field === "Project name")?.value ?? "New mission";
   const objective = assumptions.find((a) => a.field === "Objective")?.value ?? userText;
+  const brandBrief = intent === "redesign_logo" || intent === "branding_pack" ? generateBrandBrief(userText) : null;
   const sessionCreated = actions.some((a) => a.type === "created_session");
 
   // Build assumption lines
@@ -384,7 +406,12 @@ async function buildProactiveResponse(
 
   // Opening — direct action statement
   if (intent === "redesign_logo" || intent === "branding_pack" || intent === "design_review") {
-    parts.push(`Parfait. Je pars avec l'objectif: ${objective}.`);
+    if (brandBrief?.explicitBrandName) {
+      parts.push(`Parfait. Je prépare un premier concept de logo pour ${brandBrief.brandName}.`);
+      parts.push(`Direction: ${brandBrief.creativeDirection}`);
+    } else {
+      parts.push(`Parfait. Je pars avec l'objectif: ${objective}.`);
+    }
     // Check for linked files
     const linkedFiles = assumptions.filter((a) => a.field === "Linked file");
     if (linkedFiles.length > 0) {

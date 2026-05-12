@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, Moon, RotateCcw, Send, Sparkles, Wand2 } from "lucide-react";
-import { VisualOutputPreview } from "@/components/previews/VisualOutputPreview";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import type { OutputVisualPreview } from "@/lib/visibleOutputs";
+import { generateBrandBrief, generateLogoConcepts, type BrandBrief, type LogoConcept } from "@/lib/brandGeneration";
 
 interface CeoMessage {
   id: string;
@@ -73,10 +73,8 @@ interface FinalResult {
   outputId?: string;
   approvalId?: string;
   sessionId?: string;
-  visualPreview: OutputVisualPreview | null;
-  colors: string[];
-  typography: string;
-  keywords: string[];
+  brief: BrandBrief;
+  concepts: LogoConcept[];
 }
 
 const LOGO_OUTPUT_TYPES = new Set(["logo_direction", "style_direction", "color_palette", "typography", "moodboard", "concept_card", "creative_brief"]);
@@ -114,30 +112,34 @@ function brandFrom(company?: CompanyGroup, output?: VisibleOutput, approval?: Ap
   return "Studio Lumière";
 }
 
-function buildFallbackVisual(brandName: string): OutputVisualPreview {
-  return {
-    kind: "brand_card",
-    logoText: brandName.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "SL",
-    tagline: "Capture the light",
-    colors: ["#101827", "#6AA8FF", "#F7F3EA", "#6FD09B"],
-    typography: { heading: "Inter SemiBold", body: "Inter Regular" },
-    mockup: {
-      title: brandName,
-      subtitle: "Photo brand",
-      blocks: ["Premium", "Lumineux", "Moderne"],
-    },
-  };
+function latestUserRequest(messages: CeoMessage[]) {
+  return [...messages].reverse().find((message) => message.role === "user")?.text ?? "";
 }
 
-function buildFinalResult(companies: CompanyGroup[], projects: CeoProject[], sessions: AutopilotSession[], outputs: VisibleOutput[], approvals: ApprovalCardData[]): FinalResult | null {
+function isGenericBrandName(name?: string | null) {
+  return !name || /nouvelle marque ai|nouvelle entreprise ai|logo concept|approval preview|simple visual/i.test(name);
+}
+
+function buildBriefForResult(requestText: string, company?: CompanyGroup, project?: CeoProject, output?: VisibleOutput, approval?: ApprovalCardData) {
+  const directBrief = generateBrandBrief(requestText || `${project?.name ?? ""} ${output?.summary ?? ""} ${approval?.item.summary ?? ""}`);
+  if (directBrief.explicitBrandName) return directBrief;
+
+  const inferredBrand = brandFrom(company, output, approval);
+  if (!isGenericBrandName(inferredBrand)) {
+    return generateBrandBrief(`Je veux un logo pour une compagnie qui s'appelle ${inferredBrand}. ${requestText} ${project?.name ?? ""}`);
+  }
+  return directBrief;
+}
+
+function buildFinalResult(messages: CeoMessage[], companies: CompanyGroup[], projects: CeoProject[], sessions: AutopilotSession[], outputs: VisibleOutput[], approvals: ApprovalCardData[]): FinalResult | null {
   const approval = approvals.find((item) => item.visualPreview || item.preview?.outputs?.length) ?? approvals[0] ?? null;
   const logoOutput = outputs.find((output) => output.id === approval?.item.id.replace(/^output-/, "")) ?? outputs.find(isLogoOutput) ?? outputs[0] ?? null;
   const sessionId = approval?.item.sessionId ?? logoOutput?.sessionId ?? projects.find((project) => project.sessionId)?.sessionId ?? sessions[0]?.sessionId;
   const project = projects.find((item) => item.sessionId === sessionId) ?? projects[0];
   const company = companies.find((item) => item.projectIds.includes(project?.id ?? "")) ?? companies[0];
-  const brandName = brandFrom(company, logoOutput ?? undefined, approval ?? undefined);
-  const visualPreview = approval?.visualPreview ?? logoOutput?.visualPreview ?? buildFallbackVisual(brandName);
-  const colors = visualPreview.colors?.length ? visualPreview.colors.slice(0, 4) : ["#101827", "#6AA8FF", "#F7F3EA", "#6FD09B"];
+  const brief = buildBriefForResult(latestUserRequest(messages), company, project, logoOutput ?? undefined, approval ?? undefined);
+  const brandName = brief.brandName;
+  const concepts = generateLogoConcepts(brief);
   const status = approval ? "ready" : logoOutput?.status === "approved" ? "accepted" : logoOutput || sessions.length > 0 ? "preparing" : "preparing";
 
   if (!logoOutput && !approval && sessions.length === 0 && projects.length === 0) return null;
@@ -145,17 +147,84 @@ function buildFinalResult(companies: CompanyGroup[], projects: CeoProject[], ses
   return {
     title: `Logo Concept — ${brandName}`,
     brandName,
-    tagline: visualPreview.tagline ?? "Capture the light",
-    summary: logoOutput?.summary || approval?.item.summary || "Un concept premium et lumineux pour une marque photo moderne.",
+    tagline: brief.taglineOptions[0],
+    summary: logoOutput?.summary || approval?.item.summary || `Un concept premium et cohérent pour ${brandName}, adapté au secteur ${brief.industry}.`,
     status,
     outputId: logoOutput?.id,
     approvalId: approval?.item.id,
     sessionId,
-    visualPreview,
-    colors,
-    typography: visualPreview.typography?.heading ?? "Inter SemiBold",
-    keywords: (visualPreview.mockup?.blocks?.length ? visualPreview.mockup.blocks : ["Premium", "Lumineux", "Moderne"]).slice(0, 3),
+    brief,
+    concepts,
   };
+}
+
+function LogoPrototypeMark({ concept }: { concept: LogoConcept }) {
+  if (concept.visualStyle === "vertical-signal") {
+    return (
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <rect x="24" y="16" width="72" height="88" rx="22" fill="currentColor" opacity="0.1" />
+        <path d="M60 26v68" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+        <path d="M44 42 60 26l16 16M44 78l16 16 16-16" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="60" cy="60" r="10" fill="currentColor" />
+      </svg>
+    );
+  }
+  if (concept.visualStyle === "safety-reliability") {
+    return (
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <path d="M60 14 96 28v30c0 24-13 41-36 51-23-10-36-27-36-51V28l36-14Z" fill="currentColor" opacity="0.12" />
+        <path d="M60 22 88 33v25c0 18-9 32-28 41-19-9-28-23-28-41V33l28-11Z" fill="none" stroke="currentColor" strokeWidth="7" strokeLinejoin="round" />
+        <path d="m43 62 12 12 25-29" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 120 120" aria-hidden="true">
+      <rect x="22" y="70" width="76" height="26" rx="8" fill="currentColor" opacity="0.12" />
+      <path d="M30 82h60M42 82V48l18-18 18 18v34" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M48 58h24M48 70h24" stroke="currentColor" strokeWidth="7" strokeLinecap="round" />
+      <path d="M82 28 94 16M88 36l14-2" stroke="currentColor" strokeWidth="6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LogoConceptCard({ concept, onAccept, onModify, onRemake, disabled }: {
+  concept: LogoConcept;
+  onAccept: () => void;
+  onModify: () => void;
+  onRemake: () => void;
+  disabled: boolean;
+}) {
+  const accent = concept.palette[1]?.hex ?? concept.palette[0]?.hex ?? "#2F6FED";
+  return (
+    <article className="logo-concept-card">
+      <div className="concept-preview" style={{ color: accent }}>
+        <div className="concept-letter">{concept.label}</div>
+        <LogoPrototypeMark concept={concept} />
+        <div>
+          <strong>{concept.brandName}</strong>
+          <span>{concept.tagline}</span>
+        </div>
+      </div>
+      <div className="concept-body">
+        <div className="concept-title-row">
+          <h3>{concept.label}. {concept.title}</h3>
+          {concept.recommended && <span>Recommandé</span>}
+        </div>
+        <p className="prototype-notice">{concept.prototypeNotice}</p>
+        <p>{concept.rationale}</p>
+        <div className="concept-swatches">
+          {concept.palette.slice(0, 4).map((color) => <i key={`${concept.id}-${color.hex}`} style={{ background: color.hex }} title={`${color.name}: ${color.justification}`} />)}
+        </div>
+        <div className="concept-keywords">{concept.keywords.map((keyword) => <b key={keyword}>{keyword}</b>)}</div>
+      </div>
+      <div className="concept-actions">
+        <button className="accept" onClick={onAccept} disabled={disabled}><CheckCircle2 size={15} /> Accepter</button>
+        <button onClick={onModify} disabled={disabled}><Wand2 size={15} /> Modifier</button>
+        <button onClick={onRemake} disabled={disabled}><RotateCcw size={15} /> Refaire</button>
+      </div>
+    </article>
+  );
 }
 
 function activitySummary(sessions: AutopilotSession[], outputs: VisibleOutput[]) {
@@ -198,6 +267,18 @@ export default function CeoSimplePage() {
   };
 
   useEffect(() => {
+    try {
+      for (const storage of [window.localStorage, window.sessionStorage]) {
+        for (let index = storage.length - 1; index >= 0; index -= 1) {
+          const key = storage.key(index);
+          if (key && /ai-company|company-os|ceo-simple|simple-agency/i.test(key) && key !== "ai-company-os-theme") {
+            storage.removeItem(key);
+          }
+        }
+      }
+    } catch {
+      // Browser storage is optional in test and server-like runtimes.
+    }
     void load();
     const timer = window.setInterval(() => void load(), 4000);
     return () => window.clearInterval(timer);
@@ -207,7 +288,7 @@ export default function CeoSimplePage() {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, outputs.length, approvals.length]);
 
-  const finalResult = useMemo(() => buildFinalResult(companies, projects, sessions, outputs, approvals), [companies, projects, sessions, outputs, approvals]);
+  const finalResult = useMemo(() => buildFinalResult(messages, companies, projects, sessions, outputs, approvals), [messages, companies, projects, sessions, outputs, approvals]);
   const visibleMessages = useMemo(() => messages.slice(-4).map((message) => ({ ...message, text: sanitizeMessage(message.text, message.role) })).filter((message) => message.text), [messages]);
   const simpleActivity = activitySummary(sessions, outputs);
 
@@ -220,7 +301,9 @@ export default function CeoSimplePage() {
     const localCeo: CeoMessage = {
       id: `local-ceo-${Date.now()}`,
       role: "ceo",
-      text: /logo/i.test(text) ? "Parfait. Je prépare un premier concept de logo pour une compagnie de photo." : "Parfait. Je prépare une première version claire.",
+      text: /logo/i.test(text)
+        ? `Parfait. Je prépare un premier concept de logo pour ${generateBrandBrief(text).brandName}.`
+        : "Parfait. Je prépare une première version claire.",
       timestamp: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, localUser, localCeo]);
@@ -325,37 +408,34 @@ export default function CeoSimplePage() {
                 <div className={`final-result-pill ${finalResult.status}`}>{finalResult.status === "ready" ? "Prêt" : finalResult.status === "accepted" ? "Accepté" : "En cours"}</div>
               </div>
 
-              <VisualOutputPreview visualPreview={finalResult.visualPreview} title={finalResult.title} summary={finalResult.summary} />
-
-              <div className="brand-board-details">
+              <div className="brand-brief-panel">
                 <div>
-                  <span>Palette</span>
-                  <div className="swatches">
-                    {finalResult.colors.map((color) => <i key={color} style={{ background: color }} title={color} />)}
-                  </div>
+                  <span>Secteur</span>
+                  <strong>{finalResult.brief.industry}</strong>
                 </div>
                 <div>
-                  <span>Typographie</span>
-                  <strong>{finalResult.typography}</strong>
+                  <span>Audience</span>
+                  <p>{finalResult.brief.targetAudience}</p>
                 </div>
                 <div>
-                  <span>Direction</span>
-                  <div className="keyword-row">{finalResult.keywords.map((keyword) => <b key={keyword}>{keyword}</b>)}</div>
+                  <span>Direction créative</span>
+                  <p>{finalResult.brief.creativeDirection}</p>
                 </div>
               </div>
 
               <p className="result-summary">{finalResult.summary}</p>
 
-              <div className="final-actions">
-                <button className="accept" onClick={() => void accept()} disabled={actionBusy !== null || (!finalResult.approvalId && !finalResult.outputId)}>
-                  <CheckCircle2 size={16} /> Accepter cette version
-                </button>
-                <button onClick={() => setChangeOpen((value) => !value)} disabled={actionBusy !== null || !finalResult.approvalId}>
-                  <Wand2 size={16} /> Modifier
-                </button>
-                <button onClick={() => void remake()} disabled={actionBusy !== null}>
-                  <RotateCcw size={16} /> Refaire
-                </button>
+              <div className="logo-concepts">
+                {finalResult.concepts.map((concept) => (
+                  <LogoConceptCard
+                    key={concept.id}
+                    concept={concept}
+                    disabled={actionBusy !== null || (!finalResult.approvalId && !finalResult.outputId)}
+                    onAccept={() => void accept()}
+                    onModify={() => setChangeOpen(true)}
+                    onRemake={() => void remake()}
+                  />
+                ))}
               </div>
 
               {changeOpen && (
@@ -535,7 +615,7 @@ const styles = `
   gap: 18px;
 }
 .final-result-head span,
-.brand-board-details span {
+.brand-brief-panel span {
   color: var(--text-3);
   font-size: 11px;
   font-weight: 900;
@@ -569,12 +649,12 @@ const styles = `
   background: rgba(47,143,97,0.12);
   color: var(--green);
 }
-.brand-board-details {
+.brand-brief-panel {
   display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 0.8fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 0.72fr) minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 14px;
 }
-.brand-board-details > div {
+.brand-brief-panel > div {
   min-width: 0;
   display: grid;
   gap: 9px;
@@ -583,28 +663,161 @@ const styles = `
   border-radius: 14px;
   background: var(--bg-2);
 }
-.swatches,
-.keyword-row {
+.brand-brief-panel strong {
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.35;
+}
+.brand-brief-panel p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.concept-swatches,
+.concept-keywords {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.swatches i {
+.concept-swatches i {
   width: 34px;
   height: 34px;
   border-radius: 10px;
   border: 1px solid rgba(15,23,42,0.14);
 }
-.brand-board-details strong {
-  color: var(--text);
-  font-size: 17px;
-}
-.keyword-row b {
+.concept-keywords b {
   border-radius: 999px;
   padding: 7px 9px;
   background: var(--accent-dim);
   color: var(--accent);
   font-size: 11px;
+}
+.logo-concepts {
+  display: grid;
+  gap: 14px;
+}
+.logo-concept-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(240px, 0.86fr) minmax(0, 1fr);
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.78), rgba(248,246,241,0.72));
+}
+.concept-preview {
+  min-height: 260px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 13px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,0.08);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, currentColor 17%, transparent), transparent 32%),
+    linear-gradient(145deg, #fbfaf7, #ebe6dc);
+  color: #2f6fed;
+  text-align: center;
+}
+.concept-letter {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: currentColor;
+  color: white;
+  font-size: 12px;
+  font-weight: 950;
+}
+.concept-preview svg {
+  width: min(46%, 150px);
+  height: auto;
+}
+.concept-preview strong {
+  display: block;
+  color: var(--text);
+  font-size: clamp(32px, 6vw, 58px);
+  line-height: 0.98;
+  letter-spacing: 0.02em;
+}
+.concept-preview span {
+  display: block;
+  margin-top: 8px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 800;
+}
+.concept-body {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 11px;
+}
+.concept-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.concept-title-row h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.2;
+}
+.concept-title-row span,
+.prototype-notice {
+  border-radius: 999px;
+  padding: 6px 8px;
+  background: rgba(47,143,97,0.11);
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 900;
+}
+.prototype-notice {
+  justify-self: start;
+  margin: 0;
+  background: rgba(183,121,31,0.12);
+  color: var(--yellow);
+}
+.concept-body p:not(.prototype-notice) {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.concept-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.concept-actions button {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.concept-actions .accept {
+  border-color: #2f8f61;
+  background: #2f8f61;
+  color: white;
+}
+.concept-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .result-summary {
   margin: 0;
@@ -613,12 +826,6 @@ const styles = `
   font-size: 14px;
   line-height: 1.6;
 }
-.final-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.final-actions button,
 .change-inline button,
 .ceo-composer button {
   min-height: 40px;
@@ -635,12 +842,6 @@ const styles = `
   font-weight: 900;
   cursor: pointer;
 }
-.final-actions .accept {
-  border-color: #2f8f61;
-  background: #2f8f61;
-  color: white;
-}
-.final-actions button:disabled,
 .change-inline button:disabled,
 .ceo-composer button:disabled {
   opacity: 0.45;
@@ -724,12 +925,19 @@ html[data-theme="dark"] .ceo-composer {
   border-color: var(--border);
 }
 html[data-theme="dark"] .ceo-message p,
-html[data-theme="dark"] .brand-board-details > div,
+html[data-theme="dark"] .brand-brief-panel > div,
+html[data-theme="dark"] .logo-concept-card,
 html[data-theme="dark"] .activity-details span,
-html[data-theme="dark"] .final-actions button,
+html[data-theme="dark"] .concept-actions button,
 html[data-theme="dark"] .ceo-composer input,
 html[data-theme="dark"] .change-inline textarea {
   background: rgba(16,23,34,0.72);
+  border-color: var(--border);
+}
+html[data-theme="dark"] .concept-preview {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, currentColor 18%, transparent), transparent 34%),
+    linear-gradient(145deg, #17202a, #101722);
   border-color: var(--border);
 }
 @media (max-width: 1024px) {
@@ -739,7 +947,8 @@ html[data-theme="dark"] .change-inline textarea {
   .ceo-simple-page { padding: 22px 12px 48px; }
   .ceo-simple-header { display: grid; }
   .ceo-expert-link { justify-self: start; }
-  .brand-board-details { grid-template-columns: 1fr; }
+  .brand-brief-panel { grid-template-columns: 1fr; }
+  .logo-concept-card { grid-template-columns: 1fr; }
   .ceo-message { max-width: 96%; }
 }
 `;

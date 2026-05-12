@@ -196,15 +196,48 @@ describe("critical Control Center pages", () => {
 
     expect(await screen.findByRole("heading", { name: "Logo Concept — Studio Lumiere" })).toBeInTheDocument();
     expect(screen.getAllByText("Prêt").length).toBeGreaterThan(0);
-    expect(screen.getByText("Accepter cette version")).toBeInTheDocument();
-    expect(screen.getByText("Modifier")).toBeInTheDocument();
-    expect(screen.getByText("Refaire")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /Accepter/ }).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByRole("button", { name: /Modifier/ }).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getAllByRole("button", { name: /Refaire/ }).length).toBeGreaterThanOrEqual(3);
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/autopilot/i)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Accepter cette version"));
+    fireEvent.click(screen.getAllByRole("button", { name: /Accepter/ })[0]);
     await waitFor(() => {
       expect(fetch).toHaveBeenCalledWith("/api/approvals/output-out-logo/approve", { method: "POST" });
     });
+  });
+
+  it("renders ELEVIO logo request as brand-aware central concepts", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        view: {
+          messages: [
+            { id: "msg-user", role: "user", text: "je veux un logo pour une compagnie qui s'appelle ELEVIO", timestamp: "2026-05-11T12:00:00.000Z" },
+            { id: "msg-ceo", role: "ceo", text: "Parfait. Je prépare un premier concept de logo pour ELEVIO.\nMission créée — ouvrir la Mission Room\n5 étapes exécutées automatiquement. autopilot", timestamp: "2026-05-11T12:00:02.000Z" },
+          ],
+          companies: [{ id: "workspace-elevio", name: "ELEVIO", type: "construction verticale / élévateurs", status: "Attend ton avis", avatar: "EL", projectsCount: 1, projectIds: ["proj-elevio"], hasPendingApproval: true }],
+          projects: [{ id: "proj-elevio", name: "Logo ELEVIO", missionType: "branding_pack", status: "review", sessionId: "session-elevio", workspaceId: "workspace-elevio", progress: 70, outputsCount: 1, updatedAt: "2026-05-11T12:00:00.000Z" }],
+          sessions: [{ sessionId: "session-elevio", projectName: "Logo ELEVIO", projectIdea: "", missionType: "branding_pack", businessStatus: "review", status: "waiting_approval", progress: 70, assignedAgents: [], tasks: [], logs: [], runtime: { lastEvent: "Waiting for approval", activeWorkers: 0 } }],
+          outputs: [{ id: "out-elevio", sessionId: "session-elevio", projectId: "proj-elevio", title: "Logo Concept", type: "logo_direction", summary: "Concept premium", preview: "Palette #0F172A #38BDF8", status: "review", assignedAgent: "frontend_agent", updatedAt: "2026-05-11T12:02:00.000Z", visualPreview: { kind: "brand_card", logoText: "NM", tagline: "Generic", colors: ["#0F172A", "#38BDF8"], typography: { heading: "Inter Bold", body: "Inter Regular" }, mockup: { title: "Nouvelle Marque AI", subtitle: "Generic", blocks: ["Generic"] } } }],
+          approvals: [{ item: { id: "output-out-elevio", title: "Logo Concept", type: "logo", status: "pending", agentId: "frontend_agent", agentName: "Designer", sessionId: "session-elevio", missionType: "branding_pack", createdAt: "2026-05-11T12:02:00.000Z", summary: "Concept premium", hasPreviewContent: true, previewType: "output_list" }, preview: null, canApprove: true, visualPreview: null }],
+          logs: [],
+        },
+      }),
+    })));
+
+    const { container } = render(React.createElement(CeoPage));
+
+    expect(await screen.findByRole("heading", { name: "Logo Concept — ELEVIO" })).toBeInTheDocument();
+    expect(screen.queryByText("Nouvelle Marque AI")).not.toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|5 étapes exécutées|sessionId|projectId|workspaceId/i);
+    expect(screen.getByText("A. Premium construction tech")).toBeInTheDocument();
+    expect(screen.getByText("B. Fast vertical movement / elevator signal")).toBeInTheDocument();
+    expect(screen.getByText("C. Safety + reliability")).toBeInTheDocument();
+    expect(screen.getAllByText("Concept visuel généré en prototype")).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /Accepter/ })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /Modifier/ })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: /Refaire/ })).toHaveLength(3);
   });
 
   it("reject workflow asks for changes and calls the existing approval route", async () => {
@@ -230,7 +263,7 @@ describe("critical Control Center pages", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(React.createElement(CeoPage));
-    fireEvent.click(await screen.findByText("Modifier"));
+    fireEvent.click((await screen.findAllByRole("button", { name: /Modifier/ }))[0]);
     fireEvent.change(screen.getByPlaceholderText(/plus luxe/), { target: { value: "Je veux quelque chose de plus luxe et minimaliste" } });
     fireEvent.click(screen.getByText("Envoyer la modification"));
 
