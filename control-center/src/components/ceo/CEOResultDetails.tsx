@@ -14,13 +14,19 @@ function artifactName(artifactPath: string) {
 function workflowDetails(expert: CEOCurrentResult["expert"]) {
   const workflow = expert?.companyWorkflow as {
     workflow?: string;
+    missionPlan?: unknown;
     agentRuns?: { agentId?: string; role?: string; skillId?: string; status?: string }[];
-    hiddenDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
+    hiddenDetails?: {
+      executionTrace?: { agentsCalled?: string[]; skillsCalled?: string[]; toolsCalled?: string[]; checkpoints?: unknown[]; qualityResults?: unknown[] };
+      workflowDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
+    };
   } | undefined;
   return {
     workflow: workflow?.workflow,
+    missionPlan: workflow?.missionPlan,
     agents: workflow?.agentRuns ?? [],
-    tools: workflow?.hiddenDetails?.toolTrace ?? [],
+    tools: workflow?.hiddenDetails?.workflowDetails?.toolTrace ?? [],
+    executionTrace: workflow?.hiddenDetails?.executionTrace,
   };
 }
 
@@ -76,6 +82,10 @@ export default function CEOResultDetails({
         <div>
           <strong>Agents, skills et tools</strong>
           {workflow.workflow && <p>Workflow: {workflow.workflow}</p>}
+          {workflow.executionTrace?.agentsCalled?.length ? <p>Agents: {workflow.executionTrace.agentsCalled.join(", ")}</p> : null}
+          {workflow.executionTrace?.skillsCalled?.length ? <p>Skills: {workflow.executionTrace.skillsCalled.join(", ")}</p> : null}
+          {workflow.executionTrace?.toolsCalled?.length ? <p>Tools: {workflow.executionTrace.toolsCalled.join(", ")}</p> : null}
+          {workflow.executionTrace?.checkpoints?.length ? <p>Checkpoints: {workflow.executionTrace.checkpoints.length}</p> : null}
           {workflow.agents.length > 0 && (
             <ul>
               {workflow.agents.slice(0, 10).map((run, index) => (

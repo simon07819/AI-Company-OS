@@ -51,7 +51,8 @@ export async function POST(req: NextRequest) {
       ? run.manifest.primaryVisualPath
       : firstVisualArtifact(artifactPaths);
     const filePrimaryVisual = readTextArtifact(primaryVisualPath);
-    const primaryVisual = companyWorkflow.visibleOutput?.primaryVisual ?? filePrimaryVisual;
+    const workflowVisibleOutput = companyWorkflow.visibleOutput as { primaryVisual?: string } | null;
+    const primaryVisual = workflowVisibleOutput?.primaryVisual ?? filePrimaryVisual;
 
     if (!hasArtifacts) {
       return NextResponse.json({
@@ -108,6 +109,7 @@ export async function POST(req: NextRequest) {
         companyWorkflow: {
           workflow: companyWorkflow.workflow,
           workOrder: companyWorkflow.workOrder,
+          missionPlan: companyWorkflow.missionPlan,
           agentRuns: companyWorkflow.agentRuns,
           hiddenDetails: companyWorkflow.hiddenDetails,
         },

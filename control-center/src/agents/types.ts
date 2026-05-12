@@ -16,6 +16,7 @@ export type AgentRole =
 export interface AgentRunContext {
   turnId: string;
   missionId: string;
+  agentId?: string;
   userPrompt: string;
   conversationContext?: unknown;
   previousDeliverable?: unknown;

@@ -207,8 +207,18 @@ describe("CEO command components", () => {
         expert: {
           companyWorkflow: {
             workflow: "website",
+            missionPlan: { id: "plan-1" },
             agentRuns: [{ role: "frontend_builder", skillId: "render_website_preview", status: "ok" }],
-            hiddenDetails: { toolTrace: [{ role: "frontend_builder", toolId: "website.preview", status: "ok" }] },
+            hiddenDetails: {
+              executionTrace: {
+                agentsCalled: ["frontend_builder"],
+                skillsCalled: ["render_website_preview"],
+                toolsCalled: ["website.preview"],
+                checkpoints: [{ taskId: "preview", status: "ok" }],
+                qualityResults: [{ ok: true }],
+              },
+              workflowDetails: { toolTrace: [{ role: "frontend_builder", toolId: "website.preview", status: "ok" }] },
+            },
           },
         },
       },
@@ -225,5 +235,6 @@ describe("CEO command components", () => {
     fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
     expect(screen.getByText("website.preview")).toBeInTheDocument();
     expect(screen.getByText("render_website_preview")).toBeInTheDocument();
+    expect(screen.getByText(/Checkpoints: 1/)).toBeInTheDocument();
   });
 });
