@@ -144,8 +144,11 @@ describe("critical Control Center pages", () => {
     expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
     expect(container.querySelector(".os-dock")).toBeInTheDocument();
     expect(container.querySelector(".platform-sidebar")).toBeInTheDocument();
-    for (const label of ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+    for (const label of ["CEO Chat", "Missions", "Agents"]) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    }
+    for (const hiddenLabel of ["Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+      expect(screen.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/Décris ce que tu veux construire|Production IA active|Mode simple|Conversation CEO/i);

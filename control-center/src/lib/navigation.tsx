@@ -1,14 +1,7 @@
 import {
-  Activity,
   Bot,
   ClipboardList,
-  Command,
   Crown,
-  Database,
-  Eye,
-  FolderKanban,
-  Settings,
-  Sparkles,
 } from "lucide-react";
 import { createElement } from "react";
 import type { ReactNode } from "react";
@@ -26,17 +19,9 @@ export const SIMPLE_NAV: DesktopNavItem[] = [
   { href: "/ceo", label: "CEO Chat", icon: createElement(Crown, { size: 18 }) },
   { href: "/missions", label: "Missions", icon: createElement(ClipboardList, { size: 18 }) },
   { href: "/agents", label: "Agents", icon: createElement(Bot, { size: 18 }) },
-  { href: "/workspaces", label: "Workspaces", icon: createElement(Database, { size: 18 }) },
-  { href: "/artifacts", label: "Artifacts", icon: createElement(Eye, { size: 18 }) },
-  { href: "/skills", label: "Skills", icon: createElement(Sparkles, { size: 18 }) },
-  { href: "/evals", label: "Evals", icon: createElement(Activity, { size: 18 }) },
-  { href: "/settings", label: "Settings", icon: createElement(Settings, { size: 18 }) },
 ];
 
-export const EXPERT_NAV: DesktopNavItem[] = [
-  { href: "/", label: "Home", icon: createElement(Command, { size: 18 }), exact: true },
-  ...SIMPLE_NAV,
-];
+export const EXPERT_NAV: DesktopNavItem[] = SIMPLE_NAV;
 
 export const ADVANCED_ROUTE_PREFIXES = [
   "ceo/expert",

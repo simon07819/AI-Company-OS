@@ -8,11 +8,6 @@ const primaryLinks = [
   "CEO Chat",
   "Missions",
   "Agents",
-  "Workspaces",
-  "Artifacts",
-  "Skills",
-  "Evals",
-  "Settings",
 ];
 
 describe("NavSidebar", () => {
@@ -55,7 +50,7 @@ describe("AppShell", () => {
     );
 
     expect(screen.getAllByText("AI Company OS").length).toBeGreaterThan(0);
-    expect(screen.getByText("CEO en ligne")).toBeInTheDocument();
+    expect(screen.queryByText("CEO en ligne")).not.toBeInTheDocument();
     expect(screen.queryByText("Mode simple")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Settings child content" })).toBeInTheDocument();
   });
@@ -141,8 +136,8 @@ describe("AppShell", () => {
 
     await waitFor(() => expect(screen.getAllByRole("link", { name: "Agents" }).length).toBeGreaterThan(0));
     expect(screen.getAllByRole("link", { name: "Missions" }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Workspaces" }).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("link", { name: "Settings" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Workspaces" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Projects child content" })).toBeInTheDocument();
   });
 });

@@ -18,6 +18,7 @@ export default function CommandDock({
   const navItems = navigationForMode(mode);
 
   return (
+    /* ACTIVE AI COMPANY OS SHELL */
     <aside className={`platform-sidebar os-dock sidebar${mobileOpen ? " mobile-open" : ""}`} aria-label="Platform navigation" data-collapsed="false">
       <Link className="platform-sidebar-brand" href="/" aria-label="AI Company OS home">
         <span className="platform-sidebar-logo">AI</span>
@@ -45,10 +46,6 @@ export default function CommandDock({
           </Link>
         ))}
       </nav>
-      <div className="platform-sidebar-footer">
-        <span className="platform-status-dot" aria-hidden="true" />
-        <span>CEO en ligne</span>
-      </div>
     </aside>
   );
 }

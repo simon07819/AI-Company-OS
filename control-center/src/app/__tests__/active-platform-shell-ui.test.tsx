@@ -15,8 +15,11 @@ describe("active AI Company OS platform shell", () => {
     expect(sidebar).toBeInTheDocument();
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     const scope = within(sidebar as HTMLElement);
-    for (const label of ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+    for (const label of ["CEO Chat", "Missions", "Agents"]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
+    }
+    for (const hiddenLabel of ["Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+      expect(scope.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
     expect(scope.getByText("Nouveau chat")).toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/\b(?:C|M|A)\.\.\./);
@@ -32,6 +35,9 @@ describe("active AI Company OS platform shell", () => {
 
     expect(css).toMatch(/\.platform-shell\s*{[^}]*height:\s*100vh/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*grid-template-columns:\s*280px minmax\(0,\s*1fr\)/s);
+    expect(css).toMatch(/\.platform-shell\s*{[^}]*background:\s*#000000/s);
+    expect(css).toMatch(/\.platform-sidebar\s*{[^}]*background:\s*#050505/s);
+    expect(css).toMatch(/\.platform-topbar\s*{[^}]*background:\s*#050505/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*overflow:\s*hidden/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*width:\s*280px/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*min-width:\s*280px/s);

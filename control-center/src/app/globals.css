@@ -5407,9 +5407,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   min-width: 0;
   min-height: calc(100vh - 64px);
   display: grid;
-  background:
-    radial-gradient(circle at 50% -18%, rgba(148, 163, 184, 0.12), transparent 34%),
-    linear-gradient(180deg, #070707 0%, #050505 48%, #020202 100%);
+  background: #000000;
   color: #f4f4f5;
 }
 
@@ -5445,9 +5443,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background:
-    radial-gradient(circle at 35% 22%, rgba(255,255,255,0.5), transparent 30%),
-    linear-gradient(145deg, #27272a, #0f172a 58%, #334155);
+  background: #111111;
   color: #f8fafc;
   font-size: 15px;
   font-weight: 950;
@@ -5514,7 +5510,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(145deg, #27272a, #0f172a 58%, #334155);
+  background: #111111;
   color: #f8fafc;
   font-weight: 950;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.09), 0 18px 44px rgba(0,0,0,0.35);
@@ -5567,7 +5563,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: linear-gradient(145deg, #27272a, #0f172a 58%, #334155);
+  background: #111111;
   color: #f8fafc;
   font-size: 11px;
   font-weight: 950;
@@ -5931,10 +5927,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   height: 100vh;
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
-  background:
-    radial-gradient(circle at 10% -10%, rgba(106, 168, 255, 0.13), transparent 30%),
-    radial-gradient(circle at 86% 0%, rgba(111, 208, 155, 0.08), transparent 28%),
-    linear-gradient(180deg, #06070a 0%, #090a0f 46%, #050506 100%);
+  background: #000000;
   color: #f4f4f5;
   overflow: hidden;
 }
@@ -5948,11 +5941,11 @@ html[data-theme="dark"] .ceo-os-result-details {
   height: 100vh;
   min-height: 100vh;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(9, 10, 15, 0.92);
-  box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
+  background: #050505;
+  box-shadow: inset -1px 0 0 rgba(255,255,255,0.025);
   padding: 18px 14px;
   z-index: 40;
 }
@@ -5971,8 +5964,8 @@ html[data-theme="dark"] .ceo-os-result-details {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: linear-gradient(145deg, #f4f4f5, #9ca3af);
-  color: #09090b;
+  background: #111111;
+  color: #f4f4f5;
   font-size: 13px;
   font-weight: 950;
   letter-spacing: -0.04em;
@@ -6001,7 +5994,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 13px;
-  background: rgba(24, 24, 27, 0.86);
+  background: #0f0f0f;
   color: #f4f4f5;
   padding: 0 12px;
   font-size: 13px;
@@ -6033,7 +6026,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   align-items: center;
   gap: 10px;
   border-radius: 12px;
-  color: #a1a1aa;
+  color: #b4b4b4;
   padding: 0 11px;
   font-size: 14px;
   font-weight: 800;
@@ -6043,7 +6036,7 @@ html[data-theme="dark"] .ceo-os-result-details {
 
 .platform-sidebar-link svg {
   flex: 0 0 auto;
-  opacity: 0.78;
+  opacity: 0.56;
 }
 
 .platform-sidebar .os-dock-item {
@@ -6067,12 +6060,12 @@ html[data-theme="dark"] .ceo-os-result-details {
 
 .platform-sidebar-link:hover {
   background: rgba(255, 255, 255, 0.06);
-  color: #fafafa;
+  color: #f5f5f5;
 }
 
 .platform-sidebar-link.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fafafa;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5f5f5;
   box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
 }
 
@@ -6112,7 +6105,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   justify-content: space-between;
   gap: 14px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
-  background: rgba(8, 8, 11, 0.78);
+  background: #050505;
   backdrop-filter: blur(18px);
   padding: 0 18px;
 }
@@ -6145,7 +6138,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   min-height: 34px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 999px;
-  background: rgba(24, 24, 27, 0.72);
+  background: #0f0f0f;
   color: #a1a1aa;
   display: inline-flex;
   align-items: center;
@@ -6183,6 +6176,36 @@ html[data-theme="dark"] .ceo-os-result-details {
   padding: clamp(24px, 4vw, 56px);
   display: grid;
   gap: 24px;
+}
+
+.desktop-os-shell.platform-shell {
+  background: #000000;
+}
+
+.platform-sidebar.os-dock {
+  background: #050505;
+  border-right-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .desktop-os-shell.platform-shell {
+  background: #000000;
+}
+
+html[data-theme="dark"] .platform-sidebar.os-dock,
+html[data-theme="dark"] .platform-topbar.desktop-appbar {
+  background: #050505;
+  border-color: rgba(255,255,255,0.08);
+}
+
+html[data-theme="dark"] .platform-sidebar .os-dock-item:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: transparent;
+}
+
+html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.06);
+  color: #f5f5f5;
 }
 
 .platform-page-header {

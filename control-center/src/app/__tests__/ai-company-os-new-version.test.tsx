@@ -11,7 +11,7 @@ import { assertNoCompletedStepWithoutArtifacts } from "@/lib/product-builder/exe
 import { validateGeneratedProduct } from "@/lib/product-builder/qualityGate";
 import { RESET_CONFIRMATION, resetCompanyOs } from "@/lib/resetCompanyOs";
 
-const platformNav = ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings"];
+const platformNav = ["CEO Chat", "Missions", "Agents"];
 
 let tempRoot = "";
 
