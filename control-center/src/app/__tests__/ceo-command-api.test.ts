@@ -96,6 +96,11 @@ describe("CEO command API", () => {
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.artifactPaths).toEqual([]);
     expect(payload.expert.productionStatus).toBe("blocked_no_visual_provider");
+    expect(payload.expert.runtime.finalStatus).toBe("blocked");
+    expect(payload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
+      expect.arrayContaining(["queued", "planning", "researching", "generating", "reviewing", "validating"]),
+    );
+    expect(payload.expert.runtime.provider.visualProviderConfigured).toBe(false);
     expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Génération SVG locale instantanée bloquée.");
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
   });
@@ -132,6 +137,10 @@ describe("CEO command API", () => {
     expect(websitePayload.primaryVisual).not.toBe(logoPayload.primaryVisual);
     expect(String(websitePayload.primaryVisualPath ?? "")).not.toMatch(/final-logo\.svg$/);
     expect(websitePayload.title).not.toMatch(/^Logo /);
+    expect(websitePayload.expert.runtime.finalStatus).toBe("completed");
+    expect(websitePayload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
+      expect.arrayContaining(["queued", "planning", "generating", "reviewing", "validating"]),
+    );
   });
 
   it("refuses missing prompts instead of returning fake success", async () => {

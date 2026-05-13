@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { executeProductionMission } from "@/lib/orchestrator/missionExecutor";
+import { buildMissionLifecycleTrace } from "@/lib/orchestrator/missionLifecycle";
 import { readGeneratedProject } from "@/lib/product-builder/workspace";
 import { runCompanyWorkflow } from "@/agents/workflows/company-workflow";
 import { createArtifactFingerprint } from "@/agents/artifacts/artifact-fingerprint";
@@ -46,6 +47,10 @@ function isValidWorkflowPrimaryVisual(value: string | null | undefined, delivera
 
 function hasRealLogoVisualProvider() {
   return false;
+}
+
+function hasNvidiaRuntimeProvider() {
+  return Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.length >= 8);
 }
 
 function logoProductionStages(brandName?: string | null) {
@@ -129,6 +134,14 @@ export async function POST(req: NextRequest) {
     if (preliminaryWorkOrder.deliverableType === "logo" && !hasRealLogoVisualProvider()) {
       await holdVisibleProductionState();
       const stages = logoProductionStages(preliminaryWorkOrder.brandName);
+      const runtime = buildMissionLifecycleTrace({
+        workOrder: preliminaryWorkOrder,
+        nvidiaConfigured: hasNvidiaRuntimeProvider(),
+        visualProviderConfigured: false,
+        completed: false,
+        blockers: ["real_visual_provider_missing", "local_svg_renderer_disabled"],
+        retryReasons: ["Aucun candidat visuel réel disponible pour retry."],
+      });
       memoryStore.addTurn({
         id: preliminaryWorkOrder.turnId,
         userPrompt: prompt,
@@ -171,6 +184,7 @@ export async function POST(req: NextRequest) {
         expert: {
           productionStatus: "blocked_no_visual_provider",
           provider: "not_configured",
+          runtime,
           plan: {
             workflow: "logo_production",
             stages,
@@ -228,6 +242,19 @@ export async function POST(req: NextRequest) {
     const primaryArtifactId = requiresValidatedWorkflowVisual && !validWorkflowPrimaryVisual ? undefined : workflowVisibleOutput?.primaryArtifactId;
     const primaryArtifactFingerprint = primaryVisual ? createArtifactFingerprint(primaryVisual) : undefined;
     const responseDeliverableType = workOrder.deliverableType === "landing_page" ? "website" : workOrder.deliverableType;
+    const runtime = buildMissionLifecycleTrace({
+      workOrder,
+      nvidiaConfigured: hasNvidiaRuntimeProvider(),
+      visualProviderConfigured: workOrder.deliverableType === "logo" ? hasRealLogoVisualProvider() : true,
+      completed: Boolean(hasArtifacts && (!requiresValidatedWorkflowVisual || (primaryVisual && primaryArtifactId))),
+      blockers: [
+        ...(!hasArtifacts ? ["no_real_artifacts_created"] : []),
+        ...(requiresValidatedWorkflowVisual && !primaryVisual ? ["validated_primary_visual_missing"] : []),
+        ...(requiresValidatedWorkflowVisual && !primaryArtifactId ? ["primary_artifact_missing"] : []),
+      ],
+      retryReasons: run.revisions.map((revision) => revision.reason),
+      attempts: run.revisions.length,
+    });
 
     if (!hasArtifacts || (requiresValidatedWorkflowVisual && (!primaryVisual || !primaryArtifactId))) {
       return NextResponse.json({
@@ -246,6 +273,21 @@ export async function POST(req: NextRequest) {
         artifacts: [],
         workspaceHref: null,
         qualityScore: run.manifest.qualityScore,
+        expert: {
+          runtime,
+          plan: run.plan,
+          qualityReport: run.qualityReports.at(-1) ?? null,
+          revisions: run.revisions,
+          manifest: run.manifest,
+          companyWorkflow: {
+            workflow: companyWorkflow.workflow,
+            workOrder: companyWorkflow.workOrder,
+            missionPlan: companyWorkflow.missionPlan,
+            agentRuns: companyWorkflow.agentRuns,
+            hiddenDetails: companyWorkflow.hiddenDetails,
+          },
+          inputAttachments: attachments,
+        },
         error: requiresValidatedWorkflowVisual
           ? "Aucun fallback legacy n'a été affiché."
           : "Aucun fichier traçable n'a été créé. Le projet n'est pas marqué prêt.",
@@ -282,6 +324,7 @@ export async function POST(req: NextRequest) {
       limitations: run.manifest.limitations ?? [],
       launchInstructions: run.manifest.launch ?? [],
       expert: {
+        runtime,
         plan: run.plan,
         qualityReport: run.qualityReports.at(-1) ?? null,
         revisions: run.revisions,
