@@ -27,7 +27,19 @@ describe("active AI Company OS platform shell", () => {
     expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ajouter des fichiers" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ouvrir le mode expert" })).toHaveAttribute("href", "/ceo/expert");
     expect(container.textContent ?? "").not.toMatch(/Décris ce que tu veux construire|Production IA active|Mode simple|Conversation CEO/i);
+  });
+
+  it("keeps expert navigation behind the dedicated expert route", () => {
+    globalThis.__TEST_PATHNAME__ = "/ceo/expert";
+    const { container } = render(React.createElement(AppShell, null, React.createElement("main", null, "Expert route")));
+    const sidebar = container.querySelector(".platform-sidebar");
+    const scope = within(sidebar as HTMLElement);
+
+    for (const label of ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime"]) {
+      expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
+    }
   });
 
   it("keeps the active shell CSS at usable app-chat dimensions", () => {
@@ -38,6 +50,7 @@ describe("active AI Company OS platform shell", () => {
     expect(css).toMatch(/\.platform-shell\s*{[^}]*background:\s*#000000/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*background:\s*#050505/s);
     expect(css).toMatch(/\.platform-topbar\s*{[^}]*background:\s*#050505/s);
+    expect(css).toMatch(/\.platform-shell\s*{[^}]*--surface:\s*#0f0f0f/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*overflow:\s*hidden/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*width:\s*280px/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*min-width:\s*280px/s);

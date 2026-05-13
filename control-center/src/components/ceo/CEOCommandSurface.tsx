@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useOptionalViewMode } from "@/components/os/ViewModeProvider";
+import Link from "next/link";
 import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
@@ -89,9 +89,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
 }
 
 export default function CEOCommandSurface() {
-  const viewMode = useOptionalViewMode();
-  const isExpert = viewMode?.isExpert ?? false;
-  const toggleMode = viewMode?.toggleMode ?? (() => undefined);
+  const isExpert = false;
   const [mission, setMission] = useState<CEOCurrentMission | null>(null);
   const [result, setResult] = useState<CEOCurrentResult | null>(null);
   const [conversationId] = useState(() => `ceo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
@@ -174,10 +172,9 @@ export default function CEOCommandSurface() {
               <span>En ligne</span>
             </div>
           </div>
-          <button className="ceo-chat-mode-toggle" type="button" onClick={toggleMode} aria-label={isExpert ? "Revenir au chat simple" : "Ouvrir les options expert"} title={isExpert ? "Chat simple" : "Options expert"}>
-            <span aria-hidden="true">...</span>
-            <span className="ceo-sr-only">Expert</span>
-          </button>
+          <Link className="ceo-chat-expert-link" href="/ceo/expert" aria-label="Ouvrir le mode expert">
+            Mode expert
+          </Link>
         </header>
 
         <CEOResultStage
