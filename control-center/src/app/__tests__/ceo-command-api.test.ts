@@ -176,7 +176,8 @@ describe("CEO command API", () => {
     expect(payload.artifactId).toMatch(/^artifact-/);
     expect(payload.primaryArtifactId).toBe(payload.artifactId);
     expect(payload.primaryVisual).toContain("<svg");
-    expect(payload.summary).toMatch(/pas un logo final/i);
+    expect(payload.summary).toMatch(/demande explicite/i);
+    expect(payload.summary).toMatch(/pas un livrable de provider image/i);
     expect(payload.expert.diagnostic.sourceType).toBe("local_svg");
   });
 

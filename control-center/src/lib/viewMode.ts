@@ -1,5 +1,3 @@
-import { isAdvancedPath } from "./navigation";
-
 export type ViewMode = "simple" | "expert";
 
 export const VIEW_MODE_STORAGE_KEY = "ai-company-os-view-mode";

@@ -42,7 +42,7 @@ export default function LogoFinalAnswer({
           ))}
         </div>
       )}
-      <p className="ceo-logo-answer-note">Prototype vectoriel local, pas un logo final.</p>
+      <p className="ceo-logo-answer-note">Prototype vectoriel local explicitement demandé.</p>
     </div>
   );
 }

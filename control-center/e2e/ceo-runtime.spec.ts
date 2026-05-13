@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const logoPrompt = "je veux un logo ekida";
+const websitePrompt = "Je veux une page web bien simple avec le logo ekida, tu peux mettre du contenu temporaire ses une compagnie de linge";
 
 async function submitLogoRequest(page: import("@playwright/test").Page) {
   await page.goto("/ceo");
@@ -12,6 +13,16 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
 }
 
 test.describe("CEO runtime shell", () => {
+  test("opens the product home and starts a new CEO chat", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Que veux-tu construire aujourd'hui?" })).toBeVisible();
+    await page.getByRole("link", { name: /Parler au CEO/ }).click();
+    await expect(page).toHaveURL(/\/ceo$/);
+    await expect(page.getByLabel("Chat CEO")).toBeVisible();
+    await page.getByRole("link", { name: "Nouveau chat" }).click();
+    await expect(page.getByPlaceholder("Message")).toBeVisible();
+  });
+
   test("shows the black sidebar and complete simple CEO controls", async ({ page }) => {
     await page.goto("/ceo");
 
@@ -62,6 +73,17 @@ test.describe("CEO runtime shell", () => {
 
     await expect(page.getByRole("link", { name: "Ouvrir le mode expert" })).toHaveAttribute("href", "/ceo/expert");
   });
+
+  test("handles a website request as a traceable preview without old logo fallback", async ({ page }) => {
+    await page.goto("/ceo");
+    await page.getByPlaceholder("Message").fill(websitePrompt);
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    await expect(page.getByLabel(/Preview .*EKIDA|Preview site web EKIDA/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Provider réel").first()).toBeVisible();
+    await expect(page.locator(".ceo-chat-visual-reply.brand")).toHaveCount(0);
+    await expect(page.getByText(/Brand system|Marque à nommer|Prototype visuel/i)).toHaveCount(0);
+  });
 });
 
 test.describe("CEO expert runtime evidence", () => {
@@ -81,6 +103,22 @@ test.describe("CEO expert runtime evidence", () => {
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("critic");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("reviewer");
     await page.screenshot({ path: "test-results/ceo-expert.png", fullPage: true });
+
+    await page.getByRole("link", { name: "CEO Chat", exact: true }).click();
+    await expect(page).toHaveURL(/\/ceo$/);
+    await expect(page.getByRole("link", { name: "Companies", exact: true })).toHaveCount(0);
+  });
+
+  test("shows expert diagnostics without exposing secret values", async ({ page }) => {
+    await page.goto("/ceo/expert/diagnostics");
+
+    await expect(page.getByRole("heading", { name: "CEO Runtime Diagnostics" })).toBeVisible();
+    await expect(page.getByText("Git SHA")).toBeVisible();
+    await expect(page.getByText("Provider image réel")).toBeVisible();
+    await expect(page.getByText("aucun configuré")).toBeVisible();
+    await expect(page.getByText("NVIDIA_API_KEY")).toBeVisible();
+    await expect(page.getByText(/npm run test:e2e/)).toBeVisible();
+    await expect(page.getByText(/nvapi-|PRIVATE KEY|BEGIN PRIVATE/i)).toHaveCount(0);
   });
 });
 

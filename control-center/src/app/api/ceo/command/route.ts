@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
           mission,
           deliverables: mission.deliverables,
           artifactId: artifact.artifactId,
-          summary: "Prototype SVG local créé à la demande explicite. Ce n'est pas un logo final.",
+          summary: "Prototype SVG local créé à la demande explicite. Ce n'est pas un livrable de provider image.",
           shortMessage: undefined,
           primaryVisualPath: null,
           primaryVisual: prototype.primaryVisual,
@@ -287,7 +287,7 @@ export async function POST(req: NextRequest) {
           artifacts: [],
           missingArtifacts: [],
           workspaceHref: null,
-          limitations: ["Prototype SVG local explicitement demandé.", "Pas un logo final.", "Aucun générateur image réel utilisé."],
+          limitations: ["Prototype SVG local explicitement demandé.", "Aucun générateur image réel utilisé."],
           launchInstructions: Object.values(prompts),
           expert: {
             productionStatus: "explicit_local_svg_prototype",

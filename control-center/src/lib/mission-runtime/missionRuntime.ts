@@ -320,7 +320,7 @@ export function buildLogoBriefText(command: string, brandName?: string | null, c
   return [
     `Brief logo - ${brand}`,
     `Objectif: créer une identité visuelle simple, distinctive et exploitable pour ${brand}.`,
-    "Livrable attendu: directions créatives, prompts visuels et guide pour designer humain. Aucun logo final n'est généré sans provider visuel réel.",
+    "Livrable attendu: directions créatives, prompts visuels et guide pour designer humain. Aucun logo n'est généré sans provider visuel réel.",
     "Directions créatives:",
     "1. Monogramme: travailler les initiales et une structure géométrique propriétaire.",
     "2. Symbole propriétaire: créer une marque abstraite liée à la promesse et au contexte métier.",

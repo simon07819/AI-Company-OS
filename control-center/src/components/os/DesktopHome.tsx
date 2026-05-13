@@ -44,7 +44,7 @@ export default function DesktopHome() {
         <span className="home-kicker">AI Company OS Desktop</span>
         <h1>{"Que veux-tu construire aujourd'hui?"}</h1>
         <p>
-          Lance une entreprise, crée un projet, reçois un résultat final, puis décide quoi accepter ou modifier.
+          Lance une entreprise, crée un projet, reçois un résultat traçable, puis décide quoi accepter ou modifier.
         </p>
         <div className="home-actions">
           <Link className="home-primary-action" href="/ceo">

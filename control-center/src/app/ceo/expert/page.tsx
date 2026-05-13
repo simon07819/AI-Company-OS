@@ -1178,23 +1178,40 @@ function ExpertRuntimeProofPanel() {
             Preuve chargee depuis POST /api/ceo/command.
           </div>
         </div>
-        <button
-          type="button"
-          onClick={loadProof}
-          disabled={loading}
-          style={{
-            padding: "7px 11px",
-            borderRadius: 8,
-            border: "1px solid rgba(56,189,248,0.35)",
-            background: loading ? "rgba(107,114,128,0.25)" : "rgba(56,189,248,0.14)",
-            color: "#38bdf8",
-            fontSize: 11,
-            fontWeight: 800,
-            cursor: loading ? "wait" : "pointer",
-          }}
-        >
-          {loading ? "Chargement..." : "Charger preuve runtime"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <a
+            href="/ceo/expert/diagnostics"
+            style={{
+              padding: "7px 11px",
+              borderRadius: 8,
+              border: "1px solid rgba(245,158,11,0.28)",
+              background: "rgba(245,158,11,0.1)",
+              color: "#f59e0b",
+              fontSize: 11,
+              fontWeight: 800,
+              textDecoration: "none",
+            }}
+          >
+            Diagnostics
+          </a>
+          <button
+            type="button"
+            onClick={loadProof}
+            disabled={loading}
+            style={{
+              padding: "7px 11px",
+              borderRadius: 8,
+              border: "1px solid rgba(56,189,248,0.35)",
+              background: loading ? "rgba(107,114,128,0.25)" : "rgba(56,189,248,0.14)",
+              color: "#38bdf8",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: loading ? "wait" : "pointer",
+            }}
+          >
+            {loading ? "Chargement..." : "Charger preuve runtime"}
+          </button>
+        </div>
       </div>
 
       {error && <p style={{ margin: "10px 0 0", fontSize: 11, color: "#ef4444" }}>{error}</p>}
