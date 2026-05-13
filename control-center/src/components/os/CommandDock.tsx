@@ -46,6 +46,13 @@ export default function CommandDock({
           </Link>
         ))}
       </nav>
+      <footer className="platform-sidebar-footer">
+        <span className="platform-status-dot" aria-hidden="true" />
+        <span>En ligne</span>
+        <Link className="platform-expert-link" href="/ceo/expert" aria-label="Ouvrir le mode expert">
+          Mode expert
+        </Link>
+      </footer>
     </aside>
   );
 }

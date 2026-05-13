@@ -65,7 +65,7 @@ function CEOResultMessage({
   const isLogoDeliverable = !isWebsite && (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo" || /^Logo\s+/i.test(result.title));
   const hasValidPrimaryVisual = hasValidatedPrimaryVisual(result);
   const requiresVisual = isLogoDeliverable;
-  const isRenderable = hasArtifacts && (!requiresVisual || hasValidatedPrimaryVisual(result));
+  const isRenderable = requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result);
   const brandName = brandNameFromResult(result);
 
   return (
@@ -76,7 +76,12 @@ function CEOResultMessage({
           {isWebsite && hasValidPrimaryVisual ? (
             <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
           ) : isLogoDeliverable ? (
-            <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
+            <LogoFinalAnswer
+              brandName={brandName}
+              darkBackground={usesDarkLogoBackground(mission?.prompt)}
+              svg={result.primaryVisual}
+              variants={result.prototypeVariants}
+            />
           ) : (
             <>
               <strong>{result.title}</strong>

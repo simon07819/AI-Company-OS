@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
@@ -21,6 +20,7 @@ interface CommandResponse {
   primaryVisual?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
+  prototypeVariants?: CEOCurrentResult["prototypeVariants"];
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
   artifactPaths?: string[];
@@ -76,6 +76,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     primaryVisual: payload.primaryVisual,
     primaryArtifactId: payload.primaryArtifactId,
     primaryArtifactFingerprint: payload.primaryArtifactFingerprint,
+    prototypeVariants: payload.prototypeVariants,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
     artifactPaths: payload.artifactPaths ?? [],
@@ -136,7 +137,7 @@ export default function CEOCommandSurface() {
           ...payload,
           title: payload.title || "Aucun artifact réel créé",
           status: payload.status || "failed",
-          summary: payload.error || "Impossible de créer le projet. Détail disponible en mode expert.",
+          summary: payload.summary || payload.error || "Impossible de créer le projet. Détail disponible en mode expert.",
           artifactPaths: payload.artifactPaths ?? [],
         });
         setMission(failedMission);
@@ -172,9 +173,6 @@ export default function CEOCommandSurface() {
               <span>En ligne</span>
             </div>
           </div>
-          <Link className="ceo-chat-expert-link" href="/ceo/expert" aria-label="Ouvrir le mode expert">
-            Mode expert
-          </Link>
         </header>
 
         <CEOResultStage

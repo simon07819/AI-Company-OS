@@ -64,7 +64,7 @@ describe("CEO command API", () => {
     expect(payload.artifactPaths.join("\n")).toMatch(/patients|appointments|product-spec\.json|README\.md/);
   });
 
-  it("does not create instant local logo artifacts when no real visual provider is configured", async () => {
+  it("returns a useful local vector logo prototype when no advanced visual provider is configured", async () => {
     const response = await postCommand("Je veux un logo sportif pour une compagnie qui s'appelle ELEVIO");
     const payload = await response.json();
 
@@ -73,14 +73,17 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_revision");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("ELEVIO");
-    expect(payload.summary).toBe("Prototype non généré: aucun générateur visuel réel branché.");
-    expect(payload.primaryVisual).toBeNull();
-    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.title).toBe("Prototype de logo");
+    expect(payload.summary).toBe("Prototype préparé avec le générateur vectoriel local. Pour un rendu final photoréaliste/avancé, branche un générateur image.");
+    expect(payload.primaryVisual).toContain("<svg");
+    expect(payload.primaryVisual).toContain("ELEVIO");
+    expect(payload.primaryArtifactId).toMatch(/^local-vector-prototype-/);
+    expect(payload.prototypeVariants.length).toBeGreaterThanOrEqual(3);
     expect(payload.artifactPaths).toEqual([]);
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*B\s*</);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|>\s*B\s*</);
   });
 
-  it("blocks the fake instant EKIDA logo path", async () => {
+  it("prepares an EKIDA prototype through the local vector workflow without legacy markers", async () => {
     const response = await postCommand("logo EKIDA sur fond noir");
     const payload = await response.json();
 
@@ -89,23 +92,24 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_revision");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("EKIDA");
-    expect(payload.title).toBe("Mission lancée");
+    expect(payload.title).toBe("Prototype de logo");
     expect(payload.shortMessage).toBeUndefined();
     expect(payload.primaryVisualPath).toBeNull();
-    expect(payload.primaryVisual).toBeNull();
-    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.primaryVisual).toContain("<svg");
+    expect(payload.primaryVisual).toContain("EKIDA");
+    expect(payload.primaryArtifactId).toMatch(/^local-vector-prototype-/);
     expect(payload.artifactPaths).toEqual([]);
-    expect(payload.expert.productionStatus).toBe("blocked_no_visual_provider");
-    expect(payload.expert.runtime.finalStatus).toBe("blocked");
+    expect(payload.expert.productionStatus).toBe("local_vector_prototype");
+    expect(payload.expert.runtime.finalStatus).toBe("completed");
     expect(payload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
       expect.arrayContaining(["queued", "planning", "researching", "generating", "reviewing", "validating"]),
     );
     expect(payload.expert.runtime.provider.visualProviderConfigured).toBe(false);
-    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Génération SVG locale instantanée bloquée.");
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
+    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Prototype vectoriel local préparé et affiché sans le qualifier de final.");
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|>\s*[AB]\s*</);
   });
 
-  it("extracts PROSHOTS but still refuses to fake a logo without a real visual provider", async () => {
+  it("extracts PROSHOTS and prepares a prototype with photo sport context", async () => {
     const response = await postCommand("fais-moi un logo pour PROSHOTS ses des photographes sportifs");
     const payload = await response.json();
 
@@ -113,9 +117,10 @@ describe("CEO command API", () => {
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe("needs_revision");
     expect(payload.brandName).toBe("PROSHOTS");
-    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryVisual).toContain("<svg");
+    expect(payload.primaryVisual).toContain("PROSHOTS");
     expect(payload.artifactPaths).toEqual([]);
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|<svg/);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer/);
   });
 
   it("routes a page web request with a logo asset to a website preview, not the previous logo", async () => {

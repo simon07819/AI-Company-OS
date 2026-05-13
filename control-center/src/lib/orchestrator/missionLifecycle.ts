@@ -70,8 +70,9 @@ function step(input: Omit<MissionLifecycleStep, "startedAt" | "completedAt">): M
   };
 }
 
-function logoSteps(blocked: boolean): MissionLifecycleStep[] {
+function logoSteps(blocked: boolean, localPrototypeGenerated = false): MissionLifecycleStep[] {
   const terminalStatus = blocked ? "blocked" : "completed";
+  const prototypeOutput = localPrototypeGenerated ? "local_vector_prototype" : "visual_candidates";
   return [
     step({
       id: "queued",
@@ -93,7 +94,9 @@ function logoSteps(blocked: boolean): MissionLifecycleStep[] {
       summary: "Objectif, marque, contraintes et critères d'acceptation extraits.",
       outputs: ["brief"],
       critiques: [],
-      decisions: ["Un logo exige un provider visuel réel avant affichage."],
+      decisions: [localPrototypeGenerated
+        ? "Produire un prototype vectoriel local clairement identifié, pas un logo final."
+        : "Un logo final exige un provider visuel réel avant affichage."],
     }),
     step({
       id: "researching",
@@ -104,7 +107,9 @@ function logoSteps(blocked: boolean): MissionLifecycleStep[] {
       summary: blocked ? "Recherche visuelle bloquée: provider visuel absent." : "Références et direction de marque préparées.",
       outputs: blocked ? [] : ["research_notes"],
       critiques: blocked ? ["Impossible de produire des références visuelles réelles sans provider."] : [],
-      decisions: blocked ? ["Ne pas utiliser le générateur SVG local instantané."] : ["Continuer vers les concepts."],
+      decisions: blocked
+        ? ["Ne pas afficher de faux logo final."]
+        : [localPrototypeGenerated ? "Utiliser le générateur vectoriel local pour un prototype exploitable." : "Continuer vers les concepts."],
     }),
     step({
       id: "generating",
@@ -112,8 +117,12 @@ function logoSteps(blocked: boolean): MissionLifecycleStep[] {
       label: "Concepts",
       agentRole: "designer",
       status: terminalStatus,
-      summary: blocked ? "Concepts non générés: aucun générateur visuel réel branché." : "Concepts produits par le provider configuré.",
-      outputs: blocked ? [] : ["visual_candidates"],
+      summary: blocked
+        ? "Concepts non générés: aucun générateur visuel réel branché."
+        : localPrototypeGenerated
+          ? "Directions créatives et prototype SVG local produits."
+          : "Concepts produits par le provider configuré.",
+      outputs: blocked ? [] : [prototypeOutput],
       critiques: blocked ? ["Aucun candidat visuel validable."] : [],
       decisions: blocked ? ["Ne pas afficher de logo simulé."] : ["Envoyer les candidats à la critique."],
     }),
@@ -123,10 +132,14 @@ function logoSteps(blocked: boolean): MissionLifecycleStep[] {
       label: "Critique",
       agentRole: "critic",
       status: terminalStatus,
-      summary: blocked ? "Critique non lancée: pas de candidat réel." : "Critique des candidats et rejet des placeholders.",
+      summary: blocked
+        ? "Critique non lancée: pas de candidat réel."
+        : "Critique des candidats et rejet des placeholders.",
       outputs: blocked ? [] : ["critique"],
       critiques: blocked ? ["Le résultat serait faux si un logo était affiché."] : [],
-      decisions: blocked ? ["Mission non terminée."] : ["Raffiner les meilleurs candidats."],
+      decisions: blocked
+        ? ["Mission non terminée."]
+        : [localPrototypeGenerated ? "Approuver comme prototype, avec limites explicites." : "Raffiner les meilleurs candidats."],
     }),
     step({
       id: "validating",
@@ -134,10 +147,16 @@ function logoSteps(blocked: boolean): MissionLifecycleStep[] {
       label: "Validation",
       agentRole: "reviewer",
       status: terminalStatus,
-      summary: blocked ? "Validation refusée: aucun artifact visuel réel." : "Livrable validé avant affichage.",
+      summary: blocked
+        ? "Validation refusée: aucun artifact visuel réel."
+        : localPrototypeGenerated
+          ? "Prototype vectoriel validé pour affichage, sans le présenter comme final."
+          : "Livrable validé avant affichage.",
       outputs: blocked ? [] : ["quality_decision"],
       critiques: blocked ? ["primaryArtifact absent", "provider visuel absent"] : [],
-      decisions: blocked ? ["Afficher un statut honnête, pas un faux livrable."] : ["Publier le livrable utile."],
+      decisions: blocked
+        ? ["Afficher un statut honnête, pas un faux livrable."]
+        : [localPrototypeGenerated ? "Afficher le prototype utile avec bouton détails." : "Publier le livrable utile."],
     }),
   ];
 }
@@ -208,12 +227,14 @@ export function buildMissionLifecycleTrace(input: {
   nvidiaConfigured: boolean;
   visualProviderConfigured: boolean;
   completed: boolean;
+  localPrototypeGenerated?: boolean;
   blockers?: string[];
   retryReasons?: string[];
   attempts?: number;
 }): MissionLifecycleTrace {
   const isLogo = input.workOrder.deliverableType === "logo";
-  const steps = isLogo ? logoSteps(!input.visualProviderConfigured || !input.completed) : websiteSteps(input.completed);
+  const logoBlocked = isLogo && !input.localPrototypeGenerated && (!input.visualProviderConfigured || !input.completed);
+  const steps = isLogo ? logoSteps(logoBlocked, Boolean(input.localPrototypeGenerated)) : websiteSteps(input.completed);
   const failed = steps.some((item) => item.status === "failed");
   const blocked = steps.some((item) => item.status === "blocked");
   return {

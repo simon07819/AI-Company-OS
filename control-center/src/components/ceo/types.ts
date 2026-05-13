@@ -61,6 +61,11 @@ export interface CEOCurrentResult {
   primaryVisual?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
+  prototypeVariants?: Array<{
+    id?: string;
+    title: string;
+    svg: string;
+  }>;
   status: CEOMissionStatus;
   summary: string;
   artifactPaths: string[];
@@ -76,5 +81,6 @@ export interface CEOCurrentResult {
     manifest?: unknown;
     runtime?: unknown;
     companyWorkflow?: unknown;
+    prototype?: unknown;
   };
 }

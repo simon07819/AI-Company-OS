@@ -320,7 +320,7 @@ describe("CEO command components", () => {
     }));
 
     expect(screen.queryByText("Voici une première version du logo EKIDA.")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Visuel EKIDA")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prototype de logo EKIDA")).toBeInTheDocument();
     expect(screen.getByText("EKIDA")).toBeInTheDocument();
     expect(screen.queryByText("EKIDA sur fond noir")).not.toBeInTheDocument();
     expect(screen.queryByText(/Brand system/i)).not.toBeInTheDocument();
@@ -365,7 +365,7 @@ describe("CEO command components", () => {
     expect(screen.getByLabelText("Preview EKIDA website")).toBeInTheDocument();
     expect(screen.getByText("EKIDA")).toBeInTheDocument();
     expect(screen.getByText("Collection")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Visuel EKIDA")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Prototype de logo EKIDA")).not.toBeInTheDocument();
     expect(screen.queryByText(/Brand system|Marque à nommer|README|workspace|90\/100/i)).not.toBeInTheDocument();
   });
 
@@ -430,7 +430,7 @@ describe("CEO command components", () => {
 
     expect(screen.getByText("logo EKIDA")).toBeInTheDocument();
     expect(screen.getByText("Je veux une page web bien simple avec le logo ekida")).toBeInTheDocument();
-    expect(screen.getByLabelText("Visuel EKIDA")).toBeInTheDocument();
+    expect(screen.getByLabelText("Prototype de logo EKIDA")).toBeInTheDocument();
     expect(screen.getByLabelText("Preview EKIDA website")).toBeInTheDocument();
     const detailsButtons = screen.getAllByRole("button", { name: /Voir détails/ });
     fireEvent.click(detailsButtons[1]);

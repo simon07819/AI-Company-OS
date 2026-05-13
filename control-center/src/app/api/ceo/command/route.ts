@@ -10,6 +10,7 @@ import { createMissionMemoryStore, reusableAssetFromMission } from "@/agents/mem
 import { decideContextReuse } from "@/agents/memory/reuse-policy";
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
+import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -56,14 +57,24 @@ function hasNvidiaRuntimeProvider() {
 function logoProductionStages(brandName?: string | null) {
   const brand = brandName ?? "la marque";
   return [
-    { id: "brief", label: "Brief", status: "blocked", detail: `Brief de logo préparé pour ${brand}.` },
-    { id: "research", label: "Recherche", status: "blocked", detail: "Recherche visuelle en attente d'un provider réel." },
-    { id: "art_direction", label: "Direction artistique", status: "blocked", detail: "Directions visuelles à produire sans renderer local factice." },
-    { id: "concepts", label: "Concepts", status: "blocked", detail: "Concepts visuels non générés: aucun générateur visuel réel branché." },
-    { id: "critique", label: "Critique", status: "blocked", detail: "Critique impossible sans candidats visuels réels." },
-    { id: "refinement", label: "Amélioration", status: "blocked", detail: "Raffinement non lancé." },
-    { id: "selection", label: "Sélection", status: "blocked", detail: "Aucun livrable validable à sélectionner." },
+    { id: "brief", label: "Brief", status: "completed", detail: `Brief de logo préparé pour ${brand}.` },
+    { id: "research", label: "Recherche", status: "completed", detail: "Références et contraintes préparées pour un prototype vectoriel local." },
+    { id: "art_direction", label: "Direction artistique", status: "completed", detail: "Directions monogramme, symbole et emblème préparées." },
+    { id: "concepts", label: "Concepts", status: "completed", detail: "Variantes SVG prototype générées localement." },
+    { id: "critique", label: "Critique", status: "completed", detail: "Concepts text-only, placeholders et initiales hors sujet rejetés." },
+    { id: "refinement", label: "Amélioration", status: "completed", detail: "Prototype retenu ajusté avant affichage." },
+    { id: "selection", label: "Sélection", status: "completed", detail: "Prototype sélectionné comme livrable non final." },
   ];
+}
+
+function buildLogoPrototypePrompts(brandName?: string | null, context?: string) {
+  const brand = brandName ?? "la marque";
+  const base = `Prototype de logo vectoriel pour ${brand}. Composition propriétaire, symbole ou monogramme lié au nom, lisible en petit format, pas de carte décorative, pas de texte-only.${context ? ` Contexte: ${context}.` : ""}`;
+  return {
+    midjourney: `${base} Direction premium, contraste fort, logo mark centered, clean vector geometry, black and neutral presentation, no mockup, no extra text.`,
+    ideogram: `${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
+    dalle: `${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
+  };
 }
 
 async function holdVisibleProductionState() {
@@ -133,14 +144,23 @@ export async function POST(req: NextRequest) {
 
     if (preliminaryWorkOrder.deliverableType === "logo" && !hasRealLogoVisualProvider()) {
       await holdVisibleProductionState();
+      const prototype = runDesignTeamWorkflow(prompt);
+      const primaryArtifactFingerprint = createArtifactFingerprint(prototype.primaryVisual);
       const stages = logoProductionStages(preliminaryWorkOrder.brandName);
+      const prompts = buildLogoPrototypePrompts(preliminaryWorkOrder.brandName, prototype.brief.style);
+      const limitations = [
+        "Prototype vectoriel local, pas un logo final.",
+        "Aucun générateur image avancé n'est branché pour produire une version finale photoréaliste ou exploratoire.",
+        "Les prompts fournis peuvent être utilisés dans un générateur image/design externe.",
+      ];
       const runtime = buildMissionLifecycleTrace({
         workOrder: preliminaryWorkOrder,
         nvidiaConfigured: hasNvidiaRuntimeProvider(),
         visualProviderConfigured: false,
-        completed: false,
-        blockers: ["real_visual_provider_missing", "local_svg_renderer_disabled"],
-        retryReasons: ["Aucun candidat visuel réel disponible pour retry."],
+        completed: true,
+        localPrototypeGenerated: true,
+        blockers: ["external_image_generator_missing"],
+        retryReasons: ["Prototype vectoriel local produit en attendant un générateur image/design avancé."],
       });
       memoryStore.addTurn({
         id: preliminaryWorkOrder.turnId,
@@ -149,41 +169,41 @@ export async function POST(req: NextRequest) {
         missionId: preliminaryWorkOrder.missionId,
         deliverableType: preliminaryWorkOrder.deliverableType,
         brandName: preliminaryWorkOrder.brandName,
-        visibleOutputKind: "none",
-        status: "failed",
+        visibleOutputKind: "visual",
+        primaryArtifactId: `local-vector-prototype-${preliminaryWorkOrder.missionId}`,
+        primaryArtifactFingerprint,
+        status: "approved",
       });
 
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
         projectId: null,
-        title: "Mission lancée",
+        title: "Prototype de logo",
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType: "logo",
         status: "needs_revision",
-        summary: "Prototype non généré: aucun générateur visuel réel branché.",
+        summary: "Prototype préparé avec le générateur vectoriel local. Pour un rendu final photoréaliste/avancé, branche un générateur image.",
         shortMessage: undefined,
         primaryVisualPath: null,
-        primaryVisual: null,
-        primaryArtifactId: null,
-        primaryArtifactFingerprint: null,
+        primaryVisual: prototype.primaryVisual,
+        primaryArtifactId: `local-vector-prototype-${preliminaryWorkOrder.missionId}`,
+        primaryArtifactFingerprint,
+        prototypeVariants: prototype.concepts.slice(0, 3).map((concept) => ({
+          id: concept.id,
+          title: concept.name,
+          svg: concept.svg,
+        })),
         artifactPaths: [],
         artifacts: [],
         missingArtifacts: [],
         workspaceHref: null,
-        limitations: [
-          "Aucun logo n'est affiché sans générateur visuel réel.",
-          "Le renderer SVG local déterministe est désactivé pour les demandes logo.",
-        ],
-        launchInstructions: [
-          "Créer un brief complet.",
-          "Préparer 3 directions visuelles.",
-          "Générer des prompts Midjourney/Ideogram/DALL-E ou brancher un provider visuel réel.",
-        ],
+        limitations,
+        launchInstructions: Object.values(prompts),
         expert: {
-          productionStatus: "blocked_no_visual_provider",
-          provider: "not_configured",
+          productionStatus: "local_vector_prototype",
+          provider: "local_vector_renderer",
           runtime,
           plan: {
             workflow: "logo_production",
@@ -199,21 +219,23 @@ export async function POST(req: NextRequest) {
               objective: `Produire un logo pour ${preliminaryWorkOrder.brandName ?? "la marque"}`,
               agents: ["product_owner", "research_agent", "brand_strategist", "logo_designer", "creative_director", "quality_director", "artifact_manager"],
               tasks: stages,
-              qualityGates: ["no_fake_logo", "real_visual_provider_required", "no_simple_mode_process"],
+              qualityGates: ["prototype_not_final", "no_fake_final_logo", "no_simple_mode_process"],
             },
             hiddenDetails: {
+              brief: prototype.brief,
+              creativeDirections: prototype.concepts.map(({ svg, ...concept }) => concept),
+              artDirectorNotes: prototype.artDirectorNotes,
+              prompts,
+              limitations,
               agentsCalled: ["product_owner", "research_agent", "brand_strategist", "logo_designer", "creative_director", "quality_director", "artifact_manager"],
+              agentRuns: prototype.hiddenDetails.agentRuns,
+              toolTrace: prototype.hiddenDetails.toolTrace,
+              qualityIssues: prototype.hiddenDetails.qualityIssues,
               decisions: [
                 "Demande logo détectée.",
-                "Génération SVG locale instantanée bloquée.",
-                "Aucun provider visuel réel disponible pour produire un livrable.",
+                "Générateur image/design avancé absent.",
+                "Prototype vectoriel local préparé et affiché sans le qualifier de final.",
               ],
-              prompts: {
-                imageGeneration: [
-                  `Logo professionnel pour ${preliminaryWorkOrder.brandName ?? "la marque"}, symbole propriétaire, composition vectorielle, fond demandé respecté.`,
-                  `Créer trois directions: monogramme, symbole, emblème. Ne pas générer de carte décorative ni texte-only.`,
-                ],
-              },
             },
           },
           inputAttachments: attachments,

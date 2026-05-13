@@ -47,7 +47,7 @@ describe("CEO legacy logo fallback removal", () => {
     fireEvent.change(await screen.findByPlaceholderText("Message"), { target: { value: "logo EKIDA" } });
     fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
 
-    await waitFor(() => expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText(/Le workflow validé n'a pas produit de livrable visuel exploitable/i)).toBeInTheDocument());
     const html = container.innerHTML;
     expect(html).not.toContain("Brand system");
     expect(html).not.toContain("Marque à nommer");
