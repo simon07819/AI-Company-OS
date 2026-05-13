@@ -13,6 +13,8 @@ import {
 } from "@/agents/artifacts/artifact-quality";
 import { buildWebsiteArtifact } from "@/agents/artifacts/website-artifact-builder";
 import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workflows/website-design-workflow";
+import { createMissionPlanWithIntelligence, summarizeTaskDecomposition } from "@/agents/intelligence";
+import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import { approveFinalDeliverable } from "@/agents/quality/final-approval";
 import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
 import { runRefinementLoop } from "@/agents/quality/refinement-loop";
@@ -22,7 +24,6 @@ import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import { InMemoryCheckpointStore } from "./checkpoint-store";
 import { buildExecutionTrace } from "./execution-trace";
 import { buildHiddenDetails } from "./hidden-details-builder";
-import { createMissionPlan } from "./mission-planner";
 import { runQualityGates } from "./quality-gate-runner";
 import { decideRetry } from "./retry-policy";
 import { buildTaskGraph, sortTasksForExecution } from "./task-graph";
@@ -38,14 +39,17 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
     workOrder.selectedReusableAssets = context.contextSelection.selectedReusableAssets;
     workOrder.contextSelection = context.contextSelection;
   }
-  const missionPlan = createMissionPlan(workOrder);
+  const missionPlan = createMissionPlanWithIntelligence(workOrder, context);
   const graph = buildTaskGraph(missionPlan);
   const store = new InMemoryCheckpointStore();
   const runtimeAgentRuns: AgentRunResult[] = [];
   const runtimeToolTrace: ToolTraceEntry[] = [];
+  const brainOutputs: AgentBrainOutput[] = [];
+  const critiques: CritiqueResult[] = [];
+  const refinementStrategies: RefinementStrategy[] = [];
 
   for (const task of sortTasksForExecution(graph)) {
-    store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace }));
+    store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace, brainOutputs, critiques, refinementStrategies }));
   }
 
   const workflowPrompt = workOrder.deliverableType === "logo" && workOrder.brandName && !new RegExp(workOrder.brandName, "i").test(userPrompt)
@@ -169,6 +173,12 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       refinement,
       finalApproval,
       contextSelection: context?.contextSelection ?? null,
+      intelligence: {
+        brainOutputs,
+        critiques,
+        refinementStrategies,
+        taskDecomposition: summarizeTaskDecomposition(missionPlan),
+      },
     }),
   };
 }

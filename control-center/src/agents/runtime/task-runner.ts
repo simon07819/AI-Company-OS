@@ -1,4 +1,6 @@
 import { defaultToolContext, runToolAdapter } from "@/agents/capabilities/registry";
+import { getAgentMethod, runAgentBrain, critiqueAgentOutput, createRefinementStrategy } from "@/agents/intelligence";
+import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import { agentRegistry, runAgentSkill, skillRegistry } from "@/agents/registry";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
@@ -8,6 +10,9 @@ export interface TaskRuntimeContext {
   workOrder: WorkOrder;
   agentRuns: AgentRunResult[];
   toolTrace: ToolTraceEntry[];
+  brainOutputs?: AgentBrainOutput[];
+  critiques?: CritiqueResult[];
+  refinementStrategies?: RefinementStrategy[];
 }
 
 export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): RuntimeCheckpoint {
@@ -21,6 +26,17 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     if (!agent.toolsAllowed.includes(toolId)) return blockedCheckpoint(context.workOrder.id, task.id, `Tool ${toolId} is not allowed for ${agent.id}`);
   }
 
+  const brain = runAgentBrain({
+    agentRole: agent.role,
+    task,
+    workOrder: context.workOrder,
+    availableSkills: agent.skills,
+    availableTools: agent.toolsAllowed,
+    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput },
+    mode: task.agentRole === "quality_director" ? "validate" : task.agentRole === "creative_director" ? "critique" : "produce",
+  });
+  context.brainOutputs?.push(brain);
+
   const skillRun = runAgentSkill(agent.id, task.skillId, task.input, {
     turnId: context.workOrder.turnId,
     missionId: context.workOrder.missionId,
@@ -29,6 +45,14 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     agentId: agent.id,
   });
   context.agentRuns.push(skillRun);
+  const critique = critiqueAgentOutput({
+    agentRole: agent.role,
+    output: skillRun.output,
+    workOrder: context.workOrder,
+    method: getAgentMethod(agent.role),
+  });
+  context.critiques?.push(critique);
+  if (critique.status !== "approved") context.refinementStrategies?.push(createRefinementStrategy(critique, context.workOrder));
 
   for (const toolId of task.toolIds) {
     const trace = runToolAdapter(toolId, task.input, defaultToolContext({
