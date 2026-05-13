@@ -130,6 +130,16 @@ test.describe("CEO expert runtime evidence", () => {
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Artifact Manager");
   });
 
+  test("loads long mission autopilot proof with subtasks and checkpoints", async ({ page }) => {
+    await page.goto("/ceo/expert");
+    await page.getByRole("button", { name: "Preuve mission longue" }).click();
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Autopilot long mission");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Sous-tâches");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Checkpoints / événements");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("providerUsed");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("sourceType");
+  });
+
   test("shows expert diagnostics without exposing secret values", async ({ page }) => {
     await page.goto("/ceo/expert/diagnostics");
 

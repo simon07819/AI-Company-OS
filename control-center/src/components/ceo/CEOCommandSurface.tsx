@@ -38,6 +38,15 @@ interface CommandResponse {
   expert?: CEOCurrentResult["expert"];
 }
 
+interface AutopilotMissionSummary {
+  missionId: string;
+  status: string;
+  progressPercent: number;
+  currentPhase: string;
+  nextActions: string[];
+  blockers: string[];
+}
+
 function detectRequestType(prompt: string): CEORequestType {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   if (/site web|site internet|website|landing|page web|homepage|page d'accueil/.test(normalized)) return "website";
@@ -109,6 +118,8 @@ export default function CEOCommandSurface() {
   const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
+  const [autopilotLoading, setAutopilotLoading] = useState(false);
+  const [autopilotMission, setAutopilotMission] = useState<AutopilotMissionSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
 
@@ -225,6 +236,37 @@ export default function CEOCommandSurface() {
     }
   };
 
+  const callAutopilot = async (endpoint: "start" | "step" | "pause" | "resume" | "cancel") => {
+    setAutopilotLoading(true);
+    setError(null);
+    try {
+      const body = endpoint === "start"
+        ? {
+            command: mission?.prompt || result?.summary || "Mission longue CEO",
+            parentMissionId: mission?.id,
+          }
+        : {
+            missionId: autopilotMission?.missionId,
+            maxSteps: 1,
+          };
+      const response = await fetch(`/api/autopilot/${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        setError(payload.error || "Autopilot indisponible.");
+        return;
+      }
+      setAutopilotMission(payload.mission ?? payload.session);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Autopilot indisponible.");
+    } finally {
+      setAutopilotLoading(false);
+    }
+  };
+
   return (
     <main className="ceo-chat-page">
       <AttachmentDropzone disabled={loading} onFiles={(files) => setDroppedFiles(files)}>
@@ -237,7 +279,35 @@ export default function CEOCommandSurface() {
                 <span>En ligne</span>
               </div>
             </div>
+            <button type="button" className="ceo-autopilot-button" disabled={autopilotLoading} onClick={() => callAutopilot("start")}>
+              Mission longue
+            </button>
           </header>
+
+          {autopilotMission && (
+            <section className="ceo-autopilot-panel" aria-label="Mission longue autopilot">
+              <div>
+                <strong>{autopilotMission.status === "completed" ? "Mission longue terminée" : "Mission longue active"}</strong>
+                <span>{autopilotMission.progressPercent}% · {autopilotMission.currentPhase}</span>
+                <small>{autopilotMission.nextActions[0] || autopilotMission.blockers[0] || "Supervision CEO active"}</small>
+              </div>
+              <div className="ceo-autopilot-actions">
+                <button type="button" disabled={autopilotLoading || autopilotMission.status === "paused" || autopilotMission.status === "completed" || autopilotMission.status === "canceled"} onClick={() => callAutopilot("step")}>
+                  Avancer
+                </button>
+                {autopilotMission.status === "paused" ? (
+                  <button type="button" disabled={autopilotLoading} onClick={() => callAutopilot("resume")}>
+                    Reprendre
+                  </button>
+                ) : (
+                  <button type="button" disabled={autopilotLoading || autopilotMission.status === "completed" || autopilotMission.status === "canceled"} onClick={() => callAutopilot("pause")}>
+                    Pause
+                  </button>
+                )}
+                <a href="/ceo/expert">Voir détails</a>
+              </div>
+            </section>
+          )}
 
           <CEOResultStage
             result={result}

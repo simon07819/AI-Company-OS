@@ -1130,9 +1130,39 @@ interface RuntimeProofPayload {
   };
 }
 
+interface AutopilotProofPayload {
+  missionId: string;
+  status: string;
+  progressPercent: number;
+  currentPhase: string;
+  providerUsed: string;
+  sourceType: string;
+  resumedFromCheckpoint?: string;
+  subtasks: Array<{
+    taskId: string;
+    title: string;
+    ownerAgent: string;
+    status: string;
+    retryCount: number;
+    output?: { summary?: string; providerUsed?: string; durationMs?: number; issues?: string[] };
+  }>;
+  checkpoints: Array<{ id: string; phase: string; status: string; progressPercent: number; summary: string }>;
+  events: Array<{ id: string; type: string; message: string }>;
+  agents: Array<{
+    agentId?: string;
+    name?: string;
+    role?: string;
+    providerUsed?: string;
+    durationMs?: number;
+    confidence?: number;
+    output?: { summary?: string; issues?: string[]; decisions?: string[] };
+  }>;
+}
+
 function ExpertRuntimeProofPanel() {
   const [loading, setLoading] = useState(false);
   const [proof, setProof] = useState<RuntimeProofPayload | null>(null);
+  const [autopilotProof, setAutopilotProof] = useState<AutopilotProofPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadProof = async (kind: "logo" | "website" = "logo") => {
@@ -1161,6 +1191,41 @@ function ExpertRuntimeProofPanel() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Preuve runtime indisponible.");
       setProof(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadAutopilotProof = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const start = await fetch("/api/autopilot/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ command: "Mission longue branding EKIDA avec sous-tâches et supervision CEO" }),
+      });
+      const started = await start.json().catch(() => ({}));
+      if (!start.ok || !started.ok || !started.mission?.missionId) {
+        setError(started.error ?? "Mission longue indisponible.");
+        setAutopilotProof(null);
+        return;
+      }
+      const stepped = await fetch("/api/autopilot/step", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ missionId: started.mission.missionId, maxSteps: 3 }),
+      });
+      const payload = await stepped.json().catch(() => ({}));
+      if (!stepped.ok || !payload.ok) {
+        setError(payload.error ?? "Step autopilot indisponible.");
+        setAutopilotProof(started.mission);
+        return;
+      }
+      setAutopilotProof(payload.mission);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Mission longue indisponible.");
+      setAutopilotProof(null);
     } finally {
       setLoading(false);
     }
@@ -1263,6 +1328,23 @@ function ExpertRuntimeProofPanel() {
           >
             Preuve équipe website
           </button>
+          <button
+            type="button"
+            onClick={loadAutopilotProof}
+            disabled={loading}
+            style={{
+              padding: "7px 11px",
+              borderRadius: 8,
+              border: "1px solid rgba(245,158,11,0.35)",
+              background: loading ? "rgba(107,114,128,0.25)" : "rgba(245,158,11,0.12)",
+              color: "#f59e0b",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: loading ? "wait" : "pointer",
+            }}
+          >
+            Preuve mission longue
+          </button>
         </div>
       </div>
 
@@ -1297,6 +1379,40 @@ function ExpertRuntimeProofPanel() {
             <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Critic / reviewer</strong>
             <p style={{ margin: 0 }}>critic: {critic ? (critic.passed ? "passed" : "blocked") : "unknown"} · {(critic?.issues ?? []).join(", ") || "no issues"}</p>
             <p style={{ margin: 0 }}>reviewer: {reviewer?.decision ?? (reviewer?.passed ? "passed" : "unknown")} · {(reviewer?.issues ?? []).join(", ") || "no issues"}</p>
+          </div>
+        </div>
+      )}
+
+      {autopilotProof && (
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Autopilot long mission</strong>
+            <p style={{ margin: 0 }}>missionId: {autopilotProof.missionId}</p>
+            <p style={{ margin: 0 }}>status: {autopilotProof.status}</p>
+            <p style={{ margin: 0 }}>progress: {autopilotProof.progressPercent}%</p>
+            <p style={{ margin: 0 }}>phase: {autopilotProof.currentPhase}</p>
+            <p style={{ margin: 0 }}>providerUsed: {autopilotProof.providerUsed}</p>
+            <p style={{ margin: 0 }}>sourceType: {autopilotProof.sourceType}</p>
+            <p style={{ margin: 0 }}>resumedFromCheckpoint: {autopilotProof.resumedFromCheckpoint ?? "none"}</p>
+          </div>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Sous-tâches</strong>
+            {autopilotProof.subtasks.slice(0, 8).map((task) => (
+              <p key={task.taskId} style={{ margin: 0 }}>
+                {task.ownerAgent} · {task.status} · retry {task.retryCount} · {task.title}
+              </p>
+            ))}
+          </div>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Checkpoints / événements</strong>
+            <p style={{ margin: 0 }}>checkpoints: {autopilotProof.checkpoints.length}</p>
+            {autopilotProof.checkpoints.slice(0, 4).map((item) => (
+              <p key={item.id} style={{ margin: 0 }}>{item.status} · {item.progressPercent}% · {item.summary}</p>
+            ))}
+            <p style={{ margin: "6px 0 0" }}>events: {autopilotProof.events.length}</p>
+            {autopilotProof.events.slice(0, 3).map((item) => (
+              <p key={item.id} style={{ margin: 0 }}>{item.type}: {item.message}</p>
+            ))}
           </div>
         </div>
       )}

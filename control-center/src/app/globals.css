@@ -5482,6 +5482,81 @@ html[data-theme="dark"] .ceo-os-result-details {
   line-height: 1;
 }
 
+.ceo-autopilot-button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #18181b;
+  color: #f4f4f5;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ceo-autopilot-button:disabled {
+  color: #71717a;
+  cursor: progress;
+}
+
+.ceo-autopilot-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(24, 24, 27, 0.62);
+  padding: 12px;
+}
+
+.ceo-autopilot-panel > div:first-child {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.ceo-autopilot-panel strong {
+  color: #fafafa;
+  font-size: 13px;
+}
+
+.ceo-autopilot-panel span,
+.ceo-autopilot-panel small {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.ceo-autopilot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ceo-autopilot-actions button,
+.ceo-autopilot-actions a {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: #0f0f10;
+  color: #f4f4f5;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ceo-autopilot-actions button:disabled {
+  color: #71717a;
+  cursor: not-allowed;
+}
+
 .ceo-chat-messages {
   min-width: 0;
   min-height: 0;
