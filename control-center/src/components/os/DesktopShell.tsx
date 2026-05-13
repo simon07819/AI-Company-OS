@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { navigationForMode, pageLabel } from "@/lib/navigation";
@@ -12,14 +12,16 @@ import WorkspaceSurface from "./WorkspaceSurface";
 function DesktopShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { mode, toggleMode } = useViewMode();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const navItems = useMemo(() => navigationForMode(mode), [mode]);
   const activeLabel = pageLabel(pathname, navItems);
 
   return (
     <div className="platform-shell desktop-os-shell" data-mode={mode}>
-      <CommandDock mode={mode} pathname={pathname} />
+      <CommandDock mode={mode} pathname={pathname} mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
+      {mobileNavOpen && <button className="platform-mobile-scrim" type="button" aria-label="Fermer le menu" onClick={() => setMobileNavOpen(false)} />}
       <div className="platform-main desktop-viewport">
-        <AppTopBar activeLabel={activeLabel} mode={mode} onToggleMode={toggleMode} />
+        <AppTopBar activeLabel={activeLabel} mode={mode} onToggleMode={toggleMode} onMenuClick={() => setMobileNavOpen(true)} />
         <WorkspaceSurface>{children}</WorkspaceSurface>
       </div>
     </div>

@@ -4,11 +4,21 @@ import Link from "next/link";
 import { isActiveNavItem, navigationForMode } from "@/lib/navigation";
 import type { ViewMode } from "@/lib/viewMode";
 
-export default function CommandDock({ mode, pathname }: { mode: ViewMode; pathname: string }) {
+export default function CommandDock({
+  mode,
+  pathname,
+  mobileOpen = false,
+  onNavigate,
+}: {
+  mode: ViewMode;
+  pathname: string;
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
+}) {
   const navItems = navigationForMode(mode);
 
   return (
-    <aside className="platform-sidebar os-dock sidebar" aria-label="Platform navigation">
+    <aside className={`platform-sidebar os-dock sidebar${mobileOpen ? " mobile-open" : ""}`} aria-label="Platform navigation" data-collapsed="false">
       <Link className="platform-sidebar-brand" href="/" aria-label="AI Company OS home">
         <span className="platform-sidebar-logo">AI</span>
         <span>
@@ -28,6 +38,7 @@ export default function CommandDock({ mode, pathname }: { mode: ViewMode; pathna
             className={`platform-sidebar-link os-dock-item${isActiveNavItem(item, pathname) ? " active" : ""}`}
             aria-label={item.label}
             title={item.label}
+            onClick={onNavigate}
           >
             {item.icon}
             <span>{item.label}</span>
