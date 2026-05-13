@@ -18,6 +18,8 @@ import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workf
 import { createMissionPlanWithIntelligence, summarizeTaskDecomposition } from "@/agents/intelligence";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
+import { listActiveSkillIntegrations } from "@/agents/skill-lab";
+import type { SkillLabTraceEntry } from "@/agents/skill-lab/types";
 import { approveFinalDeliverable } from "@/agents/quality/final-approval";
 import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
 import { runRefinementLoop } from "@/agents/quality/refinement-loop";
@@ -57,6 +59,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   const coachingTrace: CoachingTraceEntry[] = [];
   const coachingProfiles: AgentCoachingProfile[] = [];
   const skillOptimizations: SkillOptimizationResult[] = [];
+  const skillLabTrace: SkillLabTraceEntry[] = [];
 
   for (const task of sortTasksForExecution(graph)) {
     store.add(runMissionTask(task, {
@@ -71,6 +74,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       coachingTrace,
       coachingProfiles,
       skillOptimizations,
+      skillLabTrace,
     }));
   }
 
@@ -223,6 +227,10 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
         profiles: coachingProfiles,
         skillOptimizations,
         lessonsCreated,
+      },
+      skillLab: {
+        activePromotions: listActiveSkillIntegrations(),
+        skillLabTrace,
       },
       contextSelection: context?.contextSelection ?? null,
       intelligence: {

@@ -6,6 +6,8 @@ import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/age
 import { compilePlaybookIntoAgentMethod, loadAgentPlaybook, selectPlaybookForTask } from "@/agents/playbooks";
 import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import { agentRegistry, runAgentSkill, skillRegistry } from "@/agents/registry";
+import { getActiveSkillLabPromotions } from "@/agents/skill-lab";
+import type { SkillLabTraceEntry } from "@/agents/skill-lab/types";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { MissionTask, RuntimeCheckpoint, WorkOrder } from "./types";
@@ -22,6 +24,7 @@ export interface TaskRuntimeContext {
   coachingTrace?: CoachingTraceEntry[];
   coachingProfiles?: AgentCoachingProfile[];
   skillOptimizations?: SkillOptimizationResult[];
+  skillLabTrace?: SkillLabTraceEntry[];
 }
 
 export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): RuntimeCheckpoint {
@@ -36,6 +39,15 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
   }
 
   const selectedKnowledge = selectPlaybookForTask({ agentRole: agent.role, workOrder: context.workOrder, task });
+  const activeSkillLabPromotions = getActiveSkillLabPromotions({ agentRole: agent.role, skillId: task.skillId, workOrder: context.workOrder });
+  context.skillLabTrace?.push({
+    taskId: task.id,
+    agentRole: agent.role,
+    skillId: task.skillId,
+    activeCandidateIds: activeSkillLabPromotions.map((candidate) => candidate.id),
+    expectedImprovements: activeSkillLabPromotions.map((candidate) => candidate.expectedImprovement),
+    status: activeSkillLabPromotions.length ? "active_promoted" : "none",
+  });
   const playbook = loadAgentPlaybook(agent.role);
   const selectedLessons = selectLessonsForTask({ agentRole: agent.role, workOrder: context.workOrder, task, playbook, lessons: defaultLessonStore.all() });
   const skillOptimization = optimizeSkillBehavior({ agentRole: agent.role, skillId: task.skillId, lessons: selectedLessons });
@@ -76,7 +88,7 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     workOrder: context.workOrder,
     availableSkills: agent.skills,
     availableTools: agent.toolsAllowed,
-    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput, selectedKnowledge, coaching: coaching.skillInputPatch.coaching },
+    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput, selectedKnowledge, coaching: coaching.skillInputPatch.coaching, skillLab: { activeCandidateIds: activeSkillLabPromotions.map((candidate) => candidate.id) } },
     mode: task.agentRole === "quality_director" ? "validate" : task.agentRole === "creative_director" ? "critique" : "produce",
     methodOverride: coaching.method ?? compiledMethod,
     selectedKnowledge,
@@ -84,7 +96,7 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
   context.brainOutputs?.push(brain);
 
   const skillInput = typeof task.input === "object" && task.input !== null && !Array.isArray(task.input)
-    ? { ...(task.input as Record<string, unknown>), ...coaching.skillInputPatch }
+    ? { ...(task.input as Record<string, unknown>), ...coaching.skillInputPatch, skillLab: { activeCandidateIds: activeSkillLabPromotions.map((candidate) => candidate.id), expectedImprovements: activeSkillLabPromotions.map((candidate) => candidate.expectedImprovement) } }
     : task.input;
   const skillRun = runAgentSkill(agent.id, task.skillId, skillInput, {
     turnId: context.workOrder.turnId,

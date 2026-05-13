@@ -26,6 +26,10 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
         profiles?: { agentRole?: string; activeLessons?: { id?: string; failurePattern?: string; correctionRule?: string }[]; weakSkills?: string[] }[];
         skillOptimizations?: { agentRole?: string; skillId?: string; status?: string; changes?: string[] }[];
       };
+      skillLab?: {
+        activePromotions?: { candidateId?: string; targetAgentRoles?: string[]; targetSkillIds?: string[] }[];
+        skillLabTrace?: { agentRole?: string; skillId?: string; activeCandidateIds?: string[]; status?: string }[];
+      };
       workflowDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
     };
   } | undefined;
@@ -39,6 +43,7 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     qualityReview: workflow?.hiddenDetails?.qualityReview,
     refinement: workflow?.hiddenDetails?.refinement,
     coaching: workflow?.hiddenDetails?.coaching,
+    skillLab: workflow?.hiddenDetails?.skillLab,
   };
 }
 
@@ -189,6 +194,24 @@ export default function CEOResultDetails({
                   <span>{optimization.agentRole}</span>
                   <span>{optimization.skillId}</span>
                   <span>{optimization.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      )}
+
+      {(workflow.skillLab?.activePromotions?.length || workflow.skillLab?.skillLabTrace?.some((trace) => trace.activeCandidateIds?.length)) && (
+        <div>
+          <strong>Skill Lab</strong>
+          {workflow.skillLab.activePromotions?.length ? <p>Promotions actives: {workflow.skillLab.activePromotions.length}</p> : null}
+          {workflow.skillLab.skillLabTrace?.some((trace) => trace.activeCandidateIds?.length) ? (
+            <ul>
+              {workflow.skillLab.skillLabTrace.filter((trace) => trace.activeCandidateIds?.length).slice(0, 8).map((trace, index) => (
+                <li key={`${trace.agentRole}-${trace.skillId}-${index}`}>
+                  <span>{trace.agentRole}</span>
+                  <span>{trace.skillId}</span>
+                  <span>{trace.activeCandidateIds?.join(", ")}</span>
                 </li>
               ))}
             </ul>

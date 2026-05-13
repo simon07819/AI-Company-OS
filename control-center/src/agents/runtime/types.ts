@@ -3,6 +3,7 @@ import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/age
 import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import type { TournamentResult } from "@/agents/tournament/types";
 import type { AgentCoachingProfile, CoachingTraceEntry, SkillOptimizationResult } from "@/agents/coaching/types";
+import type { SkillLabTraceEntry } from "@/agents/skill-lab/types";
 
 export interface WorkOrder {
   id: string;
@@ -93,6 +94,10 @@ export interface MissionRuntimeResult<VisibleOutput = unknown> {
       profiles: AgentCoachingProfile[];
       skillOptimizations: SkillOptimizationResult[];
       lessonsCreated?: unknown[];
+    };
+    skillLab?: {
+      activePromotions: unknown[];
+      skillLabTrace: SkillLabTraceEntry[];
     };
     contextSelection?: unknown;
     intelligence?: {
