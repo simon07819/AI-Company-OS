@@ -87,7 +87,7 @@ function CEOResultMessage({
       ) : (
         <div className="ceo-chat-visual-reply failed">
           <AlertTriangle size={18} />
-          <strong>Je n’ai pas encore produit un résultat exploitable.</strong>
+          <strong>{result.title || "Mission lancée"}</strong>
           <p>{result.summary}</p>
         </div>
       )}

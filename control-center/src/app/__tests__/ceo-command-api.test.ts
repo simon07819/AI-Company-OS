@@ -64,53 +64,53 @@ describe("CEO command API", () => {
     expect(payload.artifactPaths.join("\n")).toMatch(/patients|appointments|product-spec\.json|README\.md/);
   });
 
-  it("creates honest branding artifacts for ELEVIO without generic fallback", async () => {
+  it("does not create instant local logo artifacts when no real visual provider is configured", async () => {
     const response = await postCommand("Je veux un logo sportif pour une compagnie qui s'appelle ELEVIO");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.title).toContain("ELEVIO");
-    expect(JSON.stringify(payload)).not.toContain("Nouvelle Marque AI");
-    expect(payload.requestType).toBe("branding");
-    expect(payload.artifactPaths.filter((artifactPath: string) => artifactPath.endsWith(".svg")).length).toBeGreaterThanOrEqual(3);
-    expect(payload.artifactPaths.some((artifactPath: string) => /final-logo\.svg$/.test(artifactPath))).toBe(true);
+    expect(payload.status).toBe("needs_revision");
+    expect(payload.deliverableType).toBe("logo");
+    expect(payload.brandName).toBe("ELEVIO");
+    expect(payload.summary).toBe("Prototype non généré: aucun générateur visuel réel branché.");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.artifactPaths).toEqual([]);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*B\s*</);
   });
 
-  it("returns the requested logo deliverable for a bare EKIDA logo prompt", async () => {
+  it("blocks the fake instant EKIDA logo path", async () => {
     const response = await postCommand("logo EKIDA sur fond noir");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.requestType).toBe("branding");
+    expect(payload.status).toBe("needs_revision");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("EKIDA");
-    expect(payload.title).toBe("Logo EKIDA");
-    expect(payload.shortMessage).toBe("Voici une première version du logo EKIDA.");
-    expect(payload.title).not.toContain("sur fond noir");
-    expect(payload.primaryVisualPath).toMatch(/final-logo\.svg$/);
-    expect(payload.primaryVisual).toContain("<svg");
-    expect(payload.primaryVisual).toContain("EKIDA");
-    expect(payload.expert.designTeam).toBeTruthy();
-    expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
-    expect(payload.title).not.toMatch(/Brand system/i);
+    expect(payload.title).toBe("Mission lancée");
+    expect(payload.shortMessage).toBeUndefined();
+    expect(payload.primaryVisualPath).toBeNull();
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.artifactPaths).toEqual([]);
+    expect(payload.expert.productionStatus).toBe("blocked_no_visual_provider");
+    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Génération SVG locale instantanée bloquée.");
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
   });
 
-  it("routes PROSHOTS through the design team workflow for a sports photography logo", async () => {
+  it("extracts PROSHOTS but still refuses to fake a logo without a real visual provider", async () => {
     const response = await postCommand("fais-moi un logo pour PROSHOTS ses des photographes sportifs");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("needs_revision");
     expect(payload.brandName).toBe("PROSHOTS");
-    expect(payload.title).toBe("Logo PROSHOTS");
-    expect(payload.primaryVisual).toContain("PROSHOTS");
-    expect(payload.primaryVisual).toMatch(/camera|viewfinder|PROSHOTS|PS|>P</i);
-    expect(payload.expert.designTeam.agentRuns.map((run: { role: string }) => run.role)).toEqual(
-      expect.arrayContaining(["ceo", "product_owner", "brand_strategist", "logo_designer", "creative_director", "svg_illustrator", "quality_director"]),
-    );
-    expect(JSON.stringify(payload)).not.toContain("Marque à nommer");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.artifactPaths).toEqual([]);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|<svg/);
   });
 
   it("routes a page web request with a logo asset to a website preview, not the previous logo", async () => {
