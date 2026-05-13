@@ -5,7 +5,7 @@ import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
 import { attachmentPayload } from "./attachments";
-import type { ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
+import type { CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
 interface CommandResponse {
   ok: boolean;
@@ -24,7 +24,7 @@ interface CommandResponse {
   providerUsed?: string | null;
   allowLocalPrototype?: boolean;
   prototypeVariants?: CEOCurrentResult["prototypeVariants"];
-  status?: "ready" | "needs_revision" | "rejected" | "failed";
+  status?: CEOCurrentMission["status"];
   summary?: string;
   artifactPaths?: string[];
   workspaceHref?: string | null;
@@ -48,10 +48,11 @@ function detectRequestType(prompt: string): CEORequestType {
 }
 
 function statusFromCommand(status?: CommandResponse["status"]): CEOCurrentMission["status"] {
+  if (status === "failed") return "error";
+  if (status === "queued" || status === "planning" || status === "running" || status === "reviewing" || status === "needs_action" || status === "completed") return status;
   if (status === "ready") return "ready";
   if (status === "needs_revision") return "needs_revision";
   if (status === "rejected") return "rejected";
-  if (status === "failed") return "error";
   return "validation";
 }
 
@@ -106,17 +107,19 @@ export default function CEOCommandSurface() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], logoWorkflowAction?: string) => {
+  const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], action?: CEOMissionAction) => {
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
-    const isLogoAction = Boolean(logoWorkflowAction);
+    const isLogoAction = Boolean(action);
     const actionPrompt =
-      logoWorkflowAction === "brief"
+      action === "prepare_brief"
         ? "Préparer le brief"
-        : logoWorkflowAction === "prompts"
+        : action === "create_visual_prompts"
           ? "Créer prompts visuels"
-          : logoWorkflowAction === "local_svg"
+          : action === "request_local_prototype"
             ? "Prototype SVG local"
+            : action === "modify_current_deliverable"
+              ? "Modifier le livrable"
             : prompt;
     const pendingMission: CEOCurrentMission = {
       id: `local-${Date.now()}`,
@@ -143,7 +146,7 @@ export default function CEOCommandSurface() {
           displayPrompt: prompt,
           expertMode: isExpert,
           conversationId,
-          logoWorkflowAction,
+          action,
           attachments: attachments.map(attachmentPayload),
         }),
       });
@@ -194,32 +197,32 @@ export default function CEOCommandSurface() {
   return (
     <main className="ceo-chat-page">
       <AttachmentDropzone disabled={loading} onFiles={(files) => setDroppedFiles(files)}>
-      <section className="ceo-chat-shell" aria-label="Chat CEO">
-        <header className="ceo-chat-header">
-          <div className="ceo-chat-agent">
-            <div className="ceo-chat-avatar" aria-label="Avatar CEO">C</div>
-            <div>
-              <strong>CEO</strong>
-              <span>En ligne</span>
+        <section className="ceo-chat-shell" aria-label="Chat CEO">
+          <header className="ceo-chat-header">
+            <div className="ceo-chat-agent">
+              <div className="ceo-chat-avatar" aria-label="Avatar CEO">C</div>
+              <div>
+                <strong>CEO</strong>
+                <span>En ligne</span>
+              </div>
             </div>
-          </div>
-        </header>
+          </header>
 
-        <CEOResultStage
-          result={result}
-          mission={mission}
-          turns={turns}
-          expertMode={isExpert}
-          loading={loading}
-          error={error}
-          pendingAttachments={pendingAttachments}
-          onModify={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
-          onLogoAction={(action) => submitCommand(mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], action)}
-          onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
-        />
+          <CEOResultStage
+            result={result}
+            mission={mission}
+            turns={turns}
+            expertMode={isExpert}
+            loading={loading}
+            error={error}
+            pendingAttachments={pendingAttachments}
+            onModify={() => submitCommand(mission?.prompt || result?.brandName || "Modifier le livrable", mission?.attachments ?? [], "modify_current_deliverable")}
+            onLogoAction={(nextAction) => submitCommand(mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
+            onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
+          />
 
-        <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
-      </section>
+          <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
+        </section>
       </AttachmentDropzone>
     </main>
   );

@@ -282,9 +282,9 @@ describe("CEO command components", () => {
         primaryArtifactId: null,
         summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
         artifactPaths: [],
-        status: "needs_revision",
+        status: "needs_action",
       },
-      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding", status: "needs_revision", artifactCount: 0 },
+      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding", status: "needs_action", artifactCount: 0 },
       expertMode: false,
       loading: false,
       error: null,
@@ -298,7 +298,11 @@ describe("CEO command components", () => {
     fireEvent.click(screen.getByRole("button", { name: /Préparer le brief/ }));
     fireEvent.click(screen.getByRole("button", { name: /Créer prompts visuels/ }));
     fireEvent.click(screen.getByRole("button", { name: /Prototype SVG local/ }));
-    expect(onLogoAction.mock.calls.map((call) => call[0])).toEqual(["brief", "prompts", "local_svg"]);
+    expect(onLogoAction.mock.calls.map((call) => call[0])).toEqual([
+      "prepare_brief",
+      "create_visual_prompts",
+      "request_local_prototype",
+    ]);
   });
 
   it("does not duplicate a user bubble for assistant-only logo action results", () => {

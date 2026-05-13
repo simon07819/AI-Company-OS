@@ -6,7 +6,7 @@ import ChatAttachmentGrid from "./ChatAttachmentGrid";
 import CEOResultDetails from "./CEOResultDetails";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
-import type { ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
+import type { CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function responseIntro(result: CEOCurrentResult) {
   if (result.shortMessage) return result.shortMessage;
@@ -81,7 +81,7 @@ function CEOResultMessage({
   mission: CEOCurrentMission | null;
   expertMode: boolean;
   onModify: () => void;
-  onLogoAction: (action: "brief" | "prompts" | "local_svg") => void;
+  onLogoAction: (action: CEOMissionAction) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
@@ -131,15 +131,15 @@ function CEOResultMessage({
       <div className="ceo-chat-actions">
         {isNoProviderLogoResult(result) ? (
           <>
-            <button type="button" onClick={() => onLogoAction("brief")}>
+            <button type="button" onClick={() => onLogoAction("prepare_brief")}>
               <Wand2 size={15} />
               Préparer le brief
             </button>
-            <button type="button" onClick={() => onLogoAction("prompts")}>
+            <button type="button" onClick={() => onLogoAction("create_visual_prompts")}>
               <Wand2 size={15} />
               Créer prompts visuels
             </button>
-            <button type="button" onClick={() => onLogoAction("local_svg")}>
+            <button type="button" onClick={() => onLogoAction("request_local_prototype")}>
               <Wand2 size={15} />
               Prototype SVG local
             </button>
@@ -179,7 +179,7 @@ export default function CEOResultStage({
   error: string | null;
   pendingAttachments?: ChatAttachment[];
   onModify: () => void;
-  onLogoAction?: (action: "brief" | "prompts" | "local_svg") => void;
+  onLogoAction?: (action: CEOMissionAction) => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {

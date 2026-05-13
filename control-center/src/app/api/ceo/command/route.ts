@@ -11,6 +11,17 @@ import { decideContextReuse } from "@/agents/memory/reuse-policy";
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
 import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
+import {
+  addDeliverable,
+  addMissionEvent,
+  applyMissionAction,
+  buildLogoPromptsText,
+  completeMissionStep,
+  createMissionRuntime,
+  normalizeMissionAction,
+  planLogoMissionWithoutProvider,
+  setMissionStatus,
+} from "@/lib/mission-runtime/missionRuntime";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,18 +65,6 @@ function hasNvidiaRuntimeProvider() {
   return Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.length >= 8);
 }
 
-function logoProductionStages(brandName?: string | null, durationMs = 0) {
-  const brand = brandName ?? "la marque";
-  return [
-    { id: "brief", label: "Brief", status: "completed", detail: `Brief de logo préparé pour ${brand}.` },
-    { id: "research", label: "Recherche", status: "blocked", detail: "Recherche visuelle non lancée: aucun générateur visuel réel branché." },
-    { id: "art_direction", label: "Direction artistique", status: "blocked", detail: "Directions créatives à préparer sur demande, sans image affichée." },
-    { id: "concepts", label: "Concepts", status: "blocked", detail: "SVG local/mock désactivé en mode simple." },
-    { id: "critique", label: "Critique", status: "blocked", detail: "Aucun candidat visuel réel à critiquer." },
-    { id: "selection", label: "Sélection", status: "blocked", detail: `Aucun livrable visuel réel sélectionné. Durée route: ${durationMs}ms.` },
-  ];
-}
-
 function buildLogoPrototypePrompts(brandName?: string | null, context?: string) {
   const brand = brandName ?? "la marque";
   const base = `Prototype de logo vectoriel pour ${brand}. Composition propriétaire, symbole ou monogramme lié au nom, lisible en petit format, pas de carte décorative, pas de texte-only.${context ? ` Contexte: ${context}.` : ""}`;
@@ -74,33 +73,6 @@ function buildLogoPrototypePrompts(brandName?: string | null, context?: string) 
     ideogram: `${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
     dalle: `${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
   };
-}
-
-function buildLogoBriefText(brandName?: string | null, constraints: string[] = []) {
-  const brand = brandName ?? "la marque";
-  return [
-    `Brief logo - ${brand}`,
-    `Objectif: créer une identité visuelle simple, distinctive et exploitable pour ${brand}.`,
-    "Livrable attendu: directions créatives, prompts visuels et guide pour designer humain. Aucun logo final n'est généré sans provider visuel réel.",
-    "Directions créatives:",
-    "1. Monogramme: travailler les initiales et une structure géométrique propriétaire.",
-    "2. Symbole propriétaire: créer une marque abstraite liée à la promesse et au contexte métier.",
-    "3. Emblème moderne: développer un badge simple utilisable sur vêtement, web ou support imprimé.",
-    "Palette: noir profond, blanc doux, gris neutre, accent unique adapté au positionnement.",
-    "Typographie: sans-serif contemporaine, lisible, avec graisse forte pour le wordmark.",
-    constraints.length ? `Contraintes détectées: ${constraints.join(", ")}` : "Contraintes détectées: marque lisible, pas de texte-only, pas d'initiale sans rapport.",
-  ].join("\n");
-}
-
-function buildLogoPromptsText(brandName?: string | null, context?: string) {
-  const prompts = buildLogoPrototypePrompts(brandName, context);
-  return [
-    `Prompts visuels - ${brandName ?? "la marque"}`,
-    `Midjourney: ${prompts.midjourney}`,
-    `Ideogram: ${prompts.ideogram}`,
-    `DALL-E: ${prompts.dalle}`,
-    "Guide designer humain: produire d'abord 12 croquis rapides, sélectionner 3 axes, vectoriser 2 versions, tester en petit format, puis vérifier contraste, lisibilité et usage monochrome.",
-  ].join("\n\n");
 }
 
 async function holdVisibleProductionState() {
@@ -125,9 +97,7 @@ export async function POST(req: NextRequest) {
   const startedAt = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
-    const logoWorkflowAction = body.logoWorkflowAction === "brief" || body.logoWorkflowAction === "prompts" || body.logoWorkflowAction === "local_svg"
-      ? body.logoWorkflowAction
-      : undefined;
+    const missionAction = normalizeMissionAction(body.action ?? body.logoWorkflowAction);
     const attachments = sanitizeAttachments(body.attachments);
     const prompt = typeof body.prompt === "string" && body.prompt.trim()
       ? body.prompt.trim()
@@ -175,21 +145,12 @@ export async function POST(req: NextRequest) {
     if (preliminaryWorkOrder.deliverableType === "logo" && !hasRealLogoVisualProvider()) {
       await holdVisibleProductionState();
       const durationMs = Date.now() - startedAt;
-      const stages = logoProductionStages(preliminaryWorkOrder.brandName, durationMs);
       const prompts = buildLogoPrototypePrompts(preliminaryWorkOrder.brandName);
       const limitations = [
         "Aucun générateur visuel réel branché.",
         "Le générateur SVG local/mock est désactivé pour ne pas afficher de faux logo.",
         "Le CEO peut préparer le brief, les prompts et les directions créatives.",
       ];
-      const runtime = buildMissionLifecycleTrace({
-        workOrder: preliminaryWorkOrder,
-        nvidiaConfigured: hasNvidiaRuntimeProvider(),
-        visualProviderConfigured: false,
-        completed: false,
-        blockers: ["real_visual_provider_missing", "local_svg_renderer_disabled"],
-        retryReasons: ["Aucun générateur image/design réel n'est configuré."],
-      });
       memoryStore.addTurn({
         id: preliminaryWorkOrder.turnId,
         userPrompt: prompt,
@@ -201,11 +162,10 @@ export async function POST(req: NextRequest) {
         status: "failed",
       });
 
-      if (logoWorkflowAction === "brief" || logoWorkflowAction === "prompts") {
-        const isBrief = logoWorkflowAction === "brief";
-        const summary = isBrief
-          ? buildLogoBriefText(preliminaryWorkOrder.brandName, preliminaryWorkOrder.constraints)
-          : buildLogoPromptsText(preliminaryWorkOrder.brandName);
+      if (missionAction === "prepare_brief" || missionAction === "create_visual_prompts") {
+        const isBrief = missionAction === "prepare_brief";
+        const { mission } = applyMissionAction(prompt, missionAction, preliminaryWorkOrder.missionId);
+        const summary = mission.deliverables[0]?.content ?? (isBrief ? "Brief disponible." : buildLogoPromptsText(preliminaryWorkOrder.brandName));
 
         return NextResponse.json({
           ok: true,
@@ -215,7 +175,9 @@ export async function POST(req: NextRequest) {
           requestType: preliminaryWorkOrder.requestType,
           brandName: preliminaryWorkOrder.brandName ?? null,
           deliverableType: isBrief ? "logo_brief" : "logo_prompts",
-          status: "ready",
+          status: mission.status,
+          mission,
+          deliverables: mission.deliverables,
           summary,
           shortMessage: undefined,
           primaryVisualPath: null,
@@ -245,8 +207,8 @@ export async function POST(req: NextRequest) {
               agentsActuallyCalled: ["product_owner", "brand_strategist", "creative_director"],
               artifactsCreated: false,
             },
-            runtime,
-            plan: { workflow: isBrief ? "logo_brief" : "logo_visual_prompts", stages },
+            runtime: mission,
+            plan: { workflow: isBrief ? "prepare_brief" : "create_visual_prompts", stages: mission.steps },
             companyWorkflow: {
               workflow: isBrief ? "logo_brief_no_provider" : "logo_prompts_no_provider",
               workOrder: preliminaryWorkOrder,
@@ -265,9 +227,18 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      if (logoWorkflowAction === "local_svg") {
+      if (missionAction === "request_local_prototype") {
+        const { mission } = applyMissionAction(prompt, "request_local_prototype", preliminaryWorkOrder.missionId);
         const prototype = runDesignTeamWorkflow(prompt);
         const primaryArtifactFingerprint = createArtifactFingerprint(prototype.primaryVisual);
+        addDeliverable(mission, {
+          type: "local_prototype",
+          title: "Prototype SVG local",
+          content: prototype.primaryVisual,
+          mediaType: "svg",
+          sourceType: "local_svg",
+        });
+        setMissionStatus(mission, "needs_action");
         return NextResponse.json({
           ok: true,
           missionId: preliminaryWorkOrder.missionId,
@@ -276,14 +247,16 @@ export async function POST(req: NextRequest) {
           requestType: preliminaryWorkOrder.requestType,
           brandName: preliminaryWorkOrder.brandName ?? null,
           deliverableType: "logo",
-          status: "needs_revision",
+          status: mission.status,
+          mission,
+          deliverables: mission.deliverables,
           summary: "Prototype SVG local créé à la demande explicite. Ce n'est pas un logo final.",
           shortMessage: undefined,
           primaryVisualPath: null,
           primaryVisual: prototype.primaryVisual,
           primaryArtifactId: `explicit-local-svg-${preliminaryWorkOrder.missionId}`,
           primaryArtifactFingerprint,
-          sourceType: "local_explicit",
+          sourceType: "local_svg",
           providerUsed: "local_svg_renderer_explicit",
           allowLocalPrototype: true,
           prototypeVariants: prototype.concepts.slice(0, 3).map((concept) => ({
@@ -302,7 +275,7 @@ export async function POST(req: NextRequest) {
             provider: "local_svg_renderer_explicit",
             diagnostic: {
               providerUsed: "local_svg_renderer_explicit",
-              sourceType: "local_explicit",
+              sourceType: "local_svg",
               route: "POST /api/ceo/command",
               durationMs,
               nvidiaConfigured: hasNvidiaRuntimeProvider(),
@@ -313,7 +286,7 @@ export async function POST(req: NextRequest) {
               localRendererFile: "src/lib/design-team/logoWorkflow.ts",
               localRendererFunction: "runDesignTeamWorkflow",
             },
-            runtime,
+            runtime: mission,
             companyWorkflow: {
               workflow: "explicit_local_svg_prototype",
               workOrder: preliminaryWorkOrder,
@@ -333,6 +306,53 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      if (missionAction === "modify_current_deliverable") {
+        const { mission } = applyMissionAction(prompt, "modify_current_deliverable", preliminaryWorkOrder.missionId);
+        return NextResponse.json({
+          ok: true,
+          missionId: preliminaryWorkOrder.missionId,
+          projectId: null,
+          title: "Modification à préciser",
+          requestType: preliminaryWorkOrder.requestType,
+          brandName: preliminaryWorkOrder.brandName ?? null,
+          deliverableType: "logo",
+          status: mission.status,
+          mission,
+          deliverables: mission.deliverables,
+          summary: "Dis-moi quoi modifier: style, couleurs, nom, usage, ton ou contrainte. Aucun visuel n'est généré sans provider réel.",
+          shortMessage: undefined,
+          primaryVisualPath: null,
+          primaryVisual: null,
+          primaryArtifactId: null,
+          primaryArtifactFingerprint: null,
+          sourceType: "none",
+          providerUsed: "none",
+          artifactPaths: [],
+          artifacts: [],
+          missingArtifacts: [],
+          workspaceHref: null,
+          limitations,
+          launchInstructions: Object.values(prompts),
+          expert: {
+            productionStatus: "modification_waiting_for_instruction",
+            provider: "none",
+            diagnostic: {
+              providerUsed: "none",
+              sourceType: "none",
+              route: "POST /api/ceo/command",
+              durationMs,
+              nvidiaConfigured: hasNvidiaRuntimeProvider(),
+              nvidiaCalled: false,
+              imageGeneratedByNvidia: false,
+              artifactsCreated: false,
+            },
+            runtime: mission,
+            inputAttachments: attachments,
+          },
+        });
+      }
+
+      const { mission } = planLogoMissionWithoutProvider(prompt, preliminaryWorkOrder.missionId);
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
@@ -341,7 +361,9 @@ export async function POST(req: NextRequest) {
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType: "logo",
-        status: "needs_revision",
+        status: mission.status,
+        mission,
+        deliverables: mission.deliverables,
         summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
         shortMessage: undefined,
         primaryVisualPath: null,
@@ -361,7 +383,7 @@ export async function POST(req: NextRequest) {
           provider: "none",
           diagnostic: {
             providerUsed: "none",
-            sourceType: "blocked",
+            sourceType: "none",
             disabledSource: "local_svg_renderer",
             route: "POST /api/ceo/command",
             durationMs,
@@ -375,10 +397,10 @@ export async function POST(req: NextRequest) {
             localRendererFunction: "runDesignTeamWorkflow",
             displayDecision: "simple_mode_blocks_local_mock_visuals",
           },
-          runtime,
+          runtime: mission,
           plan: {
-            workflow: "logo_production",
-            stages,
+            workflow: "logo_mission_runtime",
+            stages: mission.steps,
           },
           companyWorkflow: {
             workflow: "logo_production_blocked",
@@ -389,7 +411,7 @@ export async function POST(req: NextRequest) {
               workflowId: "logo_design",
               objective: `Produire un logo pour ${preliminaryWorkOrder.brandName ?? "la marque"}`,
               agents: ["product_owner", "research_agent", "brand_strategist", "logo_designer", "creative_director", "quality_director", "artifact_manager"],
-              tasks: stages,
+              tasks: mission.steps,
               qualityGates: ["real_visual_provider_required", "local_svg_renderer_disabled", "no_simple_mode_fake_visual"],
             },
             hiddenDetails: {
@@ -447,7 +469,7 @@ export async function POST(req: NextRequest) {
     const primaryArtifactId = requiresValidatedWorkflowVisual && !validWorkflowPrimaryVisual ? undefined : workflowVisibleOutput?.primaryArtifactId;
     const primaryArtifactFingerprint = primaryVisual ? createArtifactFingerprint(primaryVisual) : undefined;
     const responseDeliverableType = workOrder.deliverableType === "landing_page" ? "website" : workOrder.deliverableType;
-    const runtime = buildMissionLifecycleTrace({
+    const lifecycleTrace = buildMissionLifecycleTrace({
       workOrder,
       nvidiaConfigured: hasNvidiaRuntimeProvider(),
       visualProviderConfigured: workOrder.deliverableType === "logo" ? hasRealLogoVisualProvider() : true,
@@ -460,11 +482,43 @@ export async function POST(req: NextRequest) {
       retryReasons: run.revisions.map((revision) => revision.reason),
       attempts: run.revisions.length,
     });
+    const missionRuntime = createMissionRuntime(prompt, run.id);
+    if (missionAction) {
+      addMissionEvent(missionRuntime, "action_requested", `Action requested: ${missionAction}.`, { action: missionAction });
+    }
+    completeMissionStep(missionRuntime, "analyse_demande", "Demande analysée.");
+    if (workOrder.requestType === "website") {
+      completeMissionStep(missionRuntime, "architecture", "Architecture préparée.");
+      completeMissionStep(missionRuntime, "design_direction", "Direction de design préparée.");
+      if (primaryVisual) completeMissionStep(missionRuntime, "preview", "Preview générée.");
+      if (primaryArtifactId) completeMissionStep(missionRuntime, "review", "Preview validée.");
+    } else {
+      completeMissionStep(missionRuntime, "plan", "Plan préparé.");
+      if (hasArtifacts) completeMissionStep(missionRuntime, "execution", "Artifacts créés.");
+      if (primaryArtifactId || !requiresValidatedWorkflowVisual) completeMissionStep(missionRuntime, "review", "Review complétée.");
+    }
+    missionRuntime.providerUsed = workOrder.deliverableType === "logo" ? "none" : "artifact_pipeline";
+    missionRuntime.sourceType = primaryVisual ? "artifact" : "none";
+    missionRuntime.retries = run.revisions.length;
+    if (primaryVisual) {
+      addDeliverable(missionRuntime, {
+        type: workOrder.requestType === "website" ? "website_preview" : "artifact",
+        title: run.manifest.title,
+        content: primaryVisual,
+        mediaType: primaryVisual.includes("<html") ? "html" : "svg",
+        sourceType: "artifact",
+      });
+    }
+    setMissionStatus(
+      missionRuntime,
+      hasArtifacts && (!requiresValidatedWorkflowVisual || (primaryVisual && primaryArtifactId)) ? "completed" : "failed",
+    );
 
     if (!hasArtifacts || (requiresValidatedWorkflowVisual && (!primaryVisual || !primaryArtifactId))) {
       return NextResponse.json({
         ok: false,
         missionId: run.id,
+        mission: missionRuntime,
         projectId: run.projectSlug,
         title: workOrder.deliverableType === "logo" ? "Logo non généré" : "Livrable non généré",
         requestType: workOrder.requestType,
@@ -479,7 +533,8 @@ export async function POST(req: NextRequest) {
         workspaceHref: null,
         qualityScore: run.manifest.qualityScore,
         expert: {
-          runtime,
+          runtime: missionRuntime,
+          lifecycleTrace,
           plan: run.plan,
           qualityReport: run.qualityReports.at(-1) ?? null,
           revisions: run.revisions,
@@ -502,12 +557,14 @@ export async function POST(req: NextRequest) {
     const responsePayload = {
       ok: true,
       missionId: run.id,
+      mission: missionRuntime,
       projectId: run.projectSlug,
       title: run.manifest.title,
       requestType: workOrder.requestType,
       brandName: workOrder.brandName ?? null,
       deliverableType: responseDeliverableType,
-      status: run.status === "ready" ? "ready" : run.status === "needs_revision" ? "needs_revision" : "rejected",
+      status: missionRuntime.status,
+      deliverables: missionRuntime.deliverables,
       summary: run.manifest.summary,
       shortMessage: workOrder.deliverableType === "logo" && workOrder.brandName && /\blogo\b/i.test(prompt)
         ? `Voici une première version du logo ${workOrder.brandName}.`
@@ -529,7 +586,8 @@ export async function POST(req: NextRequest) {
       limitations: run.manifest.limitations ?? [],
       launchInstructions: run.manifest.launch ?? [],
       expert: {
-        runtime,
+        runtime: missionRuntime,
+        lifecycleTrace,
         plan: run.plan,
         qualityReport: run.qualityReports.at(-1) ?? null,
         revisions: run.revisions,
@@ -556,9 +614,9 @@ export async function POST(req: NextRequest) {
       visibleOutputKind: workflowVisibleOutput && "kind" in workflowVisibleOutput ? String((workflowVisibleOutput as { kind?: string }).kind ?? "") : undefined,
       primaryArtifactId: workflowVisibleOutput?.primaryArtifactId,
       primaryArtifactFingerprint,
-      status: responsePayload.status === "ready" ? "approved" : "failed",
+      status: responsePayload.status === "completed" ? "approved" : "failed",
     });
-    if (responsePayload.status === "ready" && workflowVisibleOutput?.primaryArtifactId && primaryArtifactFingerprint) {
+    if (responsePayload.status === "completed" && workflowVisibleOutput?.primaryArtifactId && primaryArtifactFingerprint) {
       const memory = {
         id: `memory-${workOrder.missionId}`,
         turnId: workOrder.turnId,

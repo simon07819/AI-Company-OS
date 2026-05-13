@@ -70,7 +70,8 @@ describe("CEO command API", () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("needs_revision");
+    expect(payload.status).toBe("needs_action");
+    expect(payload.mission.status).toBe("needs_action");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("ELEVIO");
     expect(payload.title).toBe("Aucun générateur visuel réel branché");
@@ -78,6 +79,10 @@ describe("CEO command API", () => {
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.sourceType).toBe("none");
+    expect(payload.mission.sourceType).toBe("none");
+    expect(payload.deliverables.map((deliverable: { title: string }) => deliverable.title)).toEqual(
+      expect.arrayContaining(["Brief disponible", "Directions disponibles", "Prompts disponibles"]),
+    );
     expect(payload.artifactPaths).toEqual([]);
     expect(payload.expert.diagnostic.localRendererFile).toBe("src/lib/design-team/logoWorkflow.ts");
     expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
@@ -91,7 +96,7 @@ describe("CEO command API", () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("needs_revision");
+    expect(payload.status).toBe("needs_action");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("EKIDA");
     expect(payload.title).toBe("Aucun générateur visuel réel branché");
@@ -101,12 +106,12 @@ describe("CEO command API", () => {
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.artifactPaths).toEqual([]);
     expect(payload.expert.productionStatus).toBe("blocked_no_real_visual_provider");
-    expect(payload.expert.runtime.finalStatus).toBe("blocked");
-    expect(payload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
-      expect.arrayContaining(["queued", "planning", "researching", "generating", "reviewing", "validating"]),
+    expect(payload.expert.runtime.status).toBe("needs_action");
+    expect(payload.expert.runtime.steps.map((step: { label: string }) => step.label)).toEqual(
+      expect.arrayContaining(["analyse demande", "brief", "directions créatives", "prompts visuels", "validation provider", "livrable ou action requise"]),
     );
-    expect(payload.expert.runtime.provider.visualProviderConfigured).toBe(false);
-    expect(payload.expert.diagnostic.sourceType).toBe("blocked");
+    expect(payload.expert.runtime.providerUsed).toBe("none");
+    expect(payload.expert.diagnostic.sourceType).toBe("none");
     expect(payload.expert.diagnostic.disabledSource).toBe("local_svg_renderer");
     expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
     expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Source locale du faux SVG identifiée: src/lib/design-team/logoWorkflow.ts.");
@@ -114,28 +119,29 @@ describe("CEO command API", () => {
   });
 
   it("returns a useful logo brief when requested explicitly", async () => {
-    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", logoWorkflowAction: "brief" });
+    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", action: "prepare_brief" });
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("ready");
+    expect(payload.status).toBe("completed");
     expect(payload.deliverableType).toBe("logo_brief");
     expect(payload.brandName).toBe("EKIDA");
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.summary).toMatch(/Brief logo - EKIDA|Directions créatives|Palette|Typographie/i);
     expect(payload.expert.diagnostic.sourceType).toBe("text");
+    expect(payload.mission.events.map((event: { type: string }) => event.type)).toContain("action_requested");
     expect(JSON.stringify(payload)).not.toMatch(/<svg|Brand system|Marque à nommer/);
   });
 
   it("returns generator prompts when requested explicitly", async () => {
-    const response = await postCommandPayload({ prompt: "fais-moi un logo pour PROSHOTS ses des photographes sportifs", logoWorkflowAction: "prompts" });
+    const response = await postCommandPayload({ prompt: "fais-moi un logo pour PROSHOTS ses des photographes sportifs", action: "create_visual_prompts" });
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("ready");
+    expect(payload.status).toBe("completed");
     expect(payload.deliverableType).toBe("logo_prompts");
     expect(payload.brandName).toBe("PROSHOTS");
     expect(payload.primaryVisual).toBeNull();
@@ -145,19 +151,35 @@ describe("CEO command API", () => {
   });
 
   it("only returns a local SVG prototype after an explicit user action", async () => {
-    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", logoWorkflowAction: "local_svg" });
+    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", action: "request_local_prototype" });
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("needs_revision");
+    expect(payload.status).toBe("needs_action");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.title).toBe("Prototype SVG local");
     expect(payload.allowLocalPrototype).toBe(true);
-    expect(payload.sourceType).toBe("local_explicit");
+    expect(payload.sourceType).toBe("local_svg");
+    expect(payload.mission.sourceType).toBe("local_svg");
     expect(payload.primaryVisual).toContain("<svg");
     expect(payload.summary).toMatch(/pas un logo final/i);
-    expect(payload.expert.diagnostic.sourceType).toBe("local_explicit");
+    expect(payload.expert.diagnostic.sourceType).toBe("local_svg");
+  });
+
+  it("traces modify_current_deliverable without creating a fake logo", async () => {
+    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", action: "modify_current_deliverable" });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("needs_action");
+    expect(payload.sourceType).toBe("none");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.mission.events.map((event: { type: string }) => event.type)).toEqual(
+      expect.arrayContaining(["action_requested", "modification_waiting_for_instruction"]),
+    );
+    expect(JSON.stringify(payload)).not.toMatch(/<svg|Brand system|Marque à nommer/);
   });
 
   it("extracts PROSHOTS but does not generate a fake visual without a real visual provider", async () => {
@@ -166,7 +188,7 @@ describe("CEO command API", () => {
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
-    expect(payload.status).toBe("needs_revision");
+    expect(payload.status).toBe("needs_action");
     expect(payload.brandName).toBe("PROSHOTS");
     expect(payload.primaryVisual).toBeNull();
     expect(payload.expert.diagnostic.providerUsed).toBe("none");
@@ -193,9 +215,9 @@ describe("CEO command API", () => {
     expect(websitePayload.primaryVisual).not.toBe(logoPayload.primaryVisual);
     expect(String(websitePayload.primaryVisualPath ?? "")).not.toMatch(/final-logo\.svg$/);
     expect(websitePayload.title).not.toMatch(/^Logo /);
-    expect(websitePayload.expert.runtime.finalStatus).toBe("completed");
-    expect(websitePayload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
-      expect.arrayContaining(["queued", "planning", "generating", "reviewing", "validating"]),
+    expect(websitePayload.expert.runtime.status).toBe("completed");
+    expect(websitePayload.expert.runtime.steps.map((step: { label: string }) => step.label)).toEqual(
+      expect.arrayContaining(["analyse demande", "architecture", "design direction", "preview", "review"]),
     );
   });
 

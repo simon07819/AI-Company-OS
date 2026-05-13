@@ -1,6 +1,21 @@
 export type CEORequestType = "branding" | "logo" | "website" | "saas" | "app" | "business-system" | "unknown";
 
-export type CEOMissionStatus = "idle" | "preparing" | "production" | "validation" | "ready" | "needs_revision" | "rejected" | "error";
+export type CEOMissionStatus =
+  | "idle"
+  | "preparing"
+  | "production"
+  | "validation"
+  | "ready"
+  | "needs_revision"
+  | "rejected"
+  | "error"
+  | "queued"
+  | "planning"
+  | "running"
+  | "reviewing"
+  | "needs_action"
+  | "completed"
+  | "failed";
 
 export type AttachmentKind = "image" | "video" | "file";
 
@@ -89,3 +104,9 @@ export interface CEOCurrentResult {
     prototype?: unknown;
   };
 }
+
+export type CEOMissionAction =
+  | "prepare_brief"
+  | "create_visual_prompts"
+  | "request_local_prototype"
+  | "modify_current_deliverable";
