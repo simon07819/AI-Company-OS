@@ -1,4 +1,6 @@
 import { defaultToolContext, runToolAdapter } from "@/agents/capabilities/registry";
+import { coachAgentBeforeTask, compileRuntimePlaybookView, defaultLessonStore, optimizeSkillBehavior, selectLessonsForTask } from "@/agents/coaching";
+import type { AgentCoachingProfile, CoachingTraceEntry, SkillOptimizationResult } from "@/agents/coaching/types";
 import { getAgentMethod, runAgentBrain, critiqueAgentOutput, createRefinementStrategy } from "@/agents/intelligence";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import { compilePlaybookIntoAgentMethod, loadAgentPlaybook, selectPlaybookForTask } from "@/agents/playbooks";
@@ -17,6 +19,9 @@ export interface TaskRuntimeContext {
   refinementStrategies?: RefinementStrategy[];
   playbookTrace?: PlaybookTraceEntry[];
   selectedKnowledge?: SelectedAgentKnowledge[];
+  coachingTrace?: CoachingTraceEntry[];
+  coachingProfiles?: AgentCoachingProfile[];
+  skillOptimizations?: SkillOptimizationResult[];
 }
 
 export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): RuntimeCheckpoint {
@@ -32,7 +37,29 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
 
   const selectedKnowledge = selectPlaybookForTask({ agentRole: agent.role, workOrder: context.workOrder, task });
   const playbook = loadAgentPlaybook(agent.role);
-  const compiledMethod = playbook ? compilePlaybookIntoAgentMethod(playbook) : getAgentMethod(agent.role);
+  const selectedLessons = selectLessonsForTask({ agentRole: agent.role, workOrder: context.workOrder, task, playbook, lessons: defaultLessonStore.all() });
+  const skillOptimization = optimizeSkillBehavior({ agentRole: agent.role, skillId: task.skillId, lessons: selectedLessons });
+  const compiledMethod = playbook
+    ? selectedLessons.length
+      ? compileRuntimePlaybookView(playbook, selectedLessons)
+      : compilePlaybookIntoAgentMethod(playbook)
+    : getAgentMethod(agent.role);
+  const coaching = coachAgentBeforeTask({
+    agentRole: agent.role,
+    method: compiledMethod,
+    selectedLessons,
+    skillOptimizations: [skillOptimization],
+  });
+  context.coachingProfiles?.push(coaching.profile);
+  context.skillOptimizations?.push(skillOptimization);
+  context.coachingTrace?.push({
+    agentRole: agent.role,
+    taskId: task.id,
+    lessonIds: selectedLessons.map((lesson) => lesson.id),
+    checklist: coaching.profile.updatedChecklist,
+    activeFailureModes: coaching.profile.updatedFailureModes,
+    skillOptimizations: [skillOptimization],
+  });
   context.selectedKnowledge?.push(selectedKnowledge);
   context.playbookTrace?.push({
     agentRole: agent.role,
@@ -40,7 +67,7 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     playbookId: selectedKnowledge.playbookId,
     knowledgePackIds: selectedKnowledge.relevantKnowledgePacks,
     appliedFailureModeIds: selectedKnowledge.relevantFailureModes.map((mode) => mode.id),
-    qualityStandards: compiledMethod?.qualityChecklist ?? [],
+    qualityStandards: coaching.method?.qualityChecklist ?? compiledMethod?.qualityChecklist ?? [],
   });
 
   const brain = runAgentBrain({
@@ -49,14 +76,17 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     workOrder: context.workOrder,
     availableSkills: agent.skills,
     availableTools: agent.toolsAllowed,
-    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput, selectedKnowledge },
+    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput, selectedKnowledge, coaching: coaching.skillInputPatch.coaching },
     mode: task.agentRole === "quality_director" ? "validate" : task.agentRole === "creative_director" ? "critique" : "produce",
-    methodOverride: compiledMethod,
+    methodOverride: coaching.method ?? compiledMethod,
     selectedKnowledge,
   });
   context.brainOutputs?.push(brain);
 
-  const skillRun = runAgentSkill(agent.id, task.skillId, task.input, {
+  const skillInput = typeof task.input === "object" && task.input !== null && !Array.isArray(task.input)
+    ? { ...(task.input as Record<string, unknown>), ...coaching.skillInputPatch }
+    : task.input;
+  const skillRun = runAgentSkill(agent.id, task.skillId, skillInput, {
     turnId: context.workOrder.turnId,
     missionId: context.workOrder.missionId,
     userPrompt: context.workOrder.originalPrompt,
@@ -68,7 +98,7 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     agentRole: agent.role,
     output: skillRun.output,
     workOrder: context.workOrder,
-    method: compiledMethod ?? getAgentMethod(agent.role),
+    method: coaching.method ?? compiledMethod ?? getAgentMethod(agent.role),
     selectedKnowledge,
   });
   context.critiques?.push(critique);

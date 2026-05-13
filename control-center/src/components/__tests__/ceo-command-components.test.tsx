@@ -323,4 +323,36 @@ describe("CEO command components", () => {
     expect(screen.getByText("render_website_preview")).toBeInTheDocument();
     expect(screen.getByText(/Checkpoints: 1/)).toBeInTheDocument();
   });
+
+  it("shows coaching lessons only inside details", () => {
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        expert: {
+          companyWorkflow: {
+            hiddenDetails: {
+              coaching: {
+                coachingTrace: [{ agentRole: "logo_designer", lessonIds: ["lesson-ekida-wrong-initial"], checklist: ["Use EKIDA"], activeFailureModes: ["unrelated_initial_symbol"] }],
+                profiles: [{ agentRole: "logo_designer", activeLessons: [{ id: "lesson-ekida-wrong-initial", failurePattern: "unrelated_initial_symbol" }], weakSkills: ["generate_logo_concepts"] }],
+                skillOptimizations: [{ agentRole: "logo_designer", skillId: "generate_logo_concepts", status: "improved", changes: ["Forbid unrelated initials"] }],
+              },
+            },
+          },
+        },
+      },
+      mission,
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.queryByText("Coaching agents")).not.toBeInTheDocument();
+    expect(screen.queryByText("unrelated_initial_symbol")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByText("Coaching agents")).toBeInTheDocument();
+    expect(screen.getByText(/Lessons appliquées: 1/)).toBeInTheDocument();
+    expect(screen.getByText("unrelated_initial_symbol")).toBeInTheDocument();
+  });
 });

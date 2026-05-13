@@ -1,0 +1,10 @@
+export { coachAgentBeforeTask } from "./agent-coach";
+export { runEvalsWithCoaching } from "./coaching-engine";
+export { generateCoachingReport } from "./coaching-report";
+export { failurePatterns, roleForFailurePattern } from "./failure-patterns";
+export { extractLessonsFromApprovedSuccess, extractLessonsFromCandidateRejection, extractLessonsFromEvalFailure, extractLessonsFromQualityReview, extractLessonsFromRefinementAttempt } from "./lesson-extractor";
+export { clearDefaultLessons, createLessonStore, defaultLessonStore } from "./lesson-store";
+export { selectLessonsForTask } from "./lesson-selector";
+export { applyLessonsToPlaybookRuntimeView, compileRuntimePlaybookView } from "./playbook-updater";
+export { optimizeSkillBehavior } from "./skill-optimizer";
+export type { AgentCoachingProfile, AgentLesson, CoachingRunResult, CoachingTraceEntry, SkillOptimizationResult } from "./types";

@@ -21,6 +21,11 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
       artifacts?: { id?: string; name?: string; kind?: string; path?: string; fingerprint?: string }[];
       qualityReview?: { status?: string; score?: number; issues?: { id?: string; message?: string; suggestedFix?: string }[] };
       refinement?: { finalStatus?: string; attempts?: { attempt?: number; status?: string; outputArtifactId?: string }[]; reviews?: { status?: string; score?: number }[] };
+      coaching?: {
+        coachingTrace?: { agentRole?: string; lessonIds?: string[]; checklist?: string[]; activeFailureModes?: string[] }[];
+        profiles?: { agentRole?: string; activeLessons?: { id?: string; failurePattern?: string; correctionRule?: string }[]; weakSkills?: string[] }[];
+        skillOptimizations?: { agentRole?: string; skillId?: string; status?: string; changes?: string[] }[];
+      };
       workflowDetails?: { toolTrace?: { toolId?: string; status?: string; role?: string; error?: string }[] };
     };
   } | undefined;
@@ -33,6 +38,7 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
     missionArtifacts: workflow?.hiddenDetails?.artifacts ?? [],
     qualityReview: workflow?.hiddenDetails?.qualityReview,
     refinement: workflow?.hiddenDetails?.refinement,
+    coaching: workflow?.hiddenDetails?.coaching,
   };
 }
 
@@ -159,6 +165,34 @@ export default function CEOResultDetails({
               ))}
             </ul>
           )}
+        </div>
+      )}
+
+      {(workflow.coaching?.coachingTrace?.length || workflow.coaching?.profiles?.length || workflow.coaching?.skillOptimizations?.length) && (
+        <div>
+          <strong>Coaching agents</strong>
+          {workflow.coaching.coachingTrace?.length ? <p>Lessons appliquées: {workflow.coaching.coachingTrace.flatMap((trace) => trace.lessonIds ?? []).length}</p> : null}
+          {workflow.coaching.profiles?.length ? (
+            <ul>
+              {workflow.coaching.profiles.slice(0, 8).map((profile, index) => (
+                <li key={`${profile.agentRole}-${index}`}>
+                  <span>{profile.agentRole}</span>
+                  <span>{profile.activeLessons?.map((lesson) => lesson.failurePattern ?? lesson.id).join(", ") || "baseline"}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {workflow.coaching.skillOptimizations?.length ? (
+            <ul>
+              {workflow.coaching.skillOptimizations.filter((item) => item.status !== "unchanged").slice(0, 8).map((optimization, index) => (
+                <li key={`${optimization.agentRole}-${optimization.skillId}-${index}`}>
+                  <span>{optimization.agentRole}</span>
+                  <span>{optimization.skillId}</span>
+                  <span>{optimization.status}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
       )}
 

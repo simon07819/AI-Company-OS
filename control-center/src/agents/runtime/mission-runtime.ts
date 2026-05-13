@@ -1,6 +1,8 @@
 import { runDesignTeamWorkflow, type DesignTeamResult } from "@/lib/design-team/logoWorkflow";
 import { type PreviousDeliverable } from "@/lib/ceoWorkOrder";
 import { buildLogoArtifact } from "@/agents/artifacts/logo-artifact-builder";
+import { defaultLessonStore, extractLessonsFromApprovedSuccess, extractLessonsFromCandidateRejection, extractLessonsFromQualityReview, extractLessonsFromRefinementAttempt } from "@/agents/coaching";
+import type { AgentCoachingProfile, CoachingTraceEntry, SkillOptimizationResult } from "@/agents/coaching/types";
 import { createMissionArtifactStore } from "@/agents/artifacts/artifact-store";
 import { buildHiddenArtifacts } from "@/agents/artifacts/hidden-artifacts-builder";
 import {
@@ -52,9 +54,24 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   const refinementStrategies: RefinementStrategy[] = [];
   const playbookTrace: PlaybookTraceEntry[] = [];
   const selectedKnowledge: SelectedAgentKnowledge[] = [];
+  const coachingTrace: CoachingTraceEntry[] = [];
+  const coachingProfiles: AgentCoachingProfile[] = [];
+  const skillOptimizations: SkillOptimizationResult[] = [];
 
   for (const task of sortTasksForExecution(graph)) {
-    store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace, brainOutputs, critiques, refinementStrategies, playbookTrace, selectedKnowledge }));
+    store.add(runMissionTask(task, {
+      workOrder,
+      agentRuns: runtimeAgentRuns,
+      toolTrace: runtimeToolTrace,
+      brainOutputs,
+      critiques,
+      refinementStrategies,
+      playbookTrace,
+      selectedKnowledge,
+      coachingTrace,
+      coachingProfiles,
+      skillOptimizations,
+    }));
   }
 
   const workflowPrompt = workOrder.deliverableType === "logo" && workOrder.brandName && !new RegExp(workOrder.brandName, "i").test(userPrompt)
@@ -135,6 +152,12 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
     ? refinement.finalArtifact ?? primaryArtifactBuild?.artifact ?? null
     : primaryArtifactBuild?.artifact ?? null;
   const finalReview = refinement.reviews.at(-1) ?? initialReview;
+  const lessonsCreated = [
+    ...extractLessonsFromQualityReview(finalReview, workOrder.missionId),
+    ...((tournament?.reviews ?? []).flatMap((review) => extractLessonsFromCandidateRejection(review, workOrder.deliverableType))),
+    ...refinement.attempts.flatMap((attempt) => extractLessonsFromRefinementAttempt(attempt, workOrder.missionId)),
+    ...extractLessonsFromApprovedSuccess({ workOrder, visibleOutput: finalVisibleOutput as { kind?: string; deliverableType?: string } }, workOrder.missionId),
+  ].map((lesson) => defaultLessonStore.addLesson(lesson));
   const finalApproval = finalPrimaryArtifact
     ? approveFinalDeliverable({
       workOrder,
@@ -195,6 +218,12 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       refinement,
       finalApproval,
       tournament,
+      coaching: {
+        coachingTrace,
+        profiles: coachingProfiles,
+        skillOptimizations,
+        lessonsCreated,
+      },
       contextSelection: context?.contextSelection ?? null,
       intelligence: {
         brainOutputs,

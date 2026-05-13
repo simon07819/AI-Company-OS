@@ -2,6 +2,7 @@ import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import type { TournamentResult } from "@/agents/tournament/types";
+import type { AgentCoachingProfile, CoachingTraceEntry, SkillOptimizationResult } from "@/agents/coaching/types";
 
 export interface WorkOrder {
   id: string;
@@ -87,6 +88,12 @@ export interface MissionRuntimeResult<VisibleOutput = unknown> {
     refinement?: unknown;
     finalApproval?: unknown;
     tournament?: TournamentResult | null;
+    coaching?: {
+      coachingTrace: CoachingTraceEntry[];
+      profiles: AgentCoachingProfile[];
+      skillOptimizations: SkillOptimizationResult[];
+      lessonsCreated?: unknown[];
+    };
     contextSelection?: unknown;
     intelligence?: {
       brainOutputs: AgentBrainOutput[];
