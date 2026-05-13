@@ -76,7 +76,7 @@ describe("active AI Company OS platform shell", () => {
     expect(css).toMatch(/\.platform-shell\s*{[^}]*grid-template-columns:\s*280px minmax\(0,\s*1fr\)/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*background:\s*#000000/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*background:\s*#050505/s);
-    expect(css).toMatch(/\.platform-topbar\s*{[^}]*background:\s*#050505/s);
+    expect(css).toMatch(/\.platform-topbar\s*{[^}]*background:\s*#000000/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*--surface:\s*#0f0f0f/s);
     expect(css).toMatch(/\.platform-shell\s*{[^}]*overflow:\s*hidden/s);
     expect(css).toMatch(/\.platform-sidebar\s*{[^}]*width:\s*280px/s);

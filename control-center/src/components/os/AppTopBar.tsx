@@ -1,19 +1,12 @@
 "use client";
 
-import { Menu, MoreHorizontal } from "lucide-react";
-import ThemeToggle from "@/components/ThemeToggle";
-import CommandPalette from "./CommandPalette";
-import type { ViewMode } from "@/lib/viewMode";
+import { Menu } from "lucide-react";
 
 export default function AppTopBar({
   activeLabel,
-  mode,
-  onToggleMode,
   onMenuClick,
 }: {
   activeLabel: string;
-  mode: ViewMode;
-  onToggleMode: () => void;
   onMenuClick: () => void;
 }) {
   return (
@@ -24,13 +17,6 @@ export default function AppTopBar({
       <div className="desktop-title platform-title">
         <span>AI Company OS</span>
         <strong>{activeLabel}</strong>
-      </div>
-      <div className="desktop-appbar-actions platform-topbar-actions">
-        <CommandPalette />
-        <ThemeToggle />
-        <button className="platform-more-button" type="button" onClick={onToggleMode} aria-label={mode === "expert" ? "Revenir aux pages principales" : "Afficher les pages avancees"} title="Options">
-          <MoreHorizontal size={17} />
-        </button>
       </div>
     </header>
   );

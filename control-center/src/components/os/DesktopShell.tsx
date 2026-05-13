@@ -6,12 +6,11 @@ import { usePathname } from "next/navigation";
 import { isAdvancedPath, navigationForMode, pageLabel } from "@/lib/navigation";
 import AppTopBar from "./AppTopBar";
 import CommandDock from "./CommandDock";
-import { useViewMode, ViewModeProvider } from "./ViewModeProvider";
+import { ViewModeProvider } from "./ViewModeProvider";
 import WorkspaceSurface from "./WorkspaceSurface";
 
 function DesktopShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { toggleMode } = useViewMode();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const effectiveMode = isAdvancedPath(pathname) ? "expert" : "simple";
   const navItems = useMemo(() => navigationForMode(effectiveMode), [effectiveMode]);
@@ -22,7 +21,7 @@ function DesktopShellInner({ children }: { children: ReactNode }) {
       <CommandDock mode={effectiveMode} pathname={pathname} mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />
       {mobileNavOpen && <button className="platform-mobile-scrim" type="button" aria-label="Fermer le menu" onClick={() => setMobileNavOpen(false)} />}
       <div className="platform-main desktop-viewport">
-        <AppTopBar activeLabel={activeLabel} mode={effectiveMode} onToggleMode={toggleMode} onMenuClick={() => setMobileNavOpen(true)} />
+        <AppTopBar activeLabel={activeLabel} onMenuClick={() => setMobileNavOpen(true)} />
         <WorkspaceSurface>{children}</WorkspaceSurface>
       </div>
     </div>
