@@ -78,7 +78,7 @@ export interface CEOCurrentResult {
   artifactId?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
-  sourceType?: "real-image-provider" | "nvidia" | "nvidia_text" | "provider_unavailable" | "code_artifact" | "local_storage" | "local_svg" | "local" | "mock" | "fallback" | "none" | string;
+  sourceType?: "real-image-provider" | "nvidia" | "nvidia_text" | "nvidia_image" | "provider_unavailable" | "code_artifact" | "local_storage" | "local_svg" | "local" | "mock" | "fallback" | "none" | string;
   providerUsed?: string | null;
   allowLocalPrototype?: boolean;
   prototypeVariants?: Array<{

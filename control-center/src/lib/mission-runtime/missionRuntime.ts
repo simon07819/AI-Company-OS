@@ -10,6 +10,7 @@ import {
   getProviderRegistry,
   imageProviderUnavailable,
   localPrototypeProviderResult,
+  runImageProvider,
   runTextProvider,
   type ProviderResult,
 } from "@/lib/providers/providerRegistry";
@@ -34,6 +35,7 @@ export type MissionAction =
 export type MissionSourceType =
   | "none"
   | "real_image_provider"
+  | "nvidia_image"
   | "nvidia_text"
   | "provider_unavailable"
   | "local_svg"
@@ -69,7 +71,7 @@ export interface MissionDeliverable {
   type: "brief" | "directions" | "visual_prompts" | "local_prototype" | "website_preview" | "artifact" | "message";
   title: string;
   content?: string;
-  mediaType?: "text" | "svg" | "html";
+  mediaType?: "text" | "svg" | "html" | "image";
   sourceType: MissionSourceType;
   providerUsed: string;
   artifactId?: string;
@@ -295,6 +297,7 @@ export function addProviderResult(mission: MissionRuntime, result: ProviderResul
   mission.providerResults.push(result);
   mission.providerUsed = result.providerUsed;
   mission.sourceType = result.sourceType === "real_image_provider"
+    || result.sourceType === "nvidia_image"
     || result.sourceType === "provider_unavailable"
     || result.sourceType === "local_svg"
     || result.sourceType === "local_storage"
@@ -347,9 +350,9 @@ export function buildLogoPromptsText(brandName?: string | null, context?: string
   const base = `Prototype de logo vectoriel pour ${brand}. Composition propriétaire, symbole ou monogramme lié au nom, lisible en petit format, pas de carte décorative, pas de texte-only.${context ? ` Contexte: ${context}.` : ""}`;
   return [
     `Prompts visuels - ${brand}`,
-    `Midjourney: ${base} Direction premium, contraste fort, logo mark centered, clean vector geometry, black and neutral presentation, no mockup, no extra text.`,
-    `Ideogram: ${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
-    `DALL-E: ${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
+    `NVIDIA qwen-image: ${base} Direction premium, contraste fort, logo mark centered, clean vector geometry, black and neutral presentation, no mockup, no extra text.`,
+    `NVIDIA FLUX: ${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
+    `NVIDIA visual-genai NIM: ${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
     "Guide designer humain: produire d'abord 12 croquis rapides, sélectionner 3 axes, vectoriser 2 versions, tester en petit format, puis vérifier contraste, lisibilité et usage monochrome.",
   ].join("\n\n");
 }
@@ -434,6 +437,122 @@ export async function planLogoMissionWithoutProvider(command: string, missionId?
     preparedProviders: registry.image.preparedProviders,
   });
   runMissionAgents(mission, { imageProviderAvailable: false });
+  return { mission, workOrder };
+}
+
+export async function runLogoMissionWithImageProvider(command: string, missionId?: string) {
+  const workOrder = createWorkOrderFromPrompt(command);
+  const mission = createMissionRuntime(command, missionId ?? workOrder.missionId);
+  setMissionStatus(mission, "planning");
+  const textProvider = await runTextProvider({
+    system: "Prépare une analyse courte et utile pour une mission de logo. Ne génère aucune image.",
+    user: command,
+    purpose: "ceo_logo_text_reasoning",
+  });
+  addProviderResult(mission, textProvider);
+  completeMissionStep(mission, "analyse_demande", "Demande logo analysée.");
+  completeMissionStep(mission, "brief", "Brief texte disponible.");
+  completeMissionStep(mission, "directions_creatives", "Directions créatives disponibles.");
+  completeMissionStep(mission, "prompts_visuels", "Prompts visuels prêts pour NVIDIA image.");
+
+  const briefText = buildLogoBriefText(command, workOrder.brandName, workOrder.constraints);
+  const directionsText = buildLogoDirectionsText(workOrder.brandName);
+  const promptsText = buildLogoPromptsText(workOrder.brandName, command);
+
+  addDeliverable(mission, {
+    type: "brief",
+    title: "Brief disponible",
+    content: briefText,
+    mediaType: "text",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "brief",
+      title: "Brief disponible",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: briefText,
+    }).artifactId,
+  });
+  addDeliverable(mission, {
+    type: "directions",
+    title: "Directions disponibles",
+    content: directionsText,
+    mediaType: "text",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "directions",
+      title: "Directions disponibles",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: directionsText,
+    }).artifactId,
+  });
+  addDeliverable(mission, {
+    type: "visual_prompts",
+    title: "Prompts disponibles",
+    content: promptsText,
+    mediaType: "text",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "visual_prompts",
+      title: "Prompts disponibles",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: promptsText,
+    }).artifactId,
+  });
+
+  setMissionStatus(mission, "running");
+  addMissionEvent(mission, "nvidia_image_generation_started", "NVIDIA image generation started.", {
+    providerUsed: "nvidia",
+    sourceType: "nvidia_image",
+  });
+  const imageProvider = await runImageProvider({
+    missionId: mission.missionId,
+    kind: "logo",
+    title: `Logo ${workOrder.brandName ?? "marque"}`,
+    brandName: workOrder.brandName,
+    prompt: promptsText,
+  });
+
+  if (!imageProvider.success || !imageProvider.output) {
+    addProviderResult(mission, imageProvider);
+    blockMissionStep(mission, "validation_provider", imageProvider.error ?? "NVIDIA image provider unavailable.");
+    blockMissionStep(mission, "livrable_ou_action", "Action requise: vérifier la configuration NVIDIA image ou demander un prototype local explicite.");
+    setMissionStatus(mission, "needs_action");
+    runMissionAgents(mission, { imageProviderAvailable: false });
+    return { mission, workOrder };
+  }
+
+  const artifact = createTraceableArtifact({
+    missionId: mission.missionId,
+    type: "logo_image",
+    title: `Image logo NVIDIA ${workOrder.brandName ?? "marque"}`,
+    sourceType: "nvidia_image",
+    providerUsed: "nvidia",
+    content: imageProvider.output,
+  });
+  addProviderResult(mission, { ...imageProvider, artifactId: artifact.artifactId });
+  addDeliverable(mission, {
+    type: "artifact",
+    title: `Image logo NVIDIA ${workOrder.brandName ?? "marque"}`,
+    content: imageProvider.output,
+    mediaType: "image",
+    sourceType: "nvidia_image",
+    providerUsed: "nvidia",
+    artifactId: artifact.artifactId,
+  });
+  completeMissionStep(mission, "validation_provider", "Provider image NVIDIA validé.");
+  completeMissionStep(mission, "livrable_ou_action", "Artifact image NVIDIA créé.");
+  setMissionStatus(mission, "reviewing");
+  runMissionAgents(mission, { imageProviderAvailable: true });
+  setMissionStatus(mission, mission.reviewerResult?.passed ? "completed" : "needs_action");
   return { mission, workOrder };
 }
 

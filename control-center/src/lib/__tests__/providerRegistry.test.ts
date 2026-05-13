@@ -6,6 +6,7 @@ import {
   createTraceableArtifact,
   getProviderRegistry,
   hasImageProvider,
+  runImageProvider,
   runTextProvider,
 } from "@/lib/providers/providerRegistry";
 
@@ -16,11 +17,69 @@ afterEach(() => {
 
 describe("provider registry", () => {
   it("reports image providers as unavailable instead of inventing one", () => {
+    vi.stubEnv("IMAGE_PROVIDER", "");
+    vi.stubEnv("NVIDIA_API_KEY", "");
+    vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "");
     const registry = getProviderRegistry();
 
     expect(hasImageProvider()).toBe(false);
     expect(registry.image.available).toBe(false);
-    expect(registry.image.preparedProviders).toEqual(["ideogram", "midjourney_external", "dalle", "stability"]);
+    expect(registry.image.providerUsed).toBe("none");
+    expect(registry.image.preparedProviders).toEqual(["nvidia:qwen-image", "nvidia:flux", "nvidia:visual-genai-nim"]);
+  });
+
+  it("keeps NVIDIA image unavailable when endpoint config is missing", async () => {
+    vi.stubEnv("IMAGE_PROVIDER", "nvidia");
+    vi.stubEnv("NVIDIA_API_KEY", "nvapi-test-secret-value");
+    vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "");
+
+    const registry = getProviderRegistry();
+    const result = await runImageProvider({
+      missionId: "mission-test",
+      prompt: "logo EKIDA",
+      kind: "logo",
+      brandName: "EKIDA",
+    });
+
+    expect(hasImageProvider()).toBe(false);
+    expect(registry.image.available).toBe(false);
+    expect(registry.image.providerUsed).toBe("nvidia");
+    expect(result.success).toBe(false);
+    expect(result.providerUsed).toBe("nvidia_unavailable");
+    expect(result.sourceType).toBe("provider_unavailable");
+    expect(JSON.stringify(result)).not.toContain("nvapi-test-secret-value");
+  });
+
+  it("uses NVIDIA as the image provider when configured", async () => {
+    vi.stubEnv("IMAGE_PROVIDER", "nvidia");
+    vi.stubEnv("NVIDIA_API_KEY", "nvapi-test-secret-value");
+    vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "https://mock.nvidia.test/v1/images/generations");
+    vi.stubEnv("NVIDIA_IMAGE_MODEL", "qwen-image");
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+      ok: true,
+      json: () => Promise.resolve({
+        data: [{ b64_json: "ZmFrZS1pbWFnZQ==", mime_type: "image/png" }],
+      }),
+    })));
+
+    const registry = getProviderRegistry();
+    const result = await runImageProvider({
+      missionId: "mission-test",
+      prompt: "logo EKIDA",
+      kind: "logo",
+      brandName: "EKIDA",
+    });
+
+    expect(hasImageProvider()).toBe(true);
+    expect(registry.image.available).toBe(true);
+    expect(registry.image.providerUsed).toBe("nvidia");
+    expect(registry.image.sourceType).toBe("nvidia_image");
+    expect(result.success).toBe(true);
+    expect(result.providerUsed).toBe("nvidia");
+    expect(result.sourceType).toBe("nvidia_image");
+    expect(result.output).toBe("data:image/png;base64,ZmFrZS1pbWFnZQ==");
+    expect(result.model).toBe("qwen-image");
+    expect(JSON.stringify(result)).not.toContain("nvapi-test-secret-value");
   });
 
   it("returns providerUnavailable for NVIDIA text when credentials are absent", async () => {

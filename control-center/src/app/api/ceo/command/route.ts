@@ -22,11 +22,13 @@ import {
   createMissionRuntime,
   normalizeMissionAction,
   planLogoMissionWithoutProvider,
+  runLogoMissionWithImageProvider,
   runMissionAgents,
   setMissionStatus,
 } from "@/lib/mission-runtime/missionRuntime";
 import {
   createTraceableArtifact,
+  hasImageProvider,
   websiteArtifactProviderResult,
 } from "@/lib/providers/providerRegistry";
 
@@ -65,7 +67,7 @@ function isValidWorkflowPrimaryVisual(value: string | null | undefined, delivera
 }
 
 function hasRealLogoVisualProvider() {
-  return false;
+  return hasImageProvider();
 }
 
 function hasNvidiaRuntimeProvider() {
@@ -76,9 +78,9 @@ function buildLogoPrototypePrompts(brandName?: string | null, context?: string) 
   const brand = brandName ?? "la marque";
   const base = `Prototype de logo vectoriel pour ${brand}. Composition propriétaire, symbole ou monogramme lié au nom, lisible en petit format, pas de carte décorative, pas de texte-only.${context ? ` Contexte: ${context}.` : ""}`;
   return {
-    midjourney: `${base} Direction premium, contraste fort, logo mark centered, clean vector geometry, black and neutral presentation, no mockup, no extra text.`,
-    ideogram: `${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
-    dalle: `${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
+    qwenImage: `${base} Direction premium, contraste fort, logo mark centered, clean vector geometry, black and neutral presentation, no mockup, no extra text.`,
+    flux: `${base} Créer 3 explorations: monogramme, symbole géométrique, emblème moderne. Respecter strictement le nom ${brand}.`,
+    visualGenaiNim: `${base} Générer un logo prototype propre avec symbole construit, wordmark ${brand}, fond demandé respecté, rendu vectoriel simple.`,
   };
 }
 
@@ -152,7 +154,132 @@ export async function POST(req: NextRequest) {
         }
         : null;
 
-    if (preliminaryWorkOrder.deliverableType === "logo" && !hasRealLogoVisualProvider()) {
+    if (preliminaryWorkOrder.deliverableType === "logo" && hasRealLogoVisualProvider() && !missionAction) {
+      await holdVisibleProductionState();
+      const { mission, workOrder } = await runLogoMissionWithImageProvider(prompt, preliminaryWorkOrder.missionId);
+      const imageDeliverable = mission.deliverables.find((deliverable) => deliverable.sourceType === "nvidia_image" && deliverable.artifactId);
+      const primaryVisual = imageDeliverable?.content ?? null;
+      const primaryArtifactFingerprint = primaryVisual ? createArtifactFingerprint(primaryVisual) : null;
+      const durationMs = Date.now() - startedAt;
+
+      memoryStore.addTurn({
+        id: workOrder.turnId,
+        userPrompt: prompt,
+        workOrderId: workOrder.id,
+        missionId: workOrder.missionId,
+        deliverableType: workOrder.deliverableType,
+        brandName: workOrder.brandName,
+        visibleOutputKind: primaryVisual ? "image" : "none",
+        primaryArtifactId: imageDeliverable?.artifactId,
+        primaryArtifactFingerprint: primaryArtifactFingerprint ?? undefined,
+        status: mission.status === "completed" ? "approved" : "failed",
+      });
+
+      if (!primaryVisual || !imageDeliverable?.artifactId) {
+        return NextResponse.json({
+          ok: true,
+          missionId: mission.missionId,
+          projectId: null,
+          title: "Provider image NVIDIA indisponible",
+          requestType: workOrder.requestType,
+          brandName: workOrder.brandName ?? null,
+          deliverableType: "logo",
+          status: mission.status,
+          mission,
+          deliverables: mission.deliverables,
+          artifactId: null,
+          summary: "NVIDIA image est configuré comme provider, mais aucun artifact image n'a été retourné. Brief, directions et prompts restent disponibles.",
+          shortMessage: undefined,
+          primaryVisualPath: null,
+          primaryVisual: null,
+          primaryArtifactId: null,
+          primaryArtifactFingerprint: null,
+          sourceType: mission.sourceType === "provider_unavailable" ? "none" : mission.sourceType,
+          providerUsed: mission.providerUsed,
+          artifactPaths: [],
+          artifacts: [],
+          missingArtifacts: [],
+          workspaceHref: null,
+          limitations: ["Aucun fallback local automatique.", "Prototype SVG local seulement sur action explicite."],
+          launchInstructions: [buildLogoPromptsText(workOrder.brandName)],
+          expert: {
+            productionStatus: "nvidia_image_provider_unavailable",
+            provider: mission.providerUsed,
+            diagnostic: {
+              providerUsed: mission.providerUsed,
+              sourceType: mission.sourceType,
+              route: "POST /api/ceo/command",
+              durationMs,
+              nvidiaConfigured: hasNvidiaRuntimeProvider(),
+              nvidiaCalled: true,
+              nvidiaPurpose: "logo_image_generation",
+              imageGeneratedByNvidia: false,
+              model: mission.providerResults.find((result) => result.capability === "image")?.model,
+              artifactsCreated: false,
+            },
+            runtime: mission,
+            inputAttachments: attachments,
+          },
+        });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        missionId: mission.missionId,
+        projectId: null,
+        title: imageDeliverable.title,
+        requestType: workOrder.requestType,
+        brandName: workOrder.brandName ?? null,
+        deliverableType: "logo",
+        status: mission.status,
+        mission,
+        deliverables: mission.deliverables,
+        artifactId: imageDeliverable.artifactId,
+        summary: "Image logo générée par le provider NVIDIA et reliée à la mission.",
+        shortMessage: "Image logo prête.",
+        primaryVisualPath: null,
+        primaryVisual,
+        primaryArtifactId: imageDeliverable.artifactId,
+        primaryArtifactFingerprint,
+        sourceType: "nvidia_image",
+        providerUsed: "nvidia",
+        artifactPaths: [],
+        artifacts: [{
+          artifactId: imageDeliverable.artifactId,
+          title: imageDeliverable.title,
+          exists: true,
+          sourceType: "nvidia_image",
+          providerUsed: "nvidia",
+        }],
+        missingArtifacts: [],
+        workspaceHref: null,
+        limitations: ["Aucun fallback local automatique.", "Prototype SVG local seulement sur action explicite."],
+        launchInstructions: [buildLogoPromptsText(workOrder.brandName)],
+        expert: {
+          productionStatus: "nvidia_image_artifact_created",
+          provider: "nvidia",
+          diagnostic: {
+            providerUsed: "nvidia",
+            sourceType: "nvidia_image",
+            artifactId: imageDeliverable.artifactId,
+            route: "POST /api/ceo/command",
+            durationMs,
+            nvidiaConfigured: hasNvidiaRuntimeProvider(),
+            nvidiaCalled: true,
+            nvidiaPurpose: "logo_image_generation",
+            imageGeneratedByNvidia: true,
+            model: mission.providerResults.find((result) => result.capability === "image")?.model,
+            providerDurationMs: mission.providerResults.find((result) => result.capability === "image")?.durationMs,
+            artifactsCreated: true,
+          },
+          runtime: mission,
+          plan: { workflow: "nvidia_logo_image_runtime", stages: mission.steps },
+          inputAttachments: attachments,
+        },
+      });
+    }
+
+    if (preliminaryWorkOrder.deliverableType === "logo" && (!hasRealLogoVisualProvider() || missionAction)) {
       await holdVisibleProductionState();
       const durationMs = Date.now() - startedAt;
       const prompts = buildLogoPrototypePrompts(preliminaryWorkOrder.brandName);

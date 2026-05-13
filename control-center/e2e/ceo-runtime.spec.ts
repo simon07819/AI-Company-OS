@@ -59,7 +59,7 @@ test.describe("CEO runtime shell", () => {
 
     await page.getByRole("button", { name: /Créer prompts visuels|Creer prompts visuels/ }).last().click();
     await expect(page.getByText(/Prompts visuels EKIDA/i)).toBeVisible();
-    await expect(page.getByText(/Midjourney|Ideogram|DALL-E/i).first()).toBeVisible();
+    await expect(page.getByText(/NVIDIA qwen-image|NVIDIA FLUX|NVIDIA visual-genai NIM/i).first()).toBeVisible();
 
     await expect(page.getByLabel(/Prototype de logo EKIDA/i)).toHaveCount(0);
     await page.getByRole("button", { name: "Prototype SVG local" }).last().click();
@@ -152,7 +152,7 @@ test.describe("CEO command API", () => {
     const prompts = await promptsResponse.json();
     expect(prompts.ok).toBe(true);
     expect(prompts.deliverableType).toBe("logo_prompts");
-    expect(prompts.summary).toMatch(/Midjourney|Ideogram|DALL-E/i);
+    expect(prompts.summary).toMatch(/NVIDIA qwen-image|NVIDIA FLUX|NVIDIA visual-genai NIM/i);
     expect(prompts.primaryVisual).toBeNull();
 
     const prototypeResponse = await request.post("/api/ceo/command", {

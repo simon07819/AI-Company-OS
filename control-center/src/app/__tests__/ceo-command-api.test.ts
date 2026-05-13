@@ -12,10 +12,15 @@ beforeEach(() => {
   runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-company-command-runtime-"));
   vi.stubEnv("AI_COMPANY_PRODUCTS_DIR", productsRoot);
   vi.stubEnv("AI_COMPANY_RUNTIME_DIR", runtimeRoot);
+  vi.stubEnv("IMAGE_PROVIDER", "");
+  vi.stubEnv("NVIDIA_API_KEY", "");
+  vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "");
+  vi.stubEnv("NVIDIA_IMAGE_MODEL", "");
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
   fs.rmSync(productsRoot, { recursive: true, force: true });
   fs.rmSync(runtimeRoot, { recursive: true, force: true });
 });
@@ -100,6 +105,60 @@ describe("CEO command API", () => {
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*B\s*</);
   });
 
+  it("returns a traceable NVIDIA image artifact when the NVIDIA image provider is configured", async () => {
+    vi.stubEnv("IMAGE_PROVIDER", "nvidia");
+    vi.stubEnv("NVIDIA_API_KEY", "nvapi-test-secret-value");
+    vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "https://mock.nvidia.test/v1/images/generations");
+    vi.stubEnv("NVIDIA_IMAGE_MODEL", "qwen-image");
+    let fetchCount = 0;
+    vi.stubGlobal("fetch", vi.fn(() => {
+      fetchCount += 1;
+      if (fetchCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            choices: [{ message: { content: "Analyse NVIDIA texte." } }],
+            usage: { total_tokens: 8 },
+          }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({
+          data: [{ b64_json: "ZmFrZS1pbWFnZQ==", mime_type: "image/png" }],
+        }),
+      });
+    }));
+
+    const response = await postCommand("logo EKIDA sur fond noir");
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("completed");
+    expect(payload.deliverableType).toBe("logo");
+    expect(payload.brandName).toBe("EKIDA");
+    expect(payload.providerUsed).toBe("nvidia");
+    expect(payload.sourceType).toBe("nvidia_image");
+    expect(payload.primaryArtifactId).toMatch(/^artifact-/);
+    expect(payload.artifactId).toBe(payload.primaryArtifactId);
+    expect(payload.primaryVisual).toBe("data:image/png;base64,ZmFrZS1pbWFnZQ==");
+    expect(payload.artifacts[0]).toEqual(expect.objectContaining({
+      artifactId: payload.primaryArtifactId,
+      sourceType: "nvidia_image",
+      providerUsed: "nvidia",
+    }));
+    expect(payload.mission.providerResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ capability: "image", providerUsed: "nvidia", sourceType: "nvidia_image", artifactId: payload.primaryArtifactId, model: "qwen-image" }),
+      ]),
+    );
+    expect(payload.expert.diagnostic.imageGeneratedByNvidia).toBe(true);
+    expect(payload.expert.diagnostic.model).toBe("qwen-image");
+    expect(JSON.stringify(payload)).not.toMatch(/local_svg|Brand system|Marque à nommer|<svg/);
+    expect(JSON.stringify(payload)).not.toContain("nvapi-test-secret-value");
+  });
+
   it("traces and blocks the EKIDA local SVG renderer path", async () => {
     const response = await postCommand("logo EKIDA sur fond noir");
     const payload = await response.json();
@@ -156,7 +215,7 @@ describe("CEO command API", () => {
     expect(payload.deliverableType).toBe("logo_prompts");
     expect(payload.brandName).toBe("PROSHOTS");
     expect(payload.primaryVisual).toBeNull();
-    expect(payload.summary).toMatch(/Midjourney|Ideogram|DALL-E|Guide designer humain/i);
+    expect(payload.summary).toMatch(/NVIDIA qwen-image|NVIDIA FLUX|NVIDIA visual-genai NIM|Guide designer humain/i);
     expect(payload.summary).not.toMatch(/PROSHOTS ses des photographes sportifs/);
     expect(payload.expert.diagnostic.sourceType).toBe("text");
   });

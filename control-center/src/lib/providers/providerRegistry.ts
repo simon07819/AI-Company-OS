@@ -1,11 +1,18 @@
 import path from "path";
 import { generateWithLlm } from "@/lib/ai/llmClient";
+import {
+  generateNvidiaImage,
+  getNvidiaImageProviderStatus,
+  hasNvidiaImageProvider,
+  type NvidiaImageKind,
+} from "@/lib/providers/nvidiaImageProvider";
 import { readRuntimeJson, writeRuntimeJson } from "@/lib/runtime/runtimeFileStore";
 
 export type ProviderCapability = "text" | "image" | "website" | "localPrototype";
 
 export type ProviderSourceType =
   | "nvidia_text"
+  | "nvidia_image"
   | "real_image_provider"
   | "provider_unavailable"
   | "local_svg"
@@ -21,6 +28,8 @@ export interface ProviderResult {
   artifactId?: string;
   error?: string;
   output?: string;
+  model?: string;
+  mimeType?: string;
   durationMs: number;
 }
 
@@ -71,10 +80,11 @@ export function hasNvidiaTextProvider() {
 }
 
 export function hasImageProvider() {
-  return false;
+  return hasNvidiaImageProvider();
 }
 
 export function getProviderRegistry() {
+  const imageStatus = getNvidiaImageProviderStatus();
   return {
     text: {
       capability: "text" as const,
@@ -83,9 +93,12 @@ export function getProviderRegistry() {
     },
     image: {
       capability: "image" as const,
-      providerUsed: "none",
-      available: false,
-      preparedProviders: ["ideogram", "midjourney_external", "dalle", "stability"],
+      providerUsed: imageStatus.available ? "nvidia" : imageStatus.providerUsed,
+      available: imageStatus.available,
+      sourceType: imageStatus.available ? "nvidia_image" as const : "provider_unavailable" as const,
+      model: imageStatus.model,
+      endpointConfigured: imageStatus.endpointConfigured,
+      preparedProviders: imageStatus.preparedProviders,
     },
     website: {
       capability: "website" as const,
@@ -99,6 +112,27 @@ export function getProviderRegistry() {
       available: true,
       sourceType: "local_svg" as const,
     },
+  };
+}
+
+export async function runImageProvider(input: {
+  missionId: string;
+  prompt: string;
+  kind: NvidiaImageKind;
+  title?: string;
+  brandName?: string | null;
+}): Promise<ProviderResult> {
+  const result = await generateNvidiaImage(input);
+  return {
+    providerUsed: result.providerUsed,
+    sourceType: result.sourceType,
+    capability: "image",
+    success: result.success,
+    output: result.imageDataUrl ?? result.imageUrl,
+    error: result.error,
+    durationMs: result.durationMs,
+    model: result.model,
+    mimeType: result.mimeType,
   };
 }
 
@@ -153,13 +187,17 @@ export async function runTextProvider(input: {
 }
 
 export function imageProviderUnavailable(): ProviderResult {
+  const status = getNvidiaImageProviderStatus();
   return {
-    providerUsed: "none",
+    providerUsed: status.providerUsed === "nvidia" ? "nvidia_unavailable" : "none",
     sourceType: "provider_unavailable",
     capability: "image",
     success: false,
-    error: "No real image provider is configured.",
+    error: status.providerUsed === "nvidia"
+      ? "NVIDIA image provider is selected but unavailable."
+      : "No real image provider is configured.",
     durationMs: 0,
+    model: status.providerUsed === "nvidia" ? status.model : undefined,
   };
 }
 
