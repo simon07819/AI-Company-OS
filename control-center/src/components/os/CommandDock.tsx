@@ -8,16 +8,24 @@ export default function CommandDock({ mode, pathname }: { mode: ViewMode; pathna
   const navItems = navigationForMode(mode);
 
   return (
-    <aside className="command-dock os-dock" aria-label={mode === "expert" ? "Expert navigation" : "Simple navigation"}>
-      <Link className="os-dock-brand" href="/" aria-label="AI Company OS home">
-        <span>AI</span>
+    <aside className="platform-sidebar os-dock sidebar" aria-label="Platform navigation">
+      <Link className="platform-sidebar-brand" href="/" aria-label="AI Company OS home">
+        <span className="platform-sidebar-logo">AI</span>
+        <span>
+          <strong>AI Company OS</strong>
+          <small>Control Center</small>
+        </span>
       </Link>
-      <nav className="os-dock-nav">
+      <Link className="platform-new-mission" href="/ceo">
+        <span aria-hidden="true">+</span>
+        Nouveau chat
+      </Link>
+      <nav className="platform-sidebar-nav">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
-            className={`os-dock-item${isActiveNavItem(item, pathname) ? " active" : ""}`}
+            className={`platform-sidebar-link os-dock-item${isActiveNavItem(item, pathname) ? " active" : ""}`}
             aria-label={item.label}
             title={item.label}
           >
@@ -26,6 +34,10 @@ export default function CommandDock({ mode, pathname }: { mode: ViewMode; pathna
           </Link>
         ))}
       </nav>
+      <div className="platform-sidebar-footer">
+        <span className="platform-status-dot" aria-hidden="true" />
+        <span>CEO en ligne</span>
+      </div>
     </aside>
   );
 }

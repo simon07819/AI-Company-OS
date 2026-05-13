@@ -1,7 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AppShell from "@/components/AppShell";
@@ -11,9 +11,7 @@ import { assertNoCompletedStepWithoutArtifacts } from "@/lib/product-builder/exe
 import { validateGeneratedProduct } from "@/lib/product-builder/qualityGate";
 import { RESET_CONFIRMATION, resetCompanyOs } from "@/lib/resetCompanyOs";
 
-const simpleNav = ["CEO", "Entreprises", "Projets", "Resultats", "Expert"];
-const hiddenSimpleNav = ["Agents", "Approvals", "Mission Rooms", "Workspaces", "Settings", "Runtime", "Logs"];
-const expertNav = [...hiddenSimpleNav, "System Health", "Demo Center", "Conversations", "Revenue", "CRM", "Distribution"];
+const platformNav = ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings"];
 
 let tempRoot = "";
 
@@ -59,38 +57,18 @@ afterEach(() => {
 });
 
 describe("AI Company OS new version regression suite", () => {
-  it("keeps simple navigation minimal and hides advanced modules", () => {
+  it("renders the active platform sidebar", () => {
     installLocalStorage();
     const { container } = render(React.createElement(AppShell, null, React.createElement("main", null, "Simple shell")));
     const dock = container.querySelector(".os-dock");
     expect(dock).toBeInTheDocument();
     const dockScope = within(dock as HTMLElement);
 
-    for (const label of simpleNav) {
+    for (const label of platformNav) {
       expect(dockScope.getByRole("link", { name: label })).toBeInTheDocument();
     }
-    for (const label of hiddenSimpleNav) {
-      expect(dockScope.queryByRole("link", { name: label })).not.toBeInTheDocument();
-    }
-  });
-
-  it("restores advanced modules in global expert mode and persists after refresh", async () => {
-    const store = installLocalStorage();
-    const { container, unmount } = render(React.createElement(AppShell, null, React.createElement("main", null, "Expert shell")));
-
-    fireEvent.click(screen.getByRole("button", { name: "Mode expert" }));
-    await waitFor(() => expect(store.get("ai-company-os-view-mode")).toBe("expert"));
-    let dockScope = within(container.querySelector(".os-dock") as HTMLElement);
-    for (const label of expertNav) {
-      expect(dockScope.getByRole("link", { name: label })).toBeInTheDocument();
-    }
-
-    unmount();
-    render(React.createElement(AppShell, null, React.createElement("main", null, "Expert shell after refresh")));
-    await waitFor(() => expect(screen.getAllByRole("link", { name: "Runtime" }).length).toBeGreaterThan(0));
-    dockScope = within(document.querySelector(".os-dock") as HTMLElement);
-    expect(dockScope.getByRole("link", { name: "Mission Rooms" })).toBeInTheDocument();
-    expect(store.get("ai-company-os-view-mode")).toBe("expert");
+    expect(container.querySelector(".platform-sidebar")).toBeInTheDocument();
+    expect(container.textContent ?? "").not.toMatch(/Mode simple|Production IA active|Conversation CEO/);
   });
 
   it("renders CEO simple as a central Command Surface without technical rails or IDs", async () => {

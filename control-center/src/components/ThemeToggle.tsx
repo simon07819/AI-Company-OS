@@ -6,14 +6,14 @@ import { useEffect, useState } from "react";
 type Theme = "light" | "dark";
 
 function getInitialTheme(): Theme {
-  if (typeof window === "undefined") return "light";
+  if (typeof window === "undefined") return "dark";
   try {
     const storage = window.localStorage;
     const stored = typeof storage?.getItem === "function" ? storage.getItem("ai-company-os-theme") : null;
     if (stored === "light" || stored === "dark") return stored;
-    return typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return "dark";
   } catch {
-    return "light";
+    return "dark";
   }
 }
 
@@ -51,7 +51,7 @@ export default function ThemeToggle() {
       }}
     >
       {theme === "dark" ? <Sun size={14} /> : <Moon size={14} />}
-      <span>{theme === "dark" ? "Mode clair" : "Mode sombre"}</span>
+      <span className="ceo-sr-only">{theme === "dark" ? "Mode clair" : "Mode sombre"}</span>
     </button>
   );
 }

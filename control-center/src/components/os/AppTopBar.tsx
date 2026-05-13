@@ -1,9 +1,8 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import CommandPalette from "./CommandPalette";
-import ViewModeToggle from "./ViewModeToggle";
 import type { ViewMode } from "@/lib/viewMode";
 
 export default function AppTopBar({
@@ -16,24 +15,17 @@ export default function AppTopBar({
   onToggleMode: () => void;
 }) {
   return (
-    <header className="app-top-bar desktop-appbar">
-      <div className="window-controls" aria-hidden="true">
-        <i className="close" />
-        <i className="minimize" />
-        <i className="zoom" />
-      </div>
-      <div className="desktop-title">
+    <header className="platform-topbar app-top-bar desktop-appbar">
+      <div className="desktop-title platform-title">
         <span>AI Company OS</span>
         <strong>{activeLabel}</strong>
       </div>
-      <div className="desktop-appbar-actions">
+      <div className="desktop-appbar-actions platform-topbar-actions">
         <CommandPalette />
-        <div className="desktop-status">
-          <Sparkles size={13} />
-          Agence AI active
-        </div>
         <ThemeToggle />
-        <ViewModeToggle mode={mode} onToggle={onToggleMode} />
+        <button className="platform-more-button" type="button" onClick={onToggleMode} aria-label={mode === "expert" ? "Revenir aux pages principales" : "Afficher les pages avancees"} title="Options">
+          <MoreHorizontal size={17} />
+        </button>
       </div>
     </header>
   );

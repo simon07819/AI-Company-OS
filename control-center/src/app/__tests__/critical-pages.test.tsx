@@ -128,7 +128,6 @@ describe("critical Control Center pages", () => {
     const { container } = render(React.createElement(CeoPage));
 
     expect((await screen.findAllByText("CEO")).length).toBeGreaterThan(0);
-    expect(screen.getByText("Expert")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
     expect(screen.getByLabelText("Chat CEO")).toBeInTheDocument();
     expect(screen.queryByText(/Décris ce que tu veux construire/)).not.toBeInTheDocument();
@@ -144,9 +143,12 @@ describe("critical Control Center pages", () => {
     expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
     expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
     expect(container.querySelector(".os-dock")).toBeInTheDocument();
-    expect(container.querySelector(".sidebar")).not.toBeInTheDocument();
+    expect(container.querySelector(".platform-sidebar")).toBeInTheDocument();
+    for (const label of ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+      expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
+    }
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
-    expect(container.textContent ?? "").not.toMatch(/Mission Room|autopilot|logs/i);
+    expect(container.textContent ?? "").not.toMatch(/Décris ce que tu veux construire|Production IA active|Mode simple|Conversation CEO/i);
   });
 
   it("renders the global dark mode toggle and stores the preference", () => {
@@ -161,12 +163,12 @@ describe("critical Control Center pages", () => {
     });
     render(React.createElement(AppShell, null, React.createElement("main", null, "Theme test")));
 
-    const toggle = screen.getByRole("button", { name: /mode sombre/i });
+    const toggle = screen.getByRole("button", { name: /mode clair/i });
     fireEvent.click(toggle);
 
-    expect(document.documentElement.dataset.theme).toBe("dark");
-    expect(store.get("ai-company-os-theme")).toBe("dark");
-    expect(screen.getByRole("button", { name: /mode clair/i })).toBeInTheDocument();
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(store.get("ai-company-os-theme")).toBe("light");
+    expect(screen.getByRole("button", { name: /mode sombre/i })).toBeInTheDocument();
     store.clear();
     document.documentElement.dataset.theme = "light";
   });

@@ -16,9 +16,9 @@ function DesktopShellInner({ children }: { children: ReactNode }) {
   const activeLabel = pageLabel(pathname, navItems);
 
   return (
-    <div className="desktop-os-shell" data-mode={mode}>
+    <div className="platform-shell desktop-os-shell" data-mode={mode}>
       <CommandDock mode={mode} pathname={pathname} />
-      <div className="desktop-viewport">
+      <div className="platform-main desktop-viewport">
         <AppTopBar activeLabel={activeLabel} mode={mode} onToggleMode={toggleMode} />
         <WorkspaceSurface>{children}</WorkspaceSurface>
       </div>
