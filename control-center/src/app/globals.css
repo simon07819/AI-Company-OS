@@ -5716,7 +5716,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: end;
   gap: 9px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -5767,6 +5767,132 @@ html[data-theme="dark"] .ceo-os-result-details {
 
 .ceo-chat-shell .ceo-os-composer button span {
   display: none;
+}
+
+.ceo-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ceo-chat-shell .ceo-os-composer .ceo-attachment-grid,
+.ceo-chat-shell .ceo-os-composer .ceo-attachment-error {
+  grid-column: 1 / -1;
+}
+
+.ceo-attachment-button {
+  background: rgba(39, 39, 42, 0.9) !important;
+  color: #d4d4d8 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.ceo-attachment-button:hover {
+  color: #f4f4f5 !important;
+  background: rgba(63, 63, 70, 0.92) !important;
+}
+
+.ceo-attachment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 8px;
+}
+
+.ceo-attachment-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin-top: 8px;
+  width: min(100%, 520px);
+}
+
+.ceo-chat-message.user .ceo-attachment-grid.compact {
+  margin-left: auto;
+}
+
+.ceo-attachment-card {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  background: rgba(24, 24, 27, 0.88);
+  padding: 7px;
+}
+
+.ceo-attachment-card.compact {
+  background: rgba(9, 9, 11, 0.34);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.ceo-attachment-thumb {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #d4d4d8;
+}
+
+.ceo-attachment-thumb.image img,
+.ceo-attachment-thumb.video video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ceo-attachment-meta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.ceo-attachment-meta strong {
+  overflow: hidden;
+  color: #f4f4f5;
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ceo-attachment-meta span {
+  color: #a1a1aa;
+  font-size: 11px;
+  text-transform: none;
+}
+
+.ceo-attachment-card > button {
+  width: 28px !important;
+  min-height: 28px !important;
+  color: #a1a1aa !important;
+  background: transparent !important;
+}
+
+.ceo-attachment-card > button:hover {
+  color: #f4f4f5 !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.ceo-attachment-error {
+  margin: 0 8px;
+  color: #fca5a5;
+  font-size: 12px;
+}
+
+.ceo-attachment-dropzone {
+  min-height: 100%;
+  border-radius: 28px;
+}
+
+.ceo-attachment-dropzone.dragging .ceo-chat-shell {
+  outline: 1px solid rgba(244, 244, 245, 0.24);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.04), 0 30px 100px rgba(0, 0, 0, 0.45);
 }
 
 @media (max-width: 640px) {

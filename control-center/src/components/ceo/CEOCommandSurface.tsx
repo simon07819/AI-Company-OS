@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useOptionalViewMode } from "@/components/os/ViewModeProvider";
+import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
-import type { CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
+import { attachmentPayload } from "./attachments";
+import type { ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
 interface CommandResponse {
   ok: boolean;
@@ -94,19 +96,24 @@ export default function CEOCommandSurface() {
   const [result, setResult] = useState<CEOCurrentResult | null>(null);
   const [conversationId] = useState(() => `ceo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
   const [turns, setTurns] = useState<Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>>([]);
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([]);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitCommand = async (prompt: string) => {
+  const submitCommand = async (prompt: string, attachments: ChatAttachment[] = []) => {
+    const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
     const pendingMission: CEOCurrentMission = {
       id: `local-${Date.now()}`,
       prompt,
+      attachments,
       requestType,
       status: "production",
       createdAt: new Date().toISOString(),
       artifactCount: 0,
     };
+    setPendingAttachments(attachments);
     setLoading(true);
     setError(null);
     setMission(pendingMission);
@@ -116,11 +123,17 @@ export default function CEOCommandSurface() {
       const response = await fetch("/api/ceo/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, expertMode: isExpert, conversationId }),
+        body: JSON.stringify({
+          prompt: runtimePrompt,
+          displayPrompt: prompt,
+          expertMode: isExpert,
+          conversationId,
+          attachments: attachments.map(attachmentPayload),
+        }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
-        const failedMission = missionFromCommand(prompt, payload);
+        const failedMission = { ...missionFromCommand(runtimePrompt, payload), prompt, attachments };
         const failedResult = resultFromCommand(prompt, {
           ...payload,
           title: payload.title || "Aucun artifact réel créé",
@@ -133,7 +146,7 @@ export default function CEOCommandSurface() {
         setTurns((items) => [...items, { id: failedMission.id, mission: failedMission, result: failedResult }]);
         return;
       }
-      const nextMission = missionFromCommand(prompt, payload);
+      const nextMission = { ...missionFromCommand(runtimePrompt, payload), prompt, attachments };
       const nextResult = resultFromCommand(prompt, payload);
       setMission(nextMission);
       setResult(nextResult);
@@ -145,11 +158,13 @@ export default function CEOCommandSurface() {
       setError(message);
     } finally {
       setLoading(false);
+      setPendingAttachments([]);
     }
   };
 
   return (
     <main className="ceo-chat-page">
+      <AttachmentDropzone disabled={loading} onFiles={(files) => setDroppedFiles(files)}>
       <section className="ceo-chat-shell" aria-label="Chat CEO">
         <header className="ceo-chat-header">
           <div className="ceo-chat-agent">
@@ -172,12 +187,14 @@ export default function CEOCommandSurface() {
           expertMode={isExpert}
           loading={loading}
           error={error}
+          pendingAttachments={pendingAttachments}
           onModify={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
           onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
         />
 
-        <CEOCommandComposer loading={loading} onSubmit={submitCommand} />
+        <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
       </section>
+      </AttachmentDropzone>
     </main>
   );
 }

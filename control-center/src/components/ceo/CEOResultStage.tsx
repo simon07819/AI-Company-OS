@@ -2,10 +2,11 @@
 
 import { AlertTriangle, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
+import ChatAttachmentGrid from "./ChatAttachmentGrid";
 import CEOResultDetails from "./CEOResultDetails";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
-import type { CEOCurrentMission, CEOCurrentResult } from "./types";
+import type { ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function responseIntro(result: CEOCurrentResult) {
   if (result.shortMessage) return result.shortMessage;
@@ -112,6 +113,7 @@ export default function CEOResultStage({
   expertMode,
   loading,
   error,
+  pendingAttachments = [],
   onModify,
 }: {
   result: CEOCurrentResult | null;
@@ -120,15 +122,17 @@ export default function CEOResultStage({
   expertMode: boolean;
   loading: boolean;
   error: string | null;
+  pendingAttachments?: ChatAttachment[];
   onModify: () => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
     return (
       <section className="ceo-chat-messages" aria-label="Messages CEO">
-        {mission?.prompt && (
+        {(mission?.prompt || pendingAttachments.length > 0 || (mission?.attachments?.length ?? 0) > 0) && (
           <article className="ceo-chat-message user">
-            <p>{mission.prompt}</p>
+            {mission?.prompt && <p>{mission.prompt}</p>}
+            <ChatAttachmentGrid attachments={pendingAttachments.length ? pendingAttachments : mission?.attachments ?? []} compact />
           </article>
         )}
         <article className="ceo-chat-message ceo loading">
@@ -142,9 +146,10 @@ export default function CEOResultStage({
   if (error) {
     return (
       <section className="ceo-chat-messages" aria-label="Messages CEO">
-        {mission?.prompt && (
+        {(mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
           <article className="ceo-chat-message user">
-            <p>{mission.prompt}</p>
+            {mission?.prompt && <p>{mission.prompt}</p>}
+            <ChatAttachmentGrid attachments={mission?.attachments ?? []} compact />
           </article>
         )}
         <article className="ceo-chat-message ceo error">
@@ -173,7 +178,8 @@ export default function CEOResultStage({
         {turns.map((turn) => (
           <div key={turn.id} className="ceo-chat-turn">
             <article className="ceo-chat-message user">
-              <p>{turn.mission.prompt}</p>
+              {turn.mission.prompt && <p>{turn.mission.prompt}</p>}
+              <ChatAttachmentGrid attachments={turn.mission.attachments ?? []} compact />
             </article>
             <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} />
           </div>
@@ -184,9 +190,10 @@ export default function CEOResultStage({
 
   return (
     <section className="ceo-chat-messages" aria-label="Messages CEO">
-      {mission?.prompt && (
+      {(mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
         <article className="ceo-chat-message user">
-          <p>{mission.prompt}</p>
+          {mission?.prompt && <p>{mission.prompt}</p>}
+          <ChatAttachmentGrid attachments={mission?.attachments ?? []} compact />
         </article>
       )}
 

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
+import AttachmentDropzone from "@/components/ceo/AttachmentDropzone";
 import CEOCommandComposer from "@/components/ceo/CEOCommandComposer";
 import CEOCommandSurface from "@/components/ceo/CEOCommandSurface";
 import CEOResultStage from "@/components/ceo/CEOResultStage";
@@ -31,7 +32,91 @@ const result: CEOCurrentResult = {
   qualityStatus: "Prêt",
 };
 
+if (!("createObjectURL" in URL)) {
+  Object.defineProperty(URL, "createObjectURL", { value: () => "blob:test", writable: true });
+}
+
 describe("CEO command components", () => {
+  it("shows an attachment button and accepts image, video and file previews", async () => {
+    const onSubmit = vi.fn(() => Promise.resolve());
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:preview");
+    render(React.createElement(CEOCommandComposer, { loading: false, onSubmit }));
+
+    const fileInput = screen.getByLabelText("Choisir des fichiers");
+    fireEvent.change(fileInput, {
+      target: {
+        files: [
+          new File(["image"], "ekida.png", { type: "image/png" }),
+          new File(["video"], "clip.mp4", { type: "video/mp4" }),
+          new File(["pdf"], "brief.pdf", { type: "application/pdf" }),
+        ],
+      },
+    });
+
+    expect(screen.getByRole("button", { name: "Ajouter des fichiers" })).toBeInTheDocument();
+    expect(screen.getByText("ekida.png")).toBeInTheDocument();
+    expect(screen.getByText("clip.mp4")).toBeInTheDocument();
+    expect(screen.getByText("brief.pdf")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toBe("");
+    expect(onSubmit.mock.calls[0][1]).toHaveLength(3);
+    createObjectURL.mockRestore();
+  });
+
+  it("removes attachments before send", () => {
+    render(React.createElement(CEOCommandComposer, { loading: false, onSubmit: vi.fn() }));
+
+    fireEvent.change(screen.getByLabelText("Choisir des fichiers"), {
+      target: { files: [new File(["image"], "remove-me.jpg", { type: "image/jpeg" })] },
+    });
+    expect(screen.getByText("remove-me.jpg")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retirer remove-me.jpg" }));
+    expect(screen.queryByText("remove-me.jpg")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+  });
+
+  it("rejects unsupported and oversized attachments with a clean error", () => {
+    render(React.createElement(CEOCommandComposer, { loading: false, onSubmit: vi.fn() }));
+
+    fireEvent.change(screen.getByLabelText("Choisir des fichiers"), {
+      target: { files: [new File(["bad"], "malware.exe", { type: "application/octet-stream" })] },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Type de fichier non supporté.");
+
+    const heavyFile = new File(["x"], "heavy.pdf", { type: "application/pdf" });
+    Object.defineProperty(heavyFile, "size", { value: 26 * 1024 * 1024 });
+    fireEvent.change(screen.getByLabelText("Choisir des fichiers"), {
+      target: { files: [heavyFile] },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Fichier trop lourd. Maximum 25 MB.");
+  });
+
+  it("adds dropped files to the active composer", () => {
+    render(React.createElement(CEOCommandComposer, {
+      loading: false,
+      onSubmit: vi.fn(),
+      droppedFiles: [new File(["code"], "app.tsx", { type: "text/plain" })],
+      onDroppedFilesConsumed: vi.fn(),
+    }));
+
+    expect(screen.getByText("app.tsx")).toBeInTheDocument();
+  });
+
+  it("highlights the chat dropzone and forwards dropped files", () => {
+    const onFiles = vi.fn();
+    const { container } = render(React.createElement(AttachmentDropzone, { onFiles }, React.createElement("div", null, "Drop target")));
+    const dropzone = container.querySelector(".ceo-attachment-dropzone") as HTMLElement;
+    const file = new File(["image"], "drop.png", { type: "image/png" });
+
+    fireEvent.dragEnter(dropzone, { dataTransfer: { types: ["Files"], files: [file] } });
+    expect(dropzone).toHaveClass("dragging");
+    fireEvent.drop(dropzone, { dataTransfer: { types: ["Files"], files: [file] } });
+    expect(onFiles).toHaveBeenCalledWith([file]);
+    expect(dropzone).not.toHaveClass("dragging");
+  });
+
   it("renders the CEO page as a minimal dark chat shell", () => {
     const { container } = render(React.createElement(CEOCommandSurface));
 
@@ -63,6 +148,73 @@ describe("CEO command components", () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(textarea).toHaveValue("");
+  });
+
+  it("submits text and files together", async () => {
+    const onSubmit = vi.fn(() => Promise.resolve());
+    render(React.createElement(CEOCommandComposer, { loading: false, onSubmit }));
+
+    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "Analyse ceci" } });
+    fireEvent.change(screen.getByLabelText("Choisir des fichiers"), {
+      target: { files: [new File(["csv"], "data.csv", { type: "text/csv" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith("Analyse ceci", expect.arrayContaining([expect.objectContaining({ name: "data.csv", kind: "file" })])));
+  });
+
+  it("keeps user attachments visible in the sent message bubble", () => {
+    render(React.createElement(CEOResultStage, {
+      result: { ...result, summary: "Produit clinique généré." },
+      mission: {
+        ...mission,
+        prompt: "Voici les fichiers",
+        attachments: [
+          { id: "att-image", name: "mockup.webp", size: 1200, mimeType: "image/webp", kind: "image", extension: "webp", previewUrl: "blob:image", uploadState: "ready" },
+          { id: "att-video", name: "demo.webm", size: 2200, mimeType: "video/webm", kind: "video", extension: "webm", previewUrl: "blob:video", uploadState: "ready" },
+          { id: "att-file", name: "notes.md", size: 320, mimeType: "text/markdown", kind: "file", extension: "md", uploadState: "ready" },
+        ],
+      },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByText("mockup.webp")).toBeInTheDocument();
+    expect(screen.getByText("demo.webm")).toBeInTheDocument();
+    expect(screen.getByText("notes.md")).toBeInTheDocument();
+    expect(screen.queryByText(/runtime|artifact|process|Brand system|Marque à nommer/i)).not.toBeInTheDocument();
+  });
+
+  it("transmits attachment metadata to the CEO runtime request", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        missionId: "mission-upload",
+        title: "Analyse des fichiers",
+        requestType: "unknown",
+        status: "ready",
+        summary: "Fichiers reçus.",
+        artifactPaths: ["generated-products/upload/summary.md"],
+      }),
+    } as Response);
+
+    render(React.createElement(CEOCommandSurface));
+    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "Regarde ça" } });
+    fireEvent.change(screen.getByLabelText("Choisir des fichiers"), {
+      target: { files: [new File(["zip"], "archive.zip", { type: "application/zip" })] },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ceo/command", expect.objectContaining({ method: "POST" })));
+    const body = JSON.parse(String((fetchMock.mock.calls[0][1] as RequestInit).body));
+    expect(body.prompt).toBe("Regarde ça");
+    expect(body.attachments).toEqual([expect.objectContaining({ name: "archive.zip", kind: "file", extension: "zip" })]);
+    expect(screen.queryByText(/runtime|artifact|process|Brand system|Marque à nommer/i)).not.toBeInTheDocument();
+    fetchMock.mockRestore();
   });
 
   it("disables submit while loading", () => {

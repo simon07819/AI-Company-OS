@@ -4,17 +4,34 @@ import { createFileDiscussion } from "@/lib/executiveDiscussion";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_MIME_PREFIXES = ["image/"];
+const ALLOWED_MIME_PREFIXES = ["image/", "video/"];
 const ALLOWED_MIME_EXACT = new Set([
   "application/pdf",
   "text/plain",
   "text/markdown",
   "application/json",
+  "text/csv",
+  "text/html",
+  "text/css",
+  "text/javascript",
+  "application/javascript",
+  "application/zip",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "webm", "pdf", "txt", "md", "doc", "docx", "xls", "xlsx", "csv", "json", "zip", "js", "ts", "tsx", "jsx", "py", "html", "css"]);
+const MAX_SIZE = 25 * 1024 * 1024;
 
-function isAllowed(mimeType: string): boolean {
-  return ALLOWED_MIME_PREFIXES.some((p) => mimeType.startsWith(p)) || ALLOWED_MIME_EXACT.has(mimeType);
+function extensionFromName(name: string) {
+  return name.split(".").pop()?.toLowerCase() ?? "";
+}
+
+function isAllowed(file: File): boolean {
+  return ALLOWED_MIME_PREFIXES.some((p) => file.type.startsWith(p))
+    || ALLOWED_MIME_EXACT.has(file.type)
+    || ALLOWED_EXTENSIONS.has(extensionFromName(file.name));
 }
 
 export async function POST(req: NextRequest) {
@@ -26,9 +43,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, message: "No file provided" }, { status: 400 });
     }
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ ok: false, message: "File too large (max 10 MB)" }, { status: 413 });
+      return NextResponse.json({ ok: false, message: "File too large (max 25 MB)" }, { status: 413 });
     }
-    if (!isAllowed(file.type)) {
+    if (!isAllowed(file)) {
       return NextResponse.json({ ok: false, message: `File type not supported: ${file.type}` }, { status: 415 });
     }
 

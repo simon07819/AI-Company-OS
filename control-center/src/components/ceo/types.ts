@@ -2,6 +2,30 @@ export type CEORequestType = "branding" | "logo" | "website" | "saas" | "app" | 
 
 export type CEOMissionStatus = "idle" | "preparing" | "production" | "validation" | "ready" | "needs_revision" | "rejected" | "error";
 
+export type AttachmentKind = "image" | "video" | "file";
+
+export type AttachmentUploadState = "ready" | "rejected";
+
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  kind: AttachmentKind;
+  extension: string;
+  previewUrl?: string;
+  uploadState: AttachmentUploadState;
+}
+
+export interface ChatAttachmentPayload {
+  id: string;
+  name: string;
+  size: number;
+  mimeType: string;
+  kind: AttachmentKind;
+  extension: string;
+}
+
 export interface CEOActionResult {
   label: string;
   targetId?: string;
@@ -18,6 +42,7 @@ export interface CEOActionResult {
 export interface CEOCurrentMission {
   id: string;
   prompt: string;
+  attachments?: ChatAttachment[];
   requestType: CEORequestType;
   status: CEOMissionStatus;
   createdAt: string;

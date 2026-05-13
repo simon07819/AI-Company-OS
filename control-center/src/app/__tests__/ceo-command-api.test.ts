@@ -29,6 +29,15 @@ async function postCommand(prompt: string) {
   }));
 }
 
+async function postCommandPayload(body: Record<string, unknown>) {
+  const { POST } = await import("@/app/api/ceo/command/route");
+  return POST(new NextRequest("http://test.local/api/ceo/command", {
+    method: "POST",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+  }));
+}
+
 describe("CEO command API", () => {
   it("creates structured website artifacts for a construction request", async () => {
     const response = await postCommand("Je veux un site web premium pour une entreprise de construction");
@@ -132,6 +141,18 @@ describe("CEO command API", () => {
     expect(response.status).toBe(400);
     expect(payload.ok).toBe(false);
     expect(payload.artifactPaths).toEqual([]);
+  });
+
+  it("accepts attachment-only messages and keeps attachment metadata internal", async () => {
+    const response = await postCommandPayload({
+      prompt: "",
+      attachments: [{ id: "att-1", name: "brief.pdf", size: 1200, mimeType: "application/pdf", kind: "file", extension: "pdf" }],
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.expert.inputAttachments).toEqual([expect.objectContaining({ name: "brief.pdf", kind: "file", extension: "pdf" })]);
   });
 
   it("keeps Node filesystem reads out of client CEO components", () => {

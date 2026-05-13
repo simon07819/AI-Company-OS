@@ -44,10 +44,29 @@ function isValidWorkflowPrimaryVisual(value: string | null | undefined, delivera
   return true;
 }
 
+function sanitizeAttachments(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const name = typeof record.name === "string" ? record.name.slice(0, 160) : "fichier";
+    const size = typeof record.size === "number" && Number.isFinite(record.size) ? record.size : 0;
+    const mimeType = typeof record.mimeType === "string" ? record.mimeType.slice(0, 120) : "application/octet-stream";
+    const kind = record.kind === "image" || record.kind === "video" || record.kind === "file" ? record.kind : "file";
+    const extension = typeof record.extension === "string" ? record.extension.slice(0, 12) : "";
+    return [{ name, size, mimeType, kind, extension }];
+  });
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+    const attachments = sanitizeAttachments(body.attachments);
+    const prompt = typeof body.prompt === "string" && body.prompt.trim()
+      ? body.prompt.trim()
+      : attachments.length > 0
+        ? "Analyse les pièces jointes."
+        : "";
     const conversationId = typeof body.conversationId === "string" && body.conversationId.trim()
       ? body.conversationId.trim()
       : `ceo-standalone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -172,6 +191,7 @@ export async function POST(req: NextRequest) {
           agentRuns: companyWorkflow.agentRuns,
           hiddenDetails: companyWorkflow.hiddenDetails,
         },
+        inputAttachments: attachments,
       },
     };
 
