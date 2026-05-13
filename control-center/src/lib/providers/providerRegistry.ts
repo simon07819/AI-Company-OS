@@ -26,6 +26,7 @@ export interface ProviderResult {
   capability: ProviderCapability;
   success: boolean;
   artifactId?: string;
+  agentId?: string;
   error?: string;
   output?: string;
   model?: string;

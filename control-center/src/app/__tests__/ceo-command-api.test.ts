@@ -150,7 +150,24 @@ describe("CEO command API", () => {
     }));
     expect(payload.mission.providerResults).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ capability: "image", providerUsed: "nvidia", sourceType: "nvidia_image", artifactId: payload.primaryArtifactId, model: "qwen-image" }),
+        expect.objectContaining({ capability: "image", providerUsed: "nvidia", sourceType: "nvidia_image", artifactId: payload.primaryArtifactId, model: "qwen-image", agentId: "nvidia_image_agent" }),
+      ]),
+    );
+    expect(payload.mission.playbook.id).toBe("logo-branding-team-playbook");
+    expect(payload.mission.agentRuns.map((run: { agentId: string }) => run.agentId)).toEqual([
+      "ceo",
+      "planner",
+      "brand_strategist",
+      "creative_director",
+      "visual_prompt_engineer",
+      "nvidia_image_agent",
+      "critic",
+      "reviewer",
+      "artifact_manager",
+    ]);
+    expect(payload.mission.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "nvidia_image_generation_started", metadata: expect.objectContaining({ agentId: "nvidia_image_agent" }) }),
       ]),
     );
     expect(payload.expert.diagnostic.imageGeneratedByNvidia).toBe(true);
@@ -295,6 +312,18 @@ describe("CEO command API", () => {
     expect(String(websitePayload.primaryVisualPath ?? "")).not.toMatch(/final-logo\.svg$/);
     expect(websitePayload.title).not.toMatch(/^Logo /);
     expect(websitePayload.expert.runtime.status).toBe("completed");
+    expect(websitePayload.expert.runtime.playbook.id).toBe("website-team-playbook");
+    expect(websitePayload.expert.runtime.agentRuns.map((run: { agentId: string }) => run.agentId)).toEqual([
+      "ceo",
+      "product_owner",
+      "ux_strategist",
+      "ui_designer",
+      "frontend_architect",
+      "critic",
+      "qa",
+      "reviewer",
+      "artifact_manager",
+    ]);
     expect(websitePayload.expert.runtime.steps.map((step: { label: string }) => step.label)).toEqual(
       expect.arrayContaining(["analyse demande", "architecture", "design direction", "preview", "review"]),
     );

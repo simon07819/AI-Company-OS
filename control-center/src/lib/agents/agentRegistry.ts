@@ -1,17 +1,23 @@
 export type AgentId =
+  | "ceo"
   | "planner"
+  | "product_owner"
   | "brand_strategist"
   | "creative_director"
   | "visual_prompt_engineer"
+  | "nvidia_image_agent"
+  | "ux_strategist"
   | "ui_designer"
   | "frontend_architect"
   | "specialist"
   | "critic"
+  | "qa"
+  | "artifact_manager"
   | "reviewer";
 
 export interface AgentInput {
   missionId: string;
-  missionType: "logo" | "website" | "general";
+  missionType: "logo" | "website" | "app" | "copywriting" | "strategy" | "product" | "code" | "general";
   command: string;
   sourceType: string;
   providerUsed: string;
@@ -26,6 +32,8 @@ export interface AgentInput {
     artifactId?: string;
   }>;
   attempt: number;
+  playbookId?: string;
+  playbookStepId?: string;
   priorIssues?: string[];
 }
 
@@ -49,6 +57,8 @@ export interface AgentRun {
     providerUsed: string;
     deliverableCount: number;
     attempt: number;
+    playbookId?: string;
+    playbookStepId?: string;
   };
   output: AgentOutput;
   providerUsed: string;
@@ -96,6 +106,7 @@ function combinedText(input: AgentInput) {
     input.command,
     input.sourceType,
     input.providerUsed,
+    input.playbookId ?? "",
     ...input.deliverables.flatMap((deliverable) => [
       deliverable.title,
       deliverable.type ?? "",
@@ -181,12 +192,26 @@ function genericAgentOutput(agent: AgentDefinition, input: AgentInput): AgentOut
 }
 
 export const agentRegistry: Record<AgentId, AgentDefinition> = {
+  ceo: {
+    id: "ceo",
+    name: "CEO",
+    role: "Cadre l'objectif, le résultat attendu et la décision business.",
+    capabilities: ["intake", "decision_context", "mission_framing"],
+    run: (input) => genericAgentOutput(agentRegistry.ceo, input),
+  },
   planner: {
     id: "planner",
     name: "Mission Planner",
     role: "Planifie la mission et les critères de sortie.",
     capabilities: ["planning", "scope", "acceptance_criteria"],
     run: (input) => genericAgentOutput(agentRegistry.planner, input),
+  },
+  product_owner: {
+    id: "product_owner",
+    name: "Product Owner",
+    role: "Transforme la demande en exigences produit et livrables attendus.",
+    capabilities: ["requirements", "scope", "acceptance_criteria"],
+    run: (input) => genericAgentOutput(agentRegistry.product_owner, input),
   },
   brand_strategist: {
     id: "brand_strategist",
@@ -209,6 +234,20 @@ export const agentRegistry: Record<AgentId, AgentDefinition> = {
     capabilities: ["visual_prompts", "provider_handoff"],
     run: (input) => genericAgentOutput(agentRegistry.visual_prompt_engineer, input),
   },
+  nvidia_image_agent: {
+    id: "nvidia_image_agent",
+    name: "NVIDIA Image Agent",
+    role: "Prépare le handoff strict vers le provider image NVIDIA.",
+    capabilities: ["nvidia_image_generation", "provider_handoff", "image_artifact_trace"],
+    run: (input) => genericAgentOutput(agentRegistry.nvidia_image_agent, input),
+  },
+  ux_strategist: {
+    id: "ux_strategist",
+    name: "UX Strategist",
+    role: "Définit les parcours, priorités et structure UX.",
+    capabilities: ["ux_strategy", "user_flows", "information_architecture"],
+    run: (input) => genericAgentOutput(agentRegistry.ux_strategist, input),
+  },
   ui_designer: {
     id: "ui_designer",
     name: "UI Designer",
@@ -229,6 +268,20 @@ export const agentRegistry: Record<AgentId, AgentDefinition> = {
     role: "Traite les demandes générales.",
     capabilities: ["general_analysis", "execution_notes"],
     run: (input) => genericAgentOutput(agentRegistry.specialist, input),
+  },
+  qa: {
+    id: "qa",
+    name: "QA",
+    role: "Vérifie les critères fonctionnels et visuels avant validation.",
+    capabilities: ["quality_assurance", "acceptance_checks", "regression_risk"],
+    run: (input) => genericAgentOutput(agentRegistry.qa, input),
+  },
+  artifact_manager: {
+    id: "artifact_manager",
+    name: "Artifact Manager",
+    role: "Vérifie que les livrables sont traçables et reliés à la mission.",
+    capabilities: ["artifact_traceability", "storage", "metadata"],
+    run: (input) => genericAgentOutput(agentRegistry.artifact_manager, input),
   },
   critic: {
     id: "critic",
@@ -263,7 +316,8 @@ export const agentRegistry: Record<AgentId, AgentDefinition> = {
   },
 };
 
-export function agentsForMission(type: AgentInput["missionType"]): AgentId[] {
+export function agentsForMission(type: AgentInput["missionType"], sequence?: AgentId[]): AgentId[] {
+  if (sequence?.length) return [...sequence];
   if (type === "logo") return ["planner", "brand_strategist", "creative_director", "visual_prompt_engineer", "critic", "reviewer"];
   if (type === "website") return ["planner", "ui_designer", "frontend_architect", "critic", "reviewer"];
   return ["planner", "specialist", "critic", "reviewer"];
@@ -287,6 +341,8 @@ export function runAgent(agentId: AgentId, input: AgentInput): AgentRun {
       providerUsed: input.providerUsed,
       deliverableCount: input.deliverables.length,
       attempt: input.attempt,
+      playbookId: input.playbookId,
+      playbookStepId: input.playbookStepId,
     },
     output,
     providerUsed: "local_rules",
@@ -296,7 +352,7 @@ export function runAgent(agentId: AgentId, input: AgentInput): AgentRun {
   };
 }
 
-export function runMissionAgentFlow(input: Omit<AgentInput, "attempt" | "priorIssues"> & { maxRetries?: number }) {
+export function runMissionAgentFlow(input: Omit<AgentInput, "attempt" | "priorIssues"> & { maxRetries?: number; agentSequence?: AgentId[]; playbookId?: string }) {
   const maxRetries = input.maxRetries ?? 2;
   const runs: AgentRun[] = [];
   const retryEvents: Array<{ attempt: number; issues: string[]; changedDirection: string }> = [];
@@ -307,8 +363,8 @@ export function runMissionAgentFlow(input: Omit<AgentInput, "attempt" | "priorIs
 
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     finalAttempt = attempt;
-    const attemptInput: AgentInput = { ...input, attempt, priorIssues };
-    const sequence = agentsForMission(input.missionType);
+    const sequence = agentsForMission(input.missionType, input.agentSequence);
+    const attemptInput: AgentInput = { ...input, attempt, priorIssues, playbookId: input.playbookId };
     for (const agentId of sequence) {
       const run = runAgent(agentId, attemptInput);
       runs.push(run);

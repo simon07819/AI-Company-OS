@@ -14,8 +14,13 @@ import {
   runTextProvider,
   type ProviderResult,
 } from "@/lib/providers/providerRegistry";
+import {
+  selectTeamPlaybook,
+  type MissionPlaybookType,
+  type TeamPlaybook,
+} from "@/lib/mission-runtime/teamPlaybooks";
 
-export type MissionType = "logo" | "website" | "general";
+export type MissionType = MissionPlaybookType;
 
 export type MissionStatus =
   | "queued"
@@ -87,6 +92,7 @@ export interface MissionRuntime {
   agents: MissionAgent[];
   events: MissionEvent[];
   deliverables: MissionDeliverable[];
+  playbook: TeamPlaybook;
   providerUsed: string;
   sourceType: MissionSourceType;
   providerResults: ProviderResult[];
@@ -117,6 +123,11 @@ export function detectMissionType(command: string): MissionType {
   const lower = normalize(command);
   if (/site web|site internet|website|landing|page web|homepage|page d'accueil/.test(lower)) return "website";
   if (/\blogo\b|branding|identite|marque/.test(lower)) return "logo";
+  if (/\bapp\b|application|mobile|ios|android/.test(lower)) return "app";
+  if (/copywriting|copy|texte|article|email|newsletter|post|caption|slogan/.test(lower)) return "copywriting";
+  if (/strategie|strategy|go[- ]?to[- ]?market|positionnement|business plan/.test(lower)) return "strategy";
+  if (/product|produit|prd|roadmap|feature|fonctionnalite/.test(lower)) return "product";
+  if (/\bcode\b|api|bug|refactor|implementation|typescript|react|next\.?js/.test(lower)) return "code";
   return "general";
 }
 
@@ -148,40 +159,25 @@ function baseSteps(type: MissionType): Array<Pick<MissionStep, "id" | "label">> 
   ];
 }
 
-function agentsFor(type: MissionType): MissionAgent[] {
-  if (type === "logo") {
-    return [
-      { id: "product_owner", role: "analyse demande", status: "queued" },
-      { id: "brand_strategist", role: "brief et directions", status: "queued" },
-      { id: "creative_director", role: "prompts visuels", status: "queued" },
-      { id: "quality_director", role: "validation provider", status: "queued" },
-    ];
-  }
-  if (type === "website") {
-    return [
-      { id: "product_owner", role: "analyse demande", status: "queued" },
-      { id: "website_architect", role: "architecture", status: "queued" },
-      { id: "ux_director", role: "design direction", status: "queued" },
-      { id: "quality_director", role: "review", status: "queued" },
-    ];
-  }
-  return [
-    { id: "product_owner", role: "analyse demande", status: "queued" },
-    { id: "operator", role: "execution", status: "queued" },
-    { id: "quality_director", role: "review", status: "queued" },
-  ];
+function agentsFor(playbook: TeamPlaybook): MissionAgent[] {
+  return playbook.agents.map((agentId) => ({
+    id: agentId,
+    role: playbook.steps.find((step) => step.toLowerCase().includes(agentId.replace(/_/g, " "))) ?? playbook.name,
+    status: "queued",
+  }));
 }
 
 export function createMissionRuntime(command: string, missionId?: string): MissionRuntime {
   const createdAt = now();
   const type = detectMissionType(command);
+  const playbook = selectTeamPlaybook(command, type);
   return {
     missionId: missionId ?? id("mission"),
     command,
     type,
     status: "queued",
     steps: baseSteps(type).map((step) => ({ ...step, status: "queued", updatedAt: createdAt })),
-    agents: agentsFor(type),
+    agents: agentsFor(playbook),
     events: [{
       id: id("event"),
       type: "mission_queued",
@@ -189,6 +185,7 @@ export function createMissionRuntime(command: string, missionId?: string): Missi
       createdAt,
     }],
     deliverables: [],
+    playbook,
     providerUsed: "none",
     sourceType: "none",
     providerResults: [],
@@ -219,8 +216,14 @@ export function runMissionAgents(mission: MissionRuntime, options: { imageProvid
     imageProviderAvailable: options.imageProviderAvailable,
     localPrototypeRequested: options.localPrototypeRequested,
     deliverables: mission.deliverables,
+    agentSequence: mission.playbook.agents,
+    playbookId: mission.playbook.id,
   });
   mission.agentRuns.push(...flow.runs);
+  mission.agents = mission.agents.map((agent) => ({
+    ...agent,
+    status: flow.runs.some((run) => run.agentId === agent.id) ? "completed" : agent.status,
+  }));
   mission.criticResult = flow.critic;
   mission.reviewerResult = flow.reviewer;
   mission.retryEvents.push(...flow.retryEvents);
@@ -312,6 +315,7 @@ export function addProviderResult(mission: MissionRuntime, result: ProviderResul
     capability: result.capability,
     success: result.success,
     artifactId: result.artifactId,
+    agentId: result.agentId,
     error: result.error,
     durationMs: result.durationMs,
   });
@@ -378,7 +382,7 @@ export async function planLogoMissionWithoutProvider(command: string, missionId?
   blockMissionStep(mission, "livrable_ou_action", "Action utilisateur requise pour brancher un provider ou demander un prototype local.");
   mission.agents = mission.agents.map((agent) => ({
     ...agent,
-    status: agent.id === "quality_director" ? "blocked" : "completed",
+    status: agent.id === "nvidia_image_agent" ? "blocked" : "completed",
   }));
   addDeliverable(mission, {
     type: "brief",
@@ -510,6 +514,7 @@ export async function runLogoMissionWithImageProvider(command: string, missionId
 
   setMissionStatus(mission, "running");
   addMissionEvent(mission, "nvidia_image_generation_started", "NVIDIA image generation started.", {
+    agentId: "nvidia_image_agent",
     providerUsed: "nvidia",
     sourceType: "nvidia_image",
   });
@@ -522,7 +527,7 @@ export async function runLogoMissionWithImageProvider(command: string, missionId
   });
 
   if (!imageProvider.success || !imageProvider.output) {
-    addProviderResult(mission, imageProvider);
+    addProviderResult(mission, { ...imageProvider, agentId: "nvidia_image_agent" });
     blockMissionStep(mission, "validation_provider", imageProvider.error ?? "NVIDIA image provider unavailable.");
     blockMissionStep(mission, "livrable_ou_action", "Action requise: vérifier la configuration NVIDIA image ou demander un prototype local explicite.");
     setMissionStatus(mission, "needs_action");
@@ -538,7 +543,7 @@ export async function runLogoMissionWithImageProvider(command: string, missionId
     providerUsed: "nvidia",
     content: imageProvider.output,
   });
-  addProviderResult(mission, { ...imageProvider, artifactId: artifact.artifactId });
+  addProviderResult(mission, { ...imageProvider, artifactId: artifact.artifactId, agentId: "nvidia_image_agent" });
   addDeliverable(mission, {
     type: "artifact",
     title: `Image logo NVIDIA ${workOrder.brandName ?? "marque"}`,
