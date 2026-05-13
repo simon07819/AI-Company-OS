@@ -1091,6 +1091,12 @@ interface RuntimeProofPayload {
       providerUsed?: string;
       sourceType?: string;
       playbook?: { id?: string; name?: string };
+      memoryContext?: {
+        summary?: string;
+        preferences?: string[];
+        avoidStyles?: string[];
+      };
+      memoryWrites?: Array<{ id?: string; source?: string }>;
       agentRuns?: Array<{
         agentId?: string;
         name?: string;
@@ -1273,6 +1279,11 @@ function ExpertRuntimeProofPanel() {
             <p style={{ margin: 0 }}>artifactId: {artifactId}</p>
             <p style={{ margin: 0 }}>playbook: {runtime?.playbook?.id ?? "unknown"}</p>
             <p style={{ margin: 0 }}>duree: {diagnostic?.durationMs ?? 0}ms</p>
+            <strong style={{ display: "block", color: "var(--text)", marginTop: 8, marginBottom: 4 }}>Mémoire</strong>
+            <p style={{ margin: 0 }}>contexte chargé: {runtime?.memoryContext?.summary ? "oui" : "non"}</p>
+            <p style={{ margin: 0 }}>préférences: {runtime?.memoryContext?.preferences?.join(", ") || "none"}</p>
+            <p style={{ margin: 0 }}>à éviter: {runtime?.memoryContext?.avoidStyles?.join(", ") || "none"}</p>
+            <p style={{ margin: 0 }}>nouvelles mémoires: {runtime?.memoryWrites?.map((entry) => entry.id).join(", ") || "none"}</p>
           </div>
           <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
             {agents.length ? <TeamTimeline runs={agents} retries={retries} compact /> : (

@@ -312,6 +312,23 @@ describe("CEO command components", () => {
     expect(screen.getAllByText(/providerUsed: local_rules/).length).toBeGreaterThan(0);
   });
 
+  it("exposes memory actions without showing memory internals in simple mode", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ ok: true, memoryId: "memory-1" }), { status: 200 }));
+    render(React.createElement(CEOCommandSurface));
+
+    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "logo EKIDA noir ChatGPT pas bleu" } });
+    fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ceo/command", expect.any(Object)));
+    fetchMock.mockResolvedValueOnce(new Response(JSON.stringify({ ok: true, memoryId: "memory-1" }), { status: 200 }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Retenir cette direction" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Retenir cette direction" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/ceo/memory", expect.any(Object)));
+    expect(screen.queryByText("Mémoire équipe")).not.toBeInTheDocument();
+    fetchMock.mockRestore();
+  });
+
   it("does not fake success when artifacts are missing", () => {
     render(React.createElement(CEOResultStage, {
       result: { ...result, artifactPaths: [], workspaceHref: undefined, status: "rejected", qualityStatus: "Aucun artifact réel créé" },

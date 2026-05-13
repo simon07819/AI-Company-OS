@@ -6,7 +6,7 @@ import ChatAttachmentGrid from "./ChatAttachmentGrid";
 import CEOResultDetails from "./CEOResultDetails";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
-import type { CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
+import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function responseIntro(result: CEOCurrentResult) {
   if (result.shortMessage) return result.shortMessage;
@@ -101,12 +101,14 @@ function CEOResultMessage({
   expertMode,
   onModify,
   onLogoAction,
+  onMemoryAction,
 }: {
   result: CEOCurrentResult;
   mission: CEOCurrentMission | null;
   expertMode: boolean;
   onModify: () => void;
   onLogoAction: (action: CEOMissionAction, promptOverride?: string) => void;
+  onMemoryAction: (action: CEOMemoryAction, result: CEOCurrentResult) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
@@ -190,6 +192,18 @@ function CEOResultMessage({
           <Info size={15} />
           Voir travail de l’équipe
         </button>
+        <button type="button" onClick={() => onMemoryAction("retain_direction", result)}>
+          Retenir cette direction
+        </button>
+        <button type="button" onClick={() => onMemoryAction("reject_direction", result)}>
+          Refuser cette direction
+        </button>
+        <button type="button" onClick={() => onMemoryAction("avoid_style", result)}>
+          Ne plus proposer ce style
+        </button>
+        <button type="button" onClick={() => onMemoryAction("use_style_for_project", result)}>
+          Utiliser ce style pour ce projet
+        </button>
       </div>
       {detailsOpen && <CEOResultDetails result={result} mission={mission} expertMode={expertMode} />}
     </article>
@@ -206,6 +220,7 @@ export default function CEOResultStage({
   pendingAttachments = [],
   onModify,
   onLogoAction = () => {},
+  onMemoryAction = () => {},
 }: {
   result: CEOCurrentResult | null;
   mission: CEOCurrentMission | null;
@@ -216,6 +231,7 @@ export default function CEOResultStage({
   pendingAttachments?: ChatAttachment[];
   onModify: () => void;
   onLogoAction?: (action: CEOMissionAction, promptOverride?: string) => void;
+  onMemoryAction?: (action: CEOMemoryAction, result: CEOCurrentResult) => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
@@ -281,6 +297,7 @@ export default function CEOResultStage({
               expertMode={expertMode}
               onModify={onModify}
               onLogoAction={(action) => onLogoAction(action, turn.mission.prompt)}
+              onMemoryAction={onMemoryAction}
             />
           </div>
         ))}
@@ -297,7 +314,7 @@ export default function CEOResultStage({
         </article>
       )}
 
-      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} />
+      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} onMemoryAction={onMemoryAction} />
     </section>
   );
 }

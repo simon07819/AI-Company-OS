@@ -5681,6 +5681,12 @@ html[data-theme="dark"] .ceo-os-result-details {
   color: #f59e0b !important;
 }
 
+.ceo-memory-notice {
+  margin: 0 18px 6px;
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
 .ceo-chat-visual-reply.product {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px 20px 20px 5px;

@@ -120,3 +120,9 @@ export type CEOMissionAction =
   | "create_visual_prompts"
   | "request_local_prototype"
   | "modify_current_deliverable";
+
+export type CEOMemoryAction =
+  | "retain_direction"
+  | "reject_direction"
+  | "avoid_style"
+  | "use_style_for_project";

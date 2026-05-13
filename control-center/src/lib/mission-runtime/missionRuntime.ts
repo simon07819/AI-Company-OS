@@ -19,6 +19,14 @@ import {
   type MissionPlaybookType,
   type TeamPlaybook,
 } from "@/lib/mission-runtime/teamPlaybooks";
+import {
+  buildCompanyMemoryContext,
+  defaultCompanyId,
+  inferPreferencesFromCommand,
+  recordCompanyMemory,
+  type CompanyMemoryContext,
+  type CompanyMemoryEntry,
+} from "@/lib/memory/companyMemory";
 
 export type MissionType = MissionPlaybookType;
 
@@ -93,6 +101,9 @@ export interface MissionRuntime {
   events: MissionEvent[];
   deliverables: MissionDeliverable[];
   playbook: TeamPlaybook;
+  companyId: string;
+  memoryContext: CompanyMemoryContext;
+  memoryWrites: CompanyMemoryEntry[];
   providerUsed: string;
   sourceType: MissionSourceType;
   providerResults: ProviderResult[];
@@ -171,6 +182,8 @@ export function createMissionRuntime(command: string, missionId?: string): Missi
   const createdAt = now();
   const type = detectMissionType(command);
   const playbook = selectTeamPlaybook(command, type);
+  const companyId = defaultCompanyId();
+  const memoryContext = buildCompanyMemoryContext({ companyId, missionType: type, command });
   return {
     missionId: missionId ?? id("mission"),
     command,
@@ -186,6 +199,9 @@ export function createMissionRuntime(command: string, missionId?: string): Missi
     }],
     deliverables: [],
     playbook,
+    companyId,
+    memoryContext,
+    memoryWrites: [],
     providerUsed: "none",
     sourceType: "none",
     providerResults: [],
@@ -213,6 +229,7 @@ export function runMissionAgents(mission: MissionRuntime, options: { imageProvid
     command: mission.command,
     sourceType: mission.sourceType,
     providerUsed: mission.providerUsed,
+    memoryContext: mission.memoryContext.summary,
     imageProviderAvailable: options.imageProviderAvailable,
     localPrototypeRequested: options.localPrototypeRequested,
     deliverables: mission.deliverables,
@@ -229,6 +246,7 @@ export function runMissionAgents(mission: MissionRuntime, options: { imageProvid
   mission.retryEvents.push(...flow.retryEvents);
   mission.retries += flow.retries;
   mission.finalDecision = flow.finalDecision;
+  persistMissionMemory(mission);
   for (const retry of flow.retryEvents) {
     addMissionEvent(mission, "retry", `Retry ${retry.attempt}: ${retry.changedDirection}`, {
       attempt: retry.attempt,
@@ -244,6 +262,40 @@ export function runMissionAgents(mission: MissionRuntime, options: { imageProvid
     passed: flow.reviewer.passed,
     decision: flow.reviewer.decision,
     issues: flow.reviewer.issues,
+  });
+  return mission;
+}
+
+function persistMissionMemory(mission: MissionRuntime) {
+  if (mission.memoryWrites.some((entry) => entry.source === "mission_runtime")) return mission;
+  const inferred = inferPreferencesFromCommand(mission.command);
+  const reviewerNotes = [
+    mission.reviewerResult?.summary,
+    ...(mission.reviewerResult?.issues ?? []),
+  ].filter(Boolean) as string[];
+  const entry = recordCompanyMemory({
+    companyId: mission.companyId,
+    missionId: mission.missionId,
+    missionType: mission.type,
+    userPreferences: inferred.preferences,
+    acceptedDecisions: mission.finalDecision ? [`final_decision:${mission.finalDecision}`] : [],
+    visualStylePreferred: inferred.preferences,
+    visualStyleRejected: inferred.rejected,
+    repeatedCritiques: mission.criticResult?.issues ?? [],
+    retainedBranding: mission.deliverables.filter((item) => item.sourceType !== "provider_unavailable").map((item) => item.title),
+    effectivePrompts: mission.deliverables.filter((item) => item.type === "visual_prompts").flatMap((item) => item.content ? [item.content] : []),
+    acceptedArtifacts: mission.reviewerResult?.passed ? mission.deliverables.flatMap((item) => item.artifactId ? [item.artifactId] : []) : [],
+    rejectedArtifacts: mission.reviewerResult?.passed ? [] : mission.deliverables.flatMap((item) => item.artifactId ? [item.artifactId] : []),
+    reviewerNotes,
+    source: "mission_runtime",
+  });
+  mission.memoryWrites.push(entry);
+  mission.memoryContext = buildCompanyMemoryContext({ companyId: mission.companyId, missionType: mission.type, command: mission.command });
+  addMissionEvent(mission, "memory_saved", "Company memory updated.", {
+    memoryId: entry.id,
+    companyId: entry.companyId,
+    preferences: entry.userPreferences,
+    avoidStyles: entry.visualStyleRejected,
   });
   return mission;
 }

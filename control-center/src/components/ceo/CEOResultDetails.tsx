@@ -92,6 +92,21 @@ export default function CEOResultDetails({
       durationMs?: number;
     }>;
     deliverables?: Array<{ artifactId?: string; title?: string; providerUsed?: string; sourceType?: string }>;
+    memoryContext?: {
+      summary?: string;
+      preferences?: string[];
+      avoidStyles?: string[];
+      retainedBranding?: string[];
+      entries?: unknown[];
+    };
+    memoryWrites?: Array<{
+      id?: string;
+      userPreferences?: string[];
+      visualStyleRejected?: string[];
+      acceptedDecisions?: string[];
+      reviewerNotes?: string[];
+      source?: string;
+    }>;
     agentRuns?: Array<{
       agentId?: string;
       name?: string;
@@ -297,6 +312,15 @@ export default function CEOResultDetails({
                 </li>
               ))}
             </ul>
+          ) : null}
+          {(runtime?.memoryContext || runtime?.memoryWrites?.length) ? (
+            <div>
+              <strong>Mémoire équipe</strong>
+              {runtime.memoryContext?.summary ? <p>{runtime.memoryContext.summary}</p> : <p>Aucun contexte mémoire appliqué.</p>}
+              {runtime.memoryContext?.preferences?.length ? <p>Préférences appliquées: {runtime.memoryContext.preferences.join(", ")}</p> : null}
+              {runtime.memoryContext?.avoidStyles?.length ? <p>Styles refusés: {runtime.memoryContext.avoidStyles.join(", ")}</p> : null}
+              {runtime.memoryWrites?.length ? <p>Nouvelles mémoires: {runtime.memoryWrites.map((entry) => entry.id).join(", ")}</p> : null}
+            </div>
           ) : null}
           {runtime?.agentRuns?.length ? (
             <div>

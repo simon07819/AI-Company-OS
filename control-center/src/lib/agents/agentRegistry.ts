@@ -21,6 +21,7 @@ export interface AgentInput {
   command: string;
   sourceType: string;
   providerUsed: string;
+  memoryContext?: string;
   imageProviderAvailable: boolean;
   localPrototypeRequested?: boolean;
   deliverables: Array<{
@@ -59,6 +60,7 @@ export interface AgentRun {
     attempt: number;
     playbookId?: string;
     playbookStepId?: string;
+    memoryContext?: string;
   };
   output: AgentOutput;
   providerUsed: string;
@@ -107,6 +109,7 @@ function combinedText(input: AgentInput) {
     input.sourceType,
     input.providerUsed,
     input.playbookId ?? "",
+    input.memoryContext ?? "",
     ...input.deliverables.flatMap((deliverable) => [
       deliverable.title,
       deliverable.type ?? "",
@@ -343,6 +346,7 @@ export function runAgent(agentId: AgentId, input: AgentInput): AgentRun {
       attempt: input.attempt,
       playbookId: input.playbookId,
       playbookStepId: input.playbookStepId,
+      memoryContext: input.memoryContext,
     },
     output,
     providerUsed: "local_rules",

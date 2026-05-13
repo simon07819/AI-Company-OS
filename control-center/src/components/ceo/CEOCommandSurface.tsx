@@ -5,7 +5,7 @@ import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOResultStage from "./CEOResultStage";
 import { attachmentPayload } from "./attachments";
-import type { CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
+import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
 interface CommandResponse {
   ok: boolean;
@@ -110,6 +110,7 @@ export default function CEOCommandSurface() {
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
 
   const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], action?: CEOMissionAction) => {
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
@@ -198,6 +199,32 @@ export default function CEOCommandSurface() {
     }
   };
 
+  const writeMemoryAction = async (action: CEOMemoryAction, currentResult: CEOCurrentResult) => {
+    setMemoryNotice(null);
+    const missionId = mission?.id ?? currentResult.primaryArtifactId ?? currentResult.artifactId ?? "manual-memory";
+    const text = action === "avoid_style"
+      ? currentResult.summary || currentResult.title
+      : currentResult.title || currentResult.summary;
+    try {
+      const response = await fetch("/api/ceo/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action,
+          missionId,
+          missionType: currentResult.deliverableType ?? currentResult.requestType ?? "general",
+          text,
+          artifactId: currentResult.primaryArtifactId ?? currentResult.artifactId,
+          brandName: currentResult.brandName,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      setMemoryNotice(response.ok && payload.ok ? "Mémoire mise à jour." : "Mémoire non enregistrée.");
+    } catch {
+      setMemoryNotice("Mémoire non enregistrée.");
+    }
+  };
+
   return (
     <main className="ceo-chat-page">
       <AttachmentDropzone disabled={loading} onFiles={(files) => setDroppedFiles(files)}>
@@ -222,8 +249,10 @@ export default function CEOCommandSurface() {
             pendingAttachments={pendingAttachments}
             onModify={() => submitCommand(mission?.prompt || result?.brandName || "Modifier le livrable", mission?.attachments ?? [], "modify_current_deliverable")}
             onLogoAction={(nextAction, promptOverride) => submitCommand(promptOverride || mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
+            onMemoryAction={writeMemoryAction}
             onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
           />
+          {memoryNotice && <p className="ceo-memory-notice">{memoryNotice}</p>}
 
           <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
         </section>
