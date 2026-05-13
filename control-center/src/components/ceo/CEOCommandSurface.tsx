@@ -33,10 +33,10 @@ interface CommandResponse {
 
 function detectRequestType(prompt: string): CEORequestType {
   const normalized = prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/site web|site internet|website|landing|page web|homepage|page d'accueil/.test(normalized)) return "website";
   if (/\blogo\b/.test(normalized)) return "branding";
   if (/branding|identite|marque/.test(normalized)) return "branding";
   if (/\bsaas\b|logiciel/.test(normalized)) return "saas";
-  if (/site web|site internet|website|landing/.test(normalized)) return "website";
   if (/\bapp\b|application/.test(normalized)) return "app";
   if (/automation|automatisation|workflow|systeme|système/.test(normalized)) return "business-system";
   return "unknown";

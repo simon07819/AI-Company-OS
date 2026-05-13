@@ -34,6 +34,19 @@ function usesDarkLogoBackground(prompt?: string) {
   return /sur\s+fond\s+noir|fond\s+noir/i.test(prompt ?? "");
 }
 
+function hasValidatedPrimaryVisual(result: CEOCurrentResult) {
+  const visual = result.primaryVisual ?? "";
+  if (!visual) return false;
+  if (/Brand system|Marque à nommer|Prototype visuel|legacy|fallback/i.test(visual)) return false;
+  if (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") {
+    return /<svg[\s>]/i.test(visual) && /\bviewBox=/i.test(visual);
+  }
+  if (result.deliverableType === "website" || result.deliverableType === "landing_page" || result.requestType === "website") {
+    return /<svg[\s>]|<html[\s>]|aria-label=["'](?:nav|hero|sections)["']/i.test(visual);
+  }
+  return true;
+}
+
 function CEOResultMessage({
   result,
   mission,
@@ -47,20 +60,22 @@ function CEOResultMessage({
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
-  const isBranding = result.requestType === "branding" || result.requestType === "logo";
   const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
-  const isLogoDeliverable = isBranding && (result.deliverableType === "logo" || /^Logo\s+/i.test(result.title) || Boolean(result.brandName));
+  const isLogoDeliverable = !isWebsite && (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo" || /^Logo\s+/i.test(result.title));
+  const hasValidPrimaryVisual = hasValidatedPrimaryVisual(result);
+  const requiresVisual = isLogoDeliverable;
+  const isRenderable = hasArtifacts && (!requiresVisual || hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
 
   return (
-    <article className={`ceo-chat-message ceo ${hasArtifacts ? "ready" : "failed"}`}>
+    <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
       {!isLogoDeliverable && !isWebsite && <p>{responseIntro(result)}</p>}
-      {hasArtifacts ? (
-        <div className={isBranding ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
-          {isBranding ? (
-            <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
-          ) : isWebsite ? (
+      {isRenderable ? (
+        <div className={isLogoDeliverable ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
+          {isWebsite && hasValidPrimaryVisual ? (
             <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
+          ) : isLogoDeliverable ? (
+            <LogoFinalAnswer brandName={brandName} darkBackground={usesDarkLogoBackground(mission?.prompt)} svg={result.primaryVisual} />
           ) : (
             <>
               <strong>{result.title}</strong>

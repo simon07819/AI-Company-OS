@@ -119,6 +119,8 @@ describe("AI Company OS new version regression suite", () => {
           brandName: "ELEVIO",
           deliverableType: "logo",
           shortMessage: "Voici une première version du logo ELEVIO.",
+          primaryArtifactId: "artifact-elevio-logo",
+          primaryVisual: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 240" role="img" aria-label="Logo ELEVIO"><rect width="400" height="240" fill="#030712"/><path d="M92 82h72M92 120h54M92 158h72" stroke="#fff" stroke-width="18" stroke-linecap="round"/><text x="220" y="137" fill="#fff" font-size="52" font-weight="900">ELEVIO</text></svg>`,
           projectId: "elevio-brand-system",
           workspaceHref: "/projects/elevio-brand-system",
           requestType: "branding",

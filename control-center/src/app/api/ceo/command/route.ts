@@ -31,6 +31,19 @@ function readTextArtifact(artifactPath: string | null) {
   return fs.readFileSync(absolute, "utf-8");
 }
 
+function containsLegacyVisualMarker(value?: string | null) {
+  return /Brand system|Marque à nommer|Prototype visuel|legacy|fallback/i.test(value ?? "");
+}
+
+function isValidWorkflowPrimaryVisual(value: string | null | undefined, deliverableType: string, requestType: string) {
+  if (!value || containsLegacyVisualMarker(value)) return false;
+  if (deliverableType === "logo") return /<svg[\s>]/i.test(value) && /\bviewBox=/i.test(value);
+  if (requestType === "website" || deliverableType === "website" || deliverableType === "landing_page") {
+    return /<svg[\s>]|<html[\s>]/i.test(value) && /aria-label=["'](?:nav|hero|sections)["']|<nav\b|<header\b/i.test(value);
+  }
+  return true;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -84,25 +97,36 @@ export async function POST(req: NextRequest) {
       : firstVisualArtifact(artifactPaths);
     const filePrimaryVisual = readTextArtifact(primaryVisualPath);
     const workflowVisibleOutput = companyWorkflow.visibleOutput as { primaryVisual?: string; primaryArtifactId?: string } | null;
-    const primaryVisual = workflowVisibleOutput?.primaryVisual ?? filePrimaryVisual;
+    const requiresValidatedWorkflowVisual = workOrder.deliverableType === "logo" || workOrder.requestType === "website";
+    const workflowPrimaryVisual = workflowVisibleOutput?.primaryVisual ?? null;
+    const validWorkflowPrimaryVisual = isValidWorkflowPrimaryVisual(workflowPrimaryVisual, workOrder.deliverableType, workOrder.requestType);
+    const primaryVisual = requiresValidatedWorkflowVisual
+      ? validWorkflowPrimaryVisual ? workflowPrimaryVisual : null
+      : workflowPrimaryVisual ?? filePrimaryVisual;
+    const primaryArtifactId = requiresValidatedWorkflowVisual && !validWorkflowPrimaryVisual ? undefined : workflowVisibleOutput?.primaryArtifactId;
     const primaryArtifactFingerprint = primaryVisual ? createArtifactFingerprint(primaryVisual) : undefined;
+    const responseDeliverableType = workOrder.deliverableType === "landing_page" ? "website" : workOrder.deliverableType;
 
-    if (!hasArtifacts) {
+    if (!hasArtifacts || (requiresValidatedWorkflowVisual && (!primaryVisual || !primaryArtifactId))) {
       return NextResponse.json({
         ok: false,
         missionId: run.id,
         projectId: run.projectSlug,
-        title: run.manifest.title,
-        requestType: run.plan.requestType,
-        brandName: run.plan.brandName ?? null,
-        deliverableType: run.plan.requestType === "branding" && workOrder.deliverableType === "logo" ? "logo" : run.plan.requestType,
+        title: workOrder.deliverableType === "logo" ? "Logo non généré" : "Livrable non généré",
+        requestType: workOrder.requestType,
+        brandName: workOrder.brandName ?? null,
+        deliverableType: responseDeliverableType,
         status: "failed",
-        summary: "La production n'a créé aucun artifact réel.",
+        summary: requiresValidatedWorkflowVisual
+          ? "Le workflow validé n'a pas produit de livrable visuel exploitable."
+          : "La production n'a créé aucun artifact réel.",
         artifactPaths: [],
         artifacts: [],
         workspaceHref: null,
         qualityScore: run.manifest.qualityScore,
-        error: "Aucun fichier traçable n'a été créé. Le projet n'est pas marqué prêt.",
+        error: requiresValidatedWorkflowVisual
+          ? "Aucun fallback legacy n'a été affiché."
+          : "Aucun fichier traçable n'a été créé. Le projet n'est pas marqué prêt.",
       }, { status: 500 });
     }
 
@@ -111,17 +135,17 @@ export async function POST(req: NextRequest) {
       missionId: run.id,
       projectId: run.projectSlug,
       title: run.manifest.title,
-      requestType: run.plan.requestType,
-      brandName: run.plan.brandName ?? null,
-      deliverableType: run.plan.requestType === "branding" && workOrder.deliverableType === "logo" ? "logo" : run.plan.requestType,
+      requestType: workOrder.requestType,
+      brandName: workOrder.brandName ?? null,
+      deliverableType: responseDeliverableType,
       status: run.status === "ready" ? "ready" : run.status === "needs_revision" ? "needs_revision" : "rejected",
       summary: run.manifest.summary,
-      shortMessage: run.plan.requestType === "branding" && run.plan.brandName && /\blogo\b/i.test(prompt)
-        ? `Voici une première version du logo ${run.plan.brandName}.`
+      shortMessage: workOrder.deliverableType === "logo" && workOrder.brandName && /\blogo\b/i.test(prompt)
+        ? `Voici une première version du logo ${workOrder.brandName}.`
         : undefined,
       primaryVisualPath,
       primaryVisual,
-      primaryArtifactId: workflowVisibleOutput?.primaryArtifactId,
+      primaryArtifactId,
       primaryArtifactFingerprint,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
