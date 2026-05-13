@@ -64,7 +64,7 @@ describe("CEO command API", () => {
     expect(payload.artifactPaths.join("\n")).toMatch(/patients|appointments|product-spec\.json|README\.md/);
   });
 
-  it("returns a useful local vector logo prototype when no advanced visual provider is configured", async () => {
+  it("does not return a local fake logo visual when no real visual provider is configured", async () => {
     const response = await postCommand("Je veux un logo sportif pour une compagnie qui s'appelle ELEVIO");
     const payload = await response.json();
 
@@ -73,17 +73,19 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_revision");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("ELEVIO");
-    expect(payload.title).toBe("Prototype de logo");
-    expect(payload.summary).toBe("Prototype préparé avec le générateur vectoriel local. Pour un rendu final photoréaliste/avancé, branche un générateur image.");
-    expect(payload.primaryVisual).toContain("<svg");
-    expect(payload.primaryVisual).toContain("ELEVIO");
-    expect(payload.primaryArtifactId).toMatch(/^local-vector-prototype-/);
-    expect(payload.prototypeVariants.length).toBeGreaterThanOrEqual(3);
+    expect(payload.title).toBe("Aucun générateur visuel réel branché");
+    expect(payload.summary).toBe("Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.sourceType).toBe("none");
     expect(payload.artifactPaths).toEqual([]);
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|>\s*B\s*</);
+    expect(payload.expert.diagnostic.localRendererFile).toBe("src/lib/design-team/logoWorkflow.ts");
+    expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
+    expect(payload.expert.diagnostic.artifactsCreated).toBe(false);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*B\s*</);
   });
 
-  it("prepares an EKIDA prototype through the local vector workflow without legacy markers", async () => {
+  it("traces and blocks the EKIDA local SVG renderer path", async () => {
     const response = await postCommand("logo EKIDA sur fond noir");
     const payload = await response.json();
 
@@ -92,24 +94,26 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_revision");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("EKIDA");
-    expect(payload.title).toBe("Prototype de logo");
+    expect(payload.title).toBe("Aucun générateur visuel réel branché");
     expect(payload.shortMessage).toBeUndefined();
     expect(payload.primaryVisualPath).toBeNull();
-    expect(payload.primaryVisual).toContain("<svg");
-    expect(payload.primaryVisual).toContain("EKIDA");
-    expect(payload.primaryArtifactId).toMatch(/^local-vector-prototype-/);
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryArtifactId).toBeNull();
     expect(payload.artifactPaths).toEqual([]);
-    expect(payload.expert.productionStatus).toBe("local_vector_prototype");
-    expect(payload.expert.runtime.finalStatus).toBe("completed");
+    expect(payload.expert.productionStatus).toBe("blocked_no_real_visual_provider");
+    expect(payload.expert.runtime.finalStatus).toBe("blocked");
     expect(payload.expert.runtime.steps.map((step: { state: string }) => step.state)).toEqual(
       expect.arrayContaining(["queued", "planning", "researching", "generating", "reviewing", "validating"]),
     );
     expect(payload.expert.runtime.provider.visualProviderConfigured).toBe(false);
-    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Prototype vectoriel local préparé et affiché sans le qualifier de final.");
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|>\s*[AB]\s*</);
+    expect(payload.expert.diagnostic.sourceType).toBe("blocked");
+    expect(payload.expert.diagnostic.disabledSource).toBe("local_svg_renderer");
+    expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
+    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Source locale du faux SVG identifiée: src/lib/design-team/logoWorkflow.ts.");
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
   });
 
-  it("extracts PROSHOTS and prepares a prototype with photo sport context", async () => {
+  it("extracts PROSHOTS but does not generate a fake visual without a real visual provider", async () => {
     const response = await postCommand("fais-moi un logo pour PROSHOTS ses des photographes sportifs");
     const payload = await response.json();
 
@@ -117,10 +121,10 @@ describe("CEO command API", () => {
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe("needs_revision");
     expect(payload.brandName).toBe("PROSHOTS");
-    expect(payload.primaryVisual).toContain("<svg");
-    expect(payload.primaryVisual).toContain("PROSHOTS");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.expert.diagnostic.providerUsed).toBe("none");
     expect(payload.artifactPaths).toEqual([]);
-    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer/);
+    expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|<svg/);
   });
 
   it("routes a page web request with a logo asset to a website preview, not the previous logo", async () => {

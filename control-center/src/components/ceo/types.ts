@@ -61,6 +61,8 @@ export interface CEOCurrentResult {
   primaryVisual?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
+  sourceType?: "real-image-provider" | "nvidia" | "local" | "mock" | "fallback" | "none" | string;
+  providerUsed?: string | null;
   prototypeVariants?: Array<{
     id?: string;
     title: string;
@@ -80,6 +82,7 @@ export interface CEOCurrentResult {
     revisions?: unknown;
     manifest?: unknown;
     runtime?: unknown;
+    diagnostic?: unknown;
     companyWorkflow?: unknown;
     prototype?: unknown;
   };

@@ -38,6 +38,8 @@ function usesDarkLogoBackground(prompt?: string) {
 function hasValidatedPrimaryVisual(result: CEOCurrentResult) {
   const visual = result.primaryVisual ?? "";
   if (!visual) return false;
+  if (/mock|local|fallback/i.test(String(result.sourceType ?? ""))) return false;
+  if ((result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") && !result.primaryArtifactId && result.artifactPaths.length === 0) return false;
   if (/Brand system|Marque à nommer|Prototype visuel|legacy|fallback/i.test(visual)) return false;
   if (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") {
     return /<svg[\s>]/i.test(visual) && /\bviewBox=/i.test(visual);
@@ -67,6 +69,7 @@ function CEOResultMessage({
   const requiresVisual = isLogoDeliverable;
   const isRenderable = requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result);
   const brandName = brandNameFromResult(result);
+  const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
@@ -99,7 +102,7 @@ function CEOResultMessage({
       <div className="ceo-chat-actions">
         <button type="button" onClick={onModify}>
           <Wand2 size={15} />
-          Modifier
+          {modifyLabel}
         </button>
         <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
           <Info size={15} />

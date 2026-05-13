@@ -10,7 +10,6 @@ import { createMissionMemoryStore, reusableAssetFromMission } from "@/agents/mem
 import { decideContextReuse } from "@/agents/memory/reuse-policy";
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
-import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -54,16 +53,15 @@ function hasNvidiaRuntimeProvider() {
   return Boolean(process.env.NVIDIA_API_KEY && process.env.NVIDIA_API_KEY.length >= 8);
 }
 
-function logoProductionStages(brandName?: string | null) {
+function logoProductionStages(brandName?: string | null, durationMs = 0) {
   const brand = brandName ?? "la marque";
   return [
     { id: "brief", label: "Brief", status: "completed", detail: `Brief de logo préparé pour ${brand}.` },
-    { id: "research", label: "Recherche", status: "completed", detail: "Références et contraintes préparées pour un prototype vectoriel local." },
-    { id: "art_direction", label: "Direction artistique", status: "completed", detail: "Directions monogramme, symbole et emblème préparées." },
-    { id: "concepts", label: "Concepts", status: "completed", detail: "Variantes SVG prototype générées localement." },
-    { id: "critique", label: "Critique", status: "completed", detail: "Concepts text-only, placeholders et initiales hors sujet rejetés." },
-    { id: "refinement", label: "Amélioration", status: "completed", detail: "Prototype retenu ajusté avant affichage." },
-    { id: "selection", label: "Sélection", status: "completed", detail: "Prototype sélectionné comme livrable non final." },
+    { id: "research", label: "Recherche", status: "blocked", detail: "Recherche visuelle non lancée: aucun générateur visuel réel branché." },
+    { id: "art_direction", label: "Direction artistique", status: "blocked", detail: "Directions créatives à préparer sur demande, sans image affichée." },
+    { id: "concepts", label: "Concepts", status: "blocked", detail: "SVG local/mock désactivé en mode simple." },
+    { id: "critique", label: "Critique", status: "blocked", detail: "Aucun candidat visuel réel à critiquer." },
+    { id: "selection", label: "Sélection", status: "blocked", detail: `Aucun livrable visuel réel sélectionné. Durée route: ${durationMs}ms.` },
   ];
 }
 
@@ -96,6 +94,7 @@ function sanitizeAttachments(value: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
   try {
     const body = await req.json().catch(() => ({}));
     const attachments = sanitizeAttachments(body.attachments);
@@ -144,23 +143,21 @@ export async function POST(req: NextRequest) {
 
     if (preliminaryWorkOrder.deliverableType === "logo" && !hasRealLogoVisualProvider()) {
       await holdVisibleProductionState();
-      const prototype = runDesignTeamWorkflow(prompt);
-      const primaryArtifactFingerprint = createArtifactFingerprint(prototype.primaryVisual);
-      const stages = logoProductionStages(preliminaryWorkOrder.brandName);
-      const prompts = buildLogoPrototypePrompts(preliminaryWorkOrder.brandName, prototype.brief.style);
+      const durationMs = Date.now() - startedAt;
+      const stages = logoProductionStages(preliminaryWorkOrder.brandName, durationMs);
+      const prompts = buildLogoPrototypePrompts(preliminaryWorkOrder.brandName);
       const limitations = [
-        "Prototype vectoriel local, pas un logo final.",
-        "Aucun générateur image avancé n'est branché pour produire une version finale photoréaliste ou exploratoire.",
-        "Les prompts fournis peuvent être utilisés dans un générateur image/design externe.",
+        "Aucun générateur visuel réel branché.",
+        "Le générateur SVG local/mock est désactivé pour ne pas afficher de faux logo.",
+        "Le CEO peut préparer le brief, les prompts et les directions créatives.",
       ];
       const runtime = buildMissionLifecycleTrace({
         workOrder: preliminaryWorkOrder,
         nvidiaConfigured: hasNvidiaRuntimeProvider(),
         visualProviderConfigured: false,
-        completed: true,
-        localPrototypeGenerated: true,
-        blockers: ["external_image_generator_missing"],
-        retryReasons: ["Prototype vectoriel local produit en attendant un générateur image/design avancé."],
+        completed: false,
+        blockers: ["real_visual_provider_missing", "local_svg_renderer_disabled"],
+        retryReasons: ["Aucun générateur image/design réel n'est configuré."],
       });
       memoryStore.addTurn({
         id: preliminaryWorkOrder.turnId,
@@ -169,32 +166,27 @@ export async function POST(req: NextRequest) {
         missionId: preliminaryWorkOrder.missionId,
         deliverableType: preliminaryWorkOrder.deliverableType,
         brandName: preliminaryWorkOrder.brandName,
-        visibleOutputKind: "visual",
-        primaryArtifactId: `local-vector-prototype-${preliminaryWorkOrder.missionId}`,
-        primaryArtifactFingerprint,
-        status: "approved",
+        visibleOutputKind: "none",
+        status: "failed",
       });
 
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
         projectId: null,
-        title: "Prototype de logo",
+        title: "Aucun générateur visuel réel branché",
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType: "logo",
         status: "needs_revision",
-        summary: "Prototype préparé avec le générateur vectoriel local. Pour un rendu final photoréaliste/avancé, branche un générateur image.",
+        summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
         shortMessage: undefined,
         primaryVisualPath: null,
-        primaryVisual: prototype.primaryVisual,
-        primaryArtifactId: `local-vector-prototype-${preliminaryWorkOrder.missionId}`,
-        primaryArtifactFingerprint,
-        prototypeVariants: prototype.concepts.slice(0, 3).map((concept) => ({
-          id: concept.id,
-          title: concept.name,
-          svg: concept.svg,
-        })),
+        primaryVisual: null,
+        primaryArtifactId: null,
+        primaryArtifactFingerprint: null,
+        sourceType: "none",
+        providerUsed: "none",
         artifactPaths: [],
         artifacts: [],
         missingArtifacts: [],
@@ -202,8 +194,24 @@ export async function POST(req: NextRequest) {
         limitations,
         launchInstructions: Object.values(prompts),
         expert: {
-          productionStatus: "local_vector_prototype",
-          provider: "local_vector_renderer",
+          productionStatus: "blocked_no_real_visual_provider",
+          provider: "none",
+          diagnostic: {
+            providerUsed: "none",
+            sourceType: "blocked",
+            disabledSource: "local_svg_renderer",
+            route: "POST /api/ceo/command",
+            durationMs,
+            nvidiaConfigured: hasNvidiaRuntimeProvider(),
+            nvidiaCalled: false,
+            nvidiaPurpose: "not_called_for_logo_image_generation",
+            imageGeneratedByNvidia: false,
+            agentsActuallyCalled: [],
+            artifactsCreated: false,
+            localRendererFile: "src/lib/design-team/logoWorkflow.ts",
+            localRendererFunction: "runDesignTeamWorkflow",
+            displayDecision: "simple_mode_blocks_local_mock_visuals",
+          },
           runtime,
           plan: {
             workflow: "logo_production",
@@ -219,22 +227,34 @@ export async function POST(req: NextRequest) {
               objective: `Produire un logo pour ${preliminaryWorkOrder.brandName ?? "la marque"}`,
               agents: ["product_owner", "research_agent", "brand_strategist", "logo_designer", "creative_director", "quality_director", "artifact_manager"],
               tasks: stages,
-              qualityGates: ["prototype_not_final", "no_fake_final_logo", "no_simple_mode_process"],
+              qualityGates: ["real_visual_provider_required", "local_svg_renderer_disabled", "no_simple_mode_fake_visual"],
             },
             hiddenDetails: {
-              brief: prototype.brief,
-              creativeDirections: prototype.concepts.map(({ svg, ...concept }) => concept),
-              artDirectorNotes: prototype.artDirectorNotes,
+              brief: {
+                originalPrompt: prompt,
+                deliverableType: "logo",
+                brandName: preliminaryWorkOrder.brandName,
+                constraints: preliminaryWorkOrder.constraints,
+              },
+              creativeDirections: [
+                { name: "Monogramme", rationale: "Direction possible à développer avec un générateur réel." },
+                { name: "Symbole propriétaire", rationale: "Direction possible à développer avec un générateur réel." },
+                { name: "Emblème moderne", rationale: "Direction possible à développer avec un générateur réel." },
+              ],
+              artDirectorNotes: [
+                "Le SVG local était la source du faux visuel instantané et reste désactivé.",
+                "NVIDIA n'est pas appelé ici pour générer une image.",
+              ],
               prompts,
               limitations,
-              agentsCalled: ["product_owner", "research_agent", "brand_strategist", "logo_designer", "creative_director", "quality_director", "artifact_manager"],
-              agentRuns: prototype.hiddenDetails.agentRuns,
-              toolTrace: prototype.hiddenDetails.toolTrace,
-              qualityIssues: prototype.hiddenDetails.qualityIssues,
+              agentsCalled: [],
+              agentRuns: [],
+              toolTrace: [],
+              qualityIssues: ["real_visual_provider_missing", "local_svg_renderer_disabled"],
               decisions: [
                 "Demande logo détectée.",
-                "Générateur image/design avancé absent.",
-                "Prototype vectoriel local préparé et affiché sans le qualifier de final.",
+                "Source locale du faux SVG identifiée: src/lib/design-team/logoWorkflow.ts.",
+                "Aucun visuel affiché en mode simple sans artifact réel.",
               ],
             },
           },

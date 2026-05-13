@@ -47,6 +47,25 @@ function workflowDetails(expert: CEOCurrentResult["expert"]) {
   };
 }
 
+function diagnosticDetails(expert: CEOCurrentResult["expert"]) {
+  return expert?.diagnostic as {
+    providerUsed?: string;
+    sourceType?: string;
+    disabledSource?: string;
+    route?: string;
+    durationMs?: number;
+    nvidiaConfigured?: boolean;
+    nvidiaCalled?: boolean;
+    nvidiaPurpose?: string;
+    imageGeneratedByNvidia?: boolean;
+    agentsActuallyCalled?: string[];
+    artifactsCreated?: boolean;
+    localRendererFile?: string;
+    localRendererFunction?: string;
+    displayDecision?: string;
+  } | undefined;
+}
+
 export default function CEOResultDetails({
   result,
   mission,
@@ -58,6 +77,7 @@ export default function CEOResultDetails({
 }) {
   const hasArtifacts = result.artifactPaths.length > 0;
   const workflow = workflowDetails(result.expert);
+  const diagnostic = diagnosticDetails(result.expert);
 
   return (
     <div className="ceo-os-result-details" aria-label="Détails du résultat">
@@ -222,10 +242,24 @@ export default function CEOResultDetails({
       {expertMode && (
         <div>
           <strong>Mode expert</strong>
+          {diagnostic && (
+            <div>
+              <p>providerUsed: {diagnostic.providerUsed ?? "unknown"}</p>
+              <p>sourceType: {diagnostic.sourceType ?? "unknown"}</p>
+              <p>route: {diagnostic.route ?? "unknown"}</p>
+              <p>durée: {diagnostic.durationMs ?? 0}ms</p>
+              <p>NVIDIA appelé: {diagnostic.nvidiaCalled ? "oui" : "non"}</p>
+              <p>NVIDIA image: {diagnostic.imageGeneratedByNvidia ? "oui" : "non"}</p>
+              <p>agents appelés: {diagnostic.agentsActuallyCalled?.join(", ") || "aucun"}</p>
+              <p>artifacts créés: {diagnostic.artifactsCreated ? "oui" : "non"}</p>
+              {diagnostic.localRendererFile && <p>renderer local désactivé: {diagnostic.localRendererFile} · {diagnostic.localRendererFunction}</p>}
+            </div>
+          )}
           <pre>{JSON.stringify({
             mission,
             qualityScore: result.qualityScore,
             qualityStatus: result.qualityStatus,
+            diagnostic,
             plan: result.expert?.plan,
             qualityReport: result.expert?.qualityReport,
             revisions: result.expert?.revisions,

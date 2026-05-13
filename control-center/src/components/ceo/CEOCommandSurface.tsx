@@ -20,6 +20,8 @@ interface CommandResponse {
   primaryVisual?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
+  sourceType?: CEOCurrentResult["sourceType"];
+  providerUsed?: string | null;
   prototypeVariants?: CEOCurrentResult["prototypeVariants"];
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
@@ -76,6 +78,8 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     primaryVisual: payload.primaryVisual,
     primaryArtifactId: payload.primaryArtifactId,
     primaryArtifactFingerprint: payload.primaryArtifactFingerprint,
+    sourceType: payload.sourceType,
+    providerUsed: payload.providerUsed,
     prototypeVariants: payload.prototypeVariants,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
