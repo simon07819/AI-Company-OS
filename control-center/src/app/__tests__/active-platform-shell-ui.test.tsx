@@ -84,7 +84,7 @@ describe("active AI Company OS platform shell", () => {
     expect(css).toMatch(/\.platform-sidebar \.os-dock-item span\s*{[^}]*max-width:\s*none/s);
     expect(css).toMatch(/@media \(max-width:\s*860px\)[\s\S]*\.platform-sidebar\s*{[\s\S]*transform:\s*translateX\(-104%\)/);
     expect(css).toMatch(/\.platform-sidebar\.mobile-open\s*{[^}]*transform:\s*translateX\(0\)/s);
-    expect(css).toMatch(/\.platform-shell \.ceo-chat-shell\s*{[^}]*width:\s*min\(100%,\s*760px\)/s);
+    expect(css).toMatch(/\.platform-shell \.ceo-chat-shell\s*{[^}]*width:\s*min\(100%,\s*820px\)/s);
   });
 
   it("opens and closes the mobile sidebar drawer from the topbar menu", () => {

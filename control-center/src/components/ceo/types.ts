@@ -42,6 +42,7 @@ export interface CEOActionResult {
 export interface CEOCurrentMission {
   id: string;
   prompt: string;
+  hideUserPrompt?: boolean;
   attachments?: ChatAttachment[];
   requestType: CEORequestType;
   status: CEOMissionStatus;

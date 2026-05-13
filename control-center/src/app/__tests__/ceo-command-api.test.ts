@@ -113,6 +113,53 @@ describe("CEO command API", () => {
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
   });
 
+  it("returns a useful logo brief when requested explicitly", async () => {
+    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", logoWorkflowAction: "brief" });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("ready");
+    expect(payload.deliverableType).toBe("logo_brief");
+    expect(payload.brandName).toBe("EKIDA");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.primaryArtifactId).toBeNull();
+    expect(payload.summary).toMatch(/Brief logo - EKIDA|Directions créatives|Palette|Typographie/i);
+    expect(payload.expert.diagnostic.sourceType).toBe("text");
+    expect(JSON.stringify(payload)).not.toMatch(/<svg|Brand system|Marque à nommer/);
+  });
+
+  it("returns generator prompts when requested explicitly", async () => {
+    const response = await postCommandPayload({ prompt: "fais-moi un logo pour PROSHOTS ses des photographes sportifs", logoWorkflowAction: "prompts" });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("ready");
+    expect(payload.deliverableType).toBe("logo_prompts");
+    expect(payload.brandName).toBe("PROSHOTS");
+    expect(payload.primaryVisual).toBeNull();
+    expect(payload.summary).toMatch(/Midjourney|Ideogram|DALL-E|Guide designer humain/i);
+    expect(payload.summary).not.toMatch(/PROSHOTS ses des photographes sportifs/);
+    expect(payload.expert.diagnostic.sourceType).toBe("text");
+  });
+
+  it("only returns a local SVG prototype after an explicit user action", async () => {
+    const response = await postCommandPayload({ prompt: "logo EKIDA sur fond noir", logoWorkflowAction: "local_svg" });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.ok).toBe(true);
+    expect(payload.status).toBe("needs_revision");
+    expect(payload.deliverableType).toBe("logo");
+    expect(payload.title).toBe("Prototype SVG local");
+    expect(payload.allowLocalPrototype).toBe(true);
+    expect(payload.sourceType).toBe("local_explicit");
+    expect(payload.primaryVisual).toContain("<svg");
+    expect(payload.summary).toMatch(/pas un logo final/i);
+    expect(payload.expert.diagnostic.sourceType).toBe("local_explicit");
+  });
+
   it("extracts PROSHOTS but does not generate a fake visual without a real visual provider", async () => {
     const response = await postCommand("fais-moi un logo pour PROSHOTS ses des photographes sportifs");
     const payload = await response.json();

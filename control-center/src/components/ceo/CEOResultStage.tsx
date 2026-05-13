@@ -90,25 +90,26 @@ function CEOResultMessage({
   const hasValidPrimaryVisual = hasValidatedPrimaryVisual(result);
   const requiresVisual = isLogoDeliverable;
   const isTextRenderable = isLogoSupportResult(result);
-  const isRenderable = isTextRenderable || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
+  const isNoProviderLogo = isNoProviderLogoResult(result);
+  const isRenderable = isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
-      {!isLogoDeliverable && !isWebsite && !isTextRenderable && <p>{responseIntro(result)}</p>}
+      {!isLogoDeliverable && !isWebsite && !isTextRenderable && !isNoProviderLogo && <p>{responseIntro(result)}</p>}
       {isRenderable ? (
-        <div className={isLogoDeliverable ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
+        <div className={isLogoDeliverable && hasValidPrimaryVisual ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
           {isWebsite && hasValidPrimaryVisual ? (
             <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
-          ) : isLogoDeliverable ? (
+          ) : isLogoDeliverable && hasValidPrimaryVisual ? (
             <LogoFinalAnswer
               brandName={brandName}
               darkBackground={usesDarkLogoBackground(mission?.prompt)}
               svg={result.primaryVisual}
               variants={result.prototypeVariants}
             />
-          ) : isTextRenderable ? (
+          ) : isTextRenderable || isNoProviderLogo ? (
             <div className="ceo-chat-text-deliverable">
               <strong>{result.title}</strong>
               <SummaryText value={result.summary} />
@@ -184,7 +185,7 @@ export default function CEOResultStage({
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
     return (
       <section className="ceo-chat-messages" aria-label="Messages CEO">
-        {(mission?.prompt || pendingAttachments.length > 0 || (mission?.attachments?.length ?? 0) > 0) && (
+        {!mission?.hideUserPrompt && (mission?.prompt || pendingAttachments.length > 0 || (mission?.attachments?.length ?? 0) > 0) && (
           <article className="ceo-chat-message user">
             {mission?.prompt && <p>{mission.prompt}</p>}
             <ChatAttachmentGrid attachments={pendingAttachments.length ? pendingAttachments : mission?.attachments ?? []} compact />
@@ -201,7 +202,7 @@ export default function CEOResultStage({
   if (error) {
     return (
       <section className="ceo-chat-messages" aria-label="Messages CEO">
-        {(mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
+        {!mission?.hideUserPrompt && (mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
           <article className="ceo-chat-message user">
             {mission?.prompt && <p>{mission.prompt}</p>}
             <ChatAttachmentGrid attachments={mission?.attachments ?? []} compact />
@@ -232,10 +233,12 @@ export default function CEOResultStage({
       <section className="ceo-chat-messages" aria-label="Messages CEO">
         {turns.map((turn) => (
           <div key={turn.id} className="ceo-chat-turn">
-            <article className="ceo-chat-message user">
-              {turn.mission.prompt && <p>{turn.mission.prompt}</p>}
-              <ChatAttachmentGrid attachments={turn.mission.attachments ?? []} compact />
-            </article>
+            {!turn.mission.hideUserPrompt && (
+              <article className="ceo-chat-message user">
+                {turn.mission.prompt && <p>{turn.mission.prompt}</p>}
+                <ChatAttachmentGrid attachments={turn.mission.attachments ?? []} compact />
+              </article>
+            )}
             <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} />
           </div>
         ))}
@@ -245,7 +248,7 @@ export default function CEOResultStage({
 
   return (
     <section className="ceo-chat-messages" aria-label="Messages CEO">
-      {(mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
+      {!mission?.hideUserPrompt && (mission?.prompt || (mission?.attachments?.length ?? 0) > 0) && (
         <article className="ceo-chat-message user">
           {mission?.prompt && <p>{mission.prompt}</p>}
           <ChatAttachmentGrid attachments={mission?.attachments ?? []} compact />

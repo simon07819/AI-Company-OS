@@ -268,6 +268,80 @@ describe("CEO command components", () => {
     expect(screen.getByText("Aucun artifact réel créé")).toBeInTheDocument();
   });
 
+  it("renders functional no-image-provider logo actions without exposing a fake visual", () => {
+    const onLogoAction = vi.fn();
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        title: "Aucun générateur visuel réel branché",
+        requestType: "branding",
+        brandName: "EKIDA",
+        deliverableType: "logo",
+        sourceType: "none",
+        primaryVisual: null,
+        primaryArtifactId: null,
+        summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
+        artifactPaths: [],
+        status: "needs_revision",
+      },
+      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding", status: "needs_revision", artifactCount: 0 },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onLogoAction,
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByText("Aucun générateur visuel réel branché")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Prototype de logo/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Préparer le brief/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Créer prompts visuels/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Prototype SVG local/ }));
+    expect(onLogoAction.mock.calls.map((call) => call[0])).toEqual(["brief", "prompts", "local_svg"]);
+  });
+
+  it("does not duplicate a user bubble for assistant-only logo action results", () => {
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        title: "Brief logo EKIDA",
+        requestType: "branding",
+        brandName: "EKIDA",
+        deliverableType: "logo_brief",
+        summary: "Brief complet pour EKIDA.",
+        artifactPaths: [],
+        status: "ready",
+      },
+      mission: { ...mission, prompt: "Préparer le brief", hideUserPrompt: true, requestType: "branding" },
+      turns: [
+        {
+          id: "turn-action",
+          mission: { ...mission, id: "turn-action", prompt: "Préparer le brief", hideUserPrompt: true, requestType: "branding" },
+          result: {
+            ...result,
+            title: "Brief logo EKIDA",
+            requestType: "branding",
+            brandName: "EKIDA",
+            deliverableType: "logo_brief",
+            summary: "Brief complet pour EKIDA.",
+            artifactPaths: [],
+            status: "ready",
+          },
+        },
+      ],
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.queryByText("Préparer le brief")).not.toBeInTheDocument();
+    expect(screen.getByText("Brief logo EKIDA")).toBeInTheDocument();
+    expect(screen.getByText("Brief complet pour EKIDA.")).toBeInTheDocument();
+  });
+
   it("shows quality report only in expert mode", () => {
     const { rerender } = render(React.createElement(CEOResultStage, {
       result: { ...result, expert: { qualityReport: { score: 88 }, revisions: [{ attempt: 1 }] } },

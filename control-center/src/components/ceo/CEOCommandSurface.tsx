@@ -109,9 +109,19 @@ export default function CEOCommandSurface() {
   const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], logoWorkflowAction?: string) => {
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
+    const isLogoAction = Boolean(logoWorkflowAction);
+    const actionPrompt =
+      logoWorkflowAction === "brief"
+        ? "Préparer le brief"
+        : logoWorkflowAction === "prompts"
+          ? "Créer prompts visuels"
+          : logoWorkflowAction === "local_svg"
+            ? "Prototype SVG local"
+            : prompt;
     const pendingMission: CEOCurrentMission = {
       id: `local-${Date.now()}`,
-      prompt,
+      prompt: isLogoAction ? actionPrompt : prompt,
+      hideUserPrompt: isLogoAction,
       attachments,
       requestType,
       status: "production",
@@ -139,12 +149,20 @@ export default function CEOCommandSurface() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload.ok) {
-        const failedMission = { ...missionFromCommand(runtimePrompt, payload), prompt, attachments };
+        const cleanFailureSummary = payload.error && payload.error !== payload.summary
+          ? `${payload.summary || "Impossible de créer le projet."} ${payload.error}`
+          : payload.summary || payload.error || "Impossible de créer le projet. Détail disponible en mode expert.";
+        const failedMission = {
+          ...missionFromCommand(runtimePrompt, payload),
+          prompt: isLogoAction ? actionPrompt : prompt,
+          hideUserPrompt: isLogoAction,
+          attachments,
+        };
         const failedResult = resultFromCommand(prompt, {
           ...payload,
           title: payload.title || "Aucun artifact réel créé",
           status: payload.status || "failed",
-          summary: payload.summary || payload.error || "Impossible de créer le projet. Détail disponible en mode expert.",
+          summary: cleanFailureSummary,
           artifactPaths: payload.artifactPaths ?? [],
         });
         setMission(failedMission);
@@ -152,7 +170,12 @@ export default function CEOCommandSurface() {
         setTurns((items) => [...items, { id: failedMission.id, mission: failedMission, result: failedResult }]);
         return;
       }
-      const nextMission = { ...missionFromCommand(runtimePrompt, payload), prompt, attachments };
+      const nextMission = {
+        ...missionFromCommand(runtimePrompt, payload),
+        prompt: isLogoAction ? actionPrompt : prompt,
+        hideUserPrompt: isLogoAction,
+        attachments,
+      };
       const nextResult = resultFromCommand(prompt, payload);
       setMission(nextMission);
       setResult(nextResult);
