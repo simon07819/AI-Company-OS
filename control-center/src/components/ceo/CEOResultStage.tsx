@@ -61,10 +61,10 @@ function isNoProviderLogoResult(result: CEOCurrentResult) {
 }
 
 function sourceBadge(result: CEOCurrentResult) {
+  if (result.sourceType === "local_svg" || result.allowLocalPrototype) return "Prototype local";
   if (result.status === "needs_action" || result.sourceType === "none" || result.sourceType === "provider_unavailable") {
     return "Action requise";
   }
-  if (result.sourceType === "local_svg" || result.allowLocalPrototype) return "Prototype local";
   if (result.sourceType === "code_artifact" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text") {
     return "Provider réel";
   }
@@ -93,7 +93,7 @@ function CEOResultMessage({
   mission: CEOCurrentMission | null;
   expertMode: boolean;
   onModify: () => void;
-  onLogoAction: (action: CEOMissionAction) => void;
+  onLogoAction: (action: CEOMissionAction, promptOverride?: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
@@ -193,7 +193,7 @@ export default function CEOResultStage({
   error: string | null;
   pendingAttachments?: ChatAttachment[];
   onModify: () => void;
-  onLogoAction?: (action: CEOMissionAction) => void;
+  onLogoAction?: (action: CEOMissionAction, promptOverride?: string) => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
@@ -253,7 +253,13 @@ export default function CEOResultStage({
                 <ChatAttachmentGrid attachments={turn.mission.attachments ?? []} compact />
               </article>
             )}
-            <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} />
+            <CEOResultMessage
+              result={turn.result}
+              mission={turn.mission}
+              expertMode={expertMode}
+              onModify={onModify}
+              onLogoAction={(action) => onLogoAction(action, turn.mission.prompt)}
+            />
           </div>
         ))}
       </section>

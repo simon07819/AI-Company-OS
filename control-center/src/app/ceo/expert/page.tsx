@@ -1072,6 +1072,163 @@ function AgentQuestionsSection() {
   );
 }
 
+interface RuntimeProofPayload {
+  ok?: boolean;
+  missionId?: string;
+  status?: string;
+  providerUsed?: string | null;
+  sourceType?: string | null;
+  artifactId?: string | null;
+  primaryArtifactId?: string | null;
+  expert?: {
+    diagnostic?: {
+      durationMs?: number;
+      providerUsed?: string;
+      sourceType?: string;
+    };
+    runtime?: {
+      providerUsed?: string;
+      sourceType?: string;
+      agentRuns?: Array<{
+        agentId?: string;
+        name?: string;
+        providerUsed?: string;
+        durationMs?: number;
+        confidence?: number;
+      }>;
+      criticResult?: {
+        passed?: boolean;
+        issues?: string[];
+      };
+      reviewerResult?: {
+        passed?: boolean;
+        decision?: string;
+        issues?: string[];
+      };
+      deliverables?: Array<{
+        artifactId?: string;
+        title?: string;
+        sourceType?: string;
+        providerUsed?: string;
+      }>;
+    };
+  };
+}
+
+function ExpertRuntimeProofPanel() {
+  const [loading, setLoading] = useState(false);
+  const [proof, setProof] = useState<RuntimeProofPayload | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadProof = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/ceo/command", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: "je veux un logo ekida",
+          conversationId: `expert-proof-${Date.now().toString(36)}`,
+          expertMode: true,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload.ok) {
+        setError(payload.error ?? "Preuve runtime indisponible.");
+        setProof(null);
+        return;
+      }
+      setProof(payload);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Preuve runtime indisponible.");
+      setProof(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const runtime = proof?.expert?.runtime;
+  const diagnostic = proof?.expert?.diagnostic;
+  const agents = runtime?.agentRuns ?? [];
+  const critic = runtime?.criticResult;
+  const reviewer = runtime?.reviewerResult;
+  const artifactId = proof?.artifactId
+    ?? proof?.primaryArtifactId
+    ?? runtime?.deliverables?.find((deliverable) => deliverable.artifactId)?.artifactId
+    ?? "none";
+
+  return (
+    <section
+      data-testid="ceo-expert-runtime-proof"
+      style={{
+        flexShrink: 0,
+        background: "linear-gradient(135deg, rgba(56,189,248,0.07), rgba(245,158,11,0.04))",
+        border: "1px solid rgba(56,189,248,0.22)",
+        borderRadius: 12,
+        padding: "12px 14px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+            Mission runtime trace
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 3 }}>
+            Preuve chargee depuis POST /api/ceo/command.
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={loadProof}
+          disabled={loading}
+          style={{
+            padding: "7px 11px",
+            borderRadius: 8,
+            border: "1px solid rgba(56,189,248,0.35)",
+            background: loading ? "rgba(107,114,128,0.25)" : "rgba(56,189,248,0.14)",
+            color: "#38bdf8",
+            fontSize: 11,
+            fontWeight: 800,
+            cursor: loading ? "wait" : "pointer",
+          }}
+        >
+          {loading ? "Chargement..." : "Charger preuve runtime"}
+        </button>
+      </div>
+
+      {error && <p style={{ margin: "10px 0 0", fontSize: 11, color: "#ef4444" }}>{error}</p>}
+
+      {proof && (
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: 10 }}>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Trace</strong>
+            <p style={{ margin: 0 }}>missionId: {proof.missionId ?? "unknown"}</p>
+            <p style={{ margin: 0 }}>status: {proof.status ?? "unknown"}</p>
+            <p style={{ margin: 0 }}>providerUsed: {runtime?.providerUsed ?? proof.providerUsed ?? diagnostic?.providerUsed ?? "unknown"}</p>
+            <p style={{ margin: 0 }}>sourceType: {runtime?.sourceType ?? proof.sourceType ?? diagnostic?.sourceType ?? "unknown"}</p>
+            <p style={{ margin: 0 }}>artifactId: {artifactId}</p>
+            <p style={{ margin: 0 }}>duree: {diagnostic?.durationMs ?? 0}ms</p>
+          </div>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Timeline agents</strong>
+            {agents.length ? agents.map((agent, index) => (
+              <p key={`${agent.agentId ?? agent.name}-${index}`} style={{ margin: 0 }}>
+                {agent.name ?? agent.agentId}: {agent.providerUsed ?? "none"} · {Math.round((agent.confidence ?? 0) * 100)}% · {agent.durationMs ?? 0}ms
+              </p>
+            )) : <p style={{ margin: 0 }}>Aucun agent retourne.</p>}
+          </div>
+          <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
+            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Critic / reviewer</strong>
+            <p style={{ margin: 0 }}>critic: {critic ? (critic.passed ? "passed" : "blocked") : "unknown"} · {(critic?.issues ?? []).join(", ") || "no issues"}</p>
+            <p style={{ margin: 0 }}>reviewer: {reviewer?.decision ?? (reviewer?.passed ? "passed" : "unknown")} · {(reviewer?.issues ?? []).join(", ") || "no issues"}</p>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function CeoPage() {
@@ -1589,6 +1746,8 @@ export default function CeoPage() {
       </div>
 
       {error && <ErrorBanner message={error} onRetry={loadData} />}
+
+      <ExpertRuntimeProofPanel />
 
       {/* ── 3-Column Layout ── */}
       <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 300px", gap: 10, flex: 1, minHeight: 0 }}>

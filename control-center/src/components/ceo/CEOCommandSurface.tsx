@@ -221,7 +221,7 @@ export default function CEOCommandSurface() {
             error={error}
             pendingAttachments={pendingAttachments}
             onModify={() => submitCommand(mission?.prompt || result?.brandName || "Modifier le livrable", mission?.attachments ?? [], "modify_current_deliverable")}
-            onLogoAction={(nextAction) => submitCommand(mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
+            onLogoAction={(nextAction, promptOverride) => submitCommand(promptOverride || mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
             onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
           />
 

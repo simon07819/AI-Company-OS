@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "test:evals": "vitest run src/agents/evals/agent-evals.test.ts",
     "lint": "next lint",
     "reset:company-os": "node scripts/reset-ai-company-os.mjs"
@@ -20,6 +21,7 @@
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^20",

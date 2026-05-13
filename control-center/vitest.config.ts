@@ -8,6 +8,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.tsx"],
     css: false,
+    exclude: ["node_modules/**", "dist/**", ".next/**", "e2e/**"],
   },
   resolve: {
     alias: {

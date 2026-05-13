@@ -1,3 +1,5 @@
 .env.local
 generated-products/*
 !generated-products/.gitkeep
+test-results/
+playwright-report/
