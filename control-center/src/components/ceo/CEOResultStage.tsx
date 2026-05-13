@@ -38,7 +38,7 @@ function usesDarkLogoBackground(prompt?: string) {
 function hasValidatedPrimaryVisual(result: CEOCurrentResult) {
   const visual = result.primaryVisual ?? "";
   if (!visual) return false;
-  if (/mock|local|fallback/i.test(String(result.sourceType ?? ""))) return false;
+  if (/mock|local|fallback/i.test(String(result.sourceType ?? "")) && !result.allowLocalPrototype) return false;
   if ((result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") && !result.primaryArtifactId && result.artifactPaths.length === 0) return false;
   if (/Brand system|Marque à nommer|Prototype visuel|legacy|fallback/i.test(visual)) return false;
   if (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") {
@@ -50,30 +50,53 @@ function hasValidatedPrimaryVisual(result: CEOCurrentResult) {
   return true;
 }
 
+function isLogoSupportResult(result: CEOCurrentResult) {
+  return result.deliverableType === "logo_brief"
+    || result.deliverableType === "logo_prompts"
+    || result.deliverableType === "logo_no_provider";
+}
+
+function isNoProviderLogoResult(result: CEOCurrentResult) {
+  return result.deliverableType === "logo" && !result.primaryVisual && result.sourceType === "none";
+}
+
+function SummaryText({ value }: { value: string }) {
+  return (
+    <>
+      {value.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => (
+        <p key={line}>{line}</p>
+      ))}
+    </>
+  );
+}
+
 function CEOResultMessage({
   result,
   mission,
   expertMode,
   onModify,
+  onLogoAction,
 }: {
   result: CEOCurrentResult;
   mission: CEOCurrentMission | null;
   expertMode: boolean;
   onModify: () => void;
+  onLogoAction: (action: "brief" | "prompts" | "local_svg") => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
   const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
-  const isLogoDeliverable = !isWebsite && (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo" || /^Logo\s+/i.test(result.title));
+  const isLogoDeliverable = !isWebsite && !isLogoSupportResult(result) && (result.deliverableType === "logo" || result.requestType === "logo" || /^Logo\s+/i.test(result.title));
   const hasValidPrimaryVisual = hasValidatedPrimaryVisual(result);
   const requiresVisual = isLogoDeliverable;
-  const isRenderable = requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result);
+  const isTextRenderable = isLogoSupportResult(result);
+  const isRenderable = isTextRenderable || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
-      {!isLogoDeliverable && !isWebsite && <p>{responseIntro(result)}</p>}
+      {!isLogoDeliverable && !isWebsite && !isTextRenderable && <p>{responseIntro(result)}</p>}
       {isRenderable ? (
         <div className={isLogoDeliverable ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
           {isWebsite && hasValidPrimaryVisual ? (
@@ -85,6 +108,11 @@ function CEOResultMessage({
               svg={result.primaryVisual}
               variants={result.prototypeVariants}
             />
+          ) : isTextRenderable ? (
+            <div className="ceo-chat-text-deliverable">
+              <strong>{result.title}</strong>
+              <SummaryText value={result.summary} />
+            </div>
           ) : (
             <>
               <strong>{result.title}</strong>
@@ -100,10 +128,27 @@ function CEOResultMessage({
         </div>
       )}
       <div className="ceo-chat-actions">
-        <button type="button" onClick={onModify}>
-          <Wand2 size={15} />
-          {modifyLabel}
-        </button>
+        {isNoProviderLogoResult(result) ? (
+          <>
+            <button type="button" onClick={() => onLogoAction("brief")}>
+              <Wand2 size={15} />
+              Préparer le brief
+            </button>
+            <button type="button" onClick={() => onLogoAction("prompts")}>
+              <Wand2 size={15} />
+              Créer prompts visuels
+            </button>
+            <button type="button" onClick={() => onLogoAction("local_svg")}>
+              <Wand2 size={15} />
+              Prototype SVG local
+            </button>
+          </>
+        ) : (
+          <button type="button" onClick={onModify}>
+            <Wand2 size={15} />
+            {modifyLabel}
+          </button>
+        )}
         <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
           <Info size={15} />
           Voir détails
@@ -123,6 +168,7 @@ export default function CEOResultStage({
   error,
   pendingAttachments = [],
   onModify,
+  onLogoAction = () => {},
 }: {
   result: CEOCurrentResult | null;
   mission: CEOCurrentMission | null;
@@ -132,6 +178,7 @@ export default function CEOResultStage({
   error: string | null;
   pendingAttachments?: ChatAttachment[];
   onModify: () => void;
+  onLogoAction?: (action: "brief" | "prompts" | "local_svg") => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
@@ -189,7 +236,7 @@ export default function CEOResultStage({
               {turn.mission.prompt && <p>{turn.mission.prompt}</p>}
               <ChatAttachmentGrid attachments={turn.mission.attachments ?? []} compact />
             </article>
-            <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} />
+            <CEOResultMessage result={turn.result} mission={turn.mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} />
           </div>
         ))}
       </section>
@@ -205,7 +252,7 @@ export default function CEOResultStage({
         </article>
       )}
 
-      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} />
+      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} />
     </section>
   );
 }

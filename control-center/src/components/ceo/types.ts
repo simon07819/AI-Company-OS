@@ -63,6 +63,7 @@ export interface CEOCurrentResult {
   primaryArtifactFingerprint?: string | null;
   sourceType?: "real-image-provider" | "nvidia" | "local" | "mock" | "fallback" | "none" | string;
   providerUsed?: string | null;
+  allowLocalPrototype?: boolean;
   prototypeVariants?: Array<{
     id?: string;
     title: string;

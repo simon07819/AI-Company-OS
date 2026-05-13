@@ -22,6 +22,7 @@ interface CommandResponse {
   primaryArtifactFingerprint?: string | null;
   sourceType?: CEOCurrentResult["sourceType"];
   providerUsed?: string | null;
+  allowLocalPrototype?: boolean;
   prototypeVariants?: CEOCurrentResult["prototypeVariants"];
   status?: "ready" | "needs_revision" | "rejected" | "failed";
   summary?: string;
@@ -80,6 +81,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     primaryArtifactFingerprint: payload.primaryArtifactFingerprint,
     sourceType: payload.sourceType,
     providerUsed: payload.providerUsed,
+    allowLocalPrototype: payload.allowLocalPrototype,
     prototypeVariants: payload.prototypeVariants,
     status: statusFromCommand(payload.status),
     summary: payload.summary || payload.error || "Production terminée sans résumé.",
@@ -104,7 +106,7 @@ export default function CEOCommandSurface() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const submitCommand = async (prompt: string, attachments: ChatAttachment[] = []) => {
+  const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], logoWorkflowAction?: string) => {
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
     const pendingMission: CEOCurrentMission = {
@@ -131,6 +133,7 @@ export default function CEOCommandSurface() {
           displayPrompt: prompt,
           expertMode: isExpert,
           conversationId,
+          logoWorkflowAction,
           attachments: attachments.map(attachmentPayload),
         }),
       });
@@ -188,6 +191,7 @@ export default function CEOCommandSurface() {
           error={error}
           pendingAttachments={pendingAttachments}
           onModify={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
+          onLogoAction={(action) => submitCommand(mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], action)}
           onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
         />
 
