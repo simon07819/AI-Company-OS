@@ -1,6 +1,7 @@
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
 import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
+import type { TournamentResult } from "@/agents/tournament/types";
 import type { ExecutionTrace, MissionPlan, RuntimeCheckpoint, WorkOrder } from "./types";
 
 export function buildHiddenDetails(input: {
@@ -14,6 +15,7 @@ export function buildHiddenDetails(input: {
   qualityReview?: unknown;
   refinement?: unknown;
   finalApproval?: unknown;
+  tournament?: TournamentResult | null;
   contextSelection?: unknown;
   intelligence?: {
       brainOutputs: AgentBrainOutput[];
@@ -40,6 +42,7 @@ export function buildHiddenDetails(input: {
     qualityReview: input.qualityReview,
     refinement: input.refinement,
     finalApproval: input.finalApproval,
+    tournament: input.tournament,
     contextSelection: input.contextSelection,
     intelligence: input.intelligence,
     workflowDetails: input.workflowDetails,

@@ -19,6 +19,8 @@ import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbo
 import { approveFinalDeliverable } from "@/agents/quality/final-approval";
 import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
 import { runRefinementLoop } from "@/agents/quality/refinement-loop";
+import { getApprovedCandidate, runCandidateTournament } from "@/agents/tournament";
+import type { TournamentResult } from "@/agents/tournament/types";
 import type { ContextSelection } from "@/agents/memory/types";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
@@ -65,6 +67,23 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       : null;
   const websiteWorkflow = workOrder.requestType === "website" ? workflow as WebsiteTeamResult : null;
   const logoWorkflow = workOrder.deliverableType === "logo" ? workflow as DesignTeamResult : null;
+  const tournament: TournamentResult | null = workflow
+    ? runCandidateTournament({
+      workOrder,
+      previousDeliverable: context?.previousDeliverable ?? null,
+      selectedKnowledge,
+      mode: "simple",
+      maxRefinements: 2,
+    })
+    : null;
+  const approvedCandidate = tournament ? getApprovedCandidate(tournament) : null;
+  const tournamentWebsiteWorkflow = websiteWorkflow && approvedCandidate
+    ? { ...websiteWorkflow, primaryVisual: approvedCandidate.content, visibleOutput: { ...websiteWorkflow.visibleOutput, primaryVisual: approvedCandidate.content } }
+    : websiteWorkflow;
+  const tournamentLogoConcept = logoWorkflow && approvedCandidate
+    ? { ...logoWorkflow.selectedConcept, id: approvedCandidate.id, name: approvedCandidate.title, rationale: approvedCandidate.rationale, visualDirection: String(approvedCandidate.metadata.variant ?? approvedCandidate.title), svg: approvedCandidate.content }
+    : logoWorkflow?.selectedConcept;
+  const tournamentLogoVisual = approvedCandidate?.content ?? logoWorkflow?.primaryVisual;
   const artifactStore = createMissionArtifactStore({ missionId: workOrder.missionId, turnId: workOrder.turnId });
   const primaryArtifactBuild = workOrder.requestType === "website"
     ? buildWebsiteArtifact({
@@ -75,7 +94,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       style: workOrder.style,
       contentMode: workOrder.contentMode,
       assetRequests: workOrder.assetRequests,
-      workflow: websiteWorkflow,
+      workflow: tournamentWebsiteWorkflow,
       previousPrimaryVisual: context?.previousDeliverable?.primaryVisual ?? null,
       store: artifactStore,
     })
@@ -86,8 +105,8 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
         brandName: workOrder.brandName ?? "AI Company",
         style: workOrder.style,
         background: typeof logoWorkflow?.brief?.background === "string" ? logoWorkflow.brief.background : undefined,
-        selectedConcept: logoWorkflow?.selectedConcept,
-        primaryVisual: logoWorkflow?.primaryVisual,
+        selectedConcept: tournamentLogoConcept,
+        primaryVisual: tournamentLogoVisual,
         constraints: workOrder.constraints,
         store: artifactStore,
       })
@@ -175,6 +194,7 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
       qualityReview: finalReview,
       refinement,
       finalApproval,
+      tournament,
       contextSelection: context?.contextSelection ?? null,
       intelligence: {
         brainOutputs,
