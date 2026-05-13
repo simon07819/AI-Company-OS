@@ -116,9 +116,9 @@ export default function CEOResultStage({
             <p>{mission.prompt}</p>
           </article>
         )}
-        <article className="ceo-chat-message ceo">
-          <p>Je prépare le résultat.</p>
-          <div className="ceo-os-thinking" aria-label="Production en cours"><i /><i /><i /></div>
+        <article className="ceo-chat-message ceo loading">
+          <div className="ceo-agent-inline-avatar" aria-hidden="true">C</div>
+          <div className="ceo-os-thinking" aria-label="CEO écrit"><i /><i /><i /></div>
         </article>
       </section>
     );
@@ -134,7 +134,7 @@ export default function CEOResultStage({
         )}
         <article className="ceo-chat-message ceo error">
           <p>Impossible de créer le projet. Détail disponible en mode expert.</p>
-          <small>{error}</small>
+          {expertMode && <small>{error}</small>}
         </article>
       </section>
     );
@@ -144,7 +144,9 @@ export default function CEOResultStage({
     return (
       <section className="ceo-chat-messages empty" aria-label="Messages CEO">
         <article className="ceo-chat-empty">
-          <p>Écris un message au CEO.</p>
+          <div className="ceo-chat-empty-avatar" aria-hidden="true">C</div>
+          <strong>CEO</strong>
+          <p>Qu’est-ce qu’on construit?</p>
         </article>
       </section>
     );

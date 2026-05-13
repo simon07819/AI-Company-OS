@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import CEOCommandComposer from "@/components/ceo/CEOCommandComposer";
+import CEOCommandSurface from "@/components/ceo/CEOCommandSurface";
 import CEOResultStage from "@/components/ceo/CEOResultStage";
 import type { CEOCurrentMission, CEOCurrentResult } from "@/components/ceo/types";
 
@@ -31,6 +32,22 @@ const result: CEOCurrentResult = {
 };
 
 describe("CEO command components", () => {
+  it("renders the CEO page as a minimal dark chat shell", () => {
+    const { container } = render(React.createElement(CEOCommandSurface));
+
+    expect(container.querySelector(".ceo-chat-page")).toBeInTheDocument();
+    expect(container.querySelector(".ceo-chat-shell")).toBeInTheDocument();
+    expect(container.querySelector(".ceo-chat-header")).toBeInTheDocument();
+    expect(screen.getByLabelText("Avatar CEO")).toBeInTheDocument();
+    expect(screen.getAllByText("CEO").length).toBeGreaterThan(0);
+    expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
+    expect(screen.getByText("Qu’est-ce qu’on construit?")).toBeInTheDocument();
+    expect(screen.queryByText("Conversation CEO")).not.toBeInTheDocument();
+    expect(screen.queryByText("Décris ce que tu veux construire")).not.toBeInTheDocument();
+    expect(screen.queryByText("Production IA active")).not.toBeInTheDocument();
+    expect(screen.queryByText("Mode simple")).not.toBeInTheDocument();
+  });
+
   it("submits text, clears the input and prevents double submit while busy", async () => {
     const onSubmit = vi.fn(() => Promise.resolve());
     render(React.createElement(CEOCommandComposer, { loading: false, onSubmit }));
@@ -198,6 +215,29 @@ describe("CEO command components", () => {
     expect(screen.getByText("Collection")).toBeInTheDocument();
     expect(screen.queryByLabelText("Visuel EKIDA")).not.toBeInTheDocument();
     expect(screen.queryByText(/Brand system|Marque à nommer|README|workspace|90\/100/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps simple chat free of internal production terms", () => {
+    render(React.createElement(CEOResultStage, {
+      result: {
+        ...result,
+        title: "Logo EKIDA",
+        requestType: "branding",
+        brandName: "EKIDA",
+        deliverableType: "logo",
+        primaryVisual: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Logo EKIDA"><rect width="900" height="560" fill="#030712"/><path d="M100 100h120v120H100z" fill="#22C55E"/><text x="300" y="280">EKIDA</text></svg>`,
+        artifactPaths: ["generated-products/logo-ekida/final-logo.svg"],
+        expert: { companyWorkflow: { hiddenDetails: { tournament: { candidates: [{ id: "internal-candidate" }], learningNotes: [{ id: "lesson" }] }, executionTrace: { toolsCalled: ["visual.svg"], checkpoints: [{ id: "checkpoint" }] } } } },
+      },
+      mission: { ...mission, prompt: "logo EKIDA", requestType: "branding" },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.queryByText(/Brand system|Marque à nommer|score|quality report|artifacts|JSON|README|workspace|runtime|process|toolTrace|checkpoints|candidates|playbookTrace/i)).not.toBeInTheDocument();
   });
 
   it("keeps successive CEO messages tied to their own output and details", () => {

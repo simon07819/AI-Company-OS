@@ -153,13 +153,16 @@ export default function CEOCommandSurface() {
       <section className="ceo-chat-shell" aria-label="Chat CEO">
         <header className="ceo-chat-header">
           <div className="ceo-chat-agent">
-            <div className="ceo-chat-avatar" aria-hidden="true">C</div>
+            <div className="ceo-chat-avatar" aria-label="Avatar CEO">C</div>
             <div>
               <strong>CEO</strong>
-              <span>en ligne</span>
+              <span>En ligne</span>
             </div>
           </div>
-          <button className="ceo-chat-mode-toggle" type="button" onClick={toggleMode}>{isExpert ? "Simple" : "Expert"}</button>
+          <button className="ceo-chat-mode-toggle" type="button" onClick={toggleMode} aria-label={isExpert ? "Revenir au chat simple" : "Ouvrir les options expert"} title={isExpert ? "Chat simple" : "Options expert"}>
+            <span aria-hidden="true">...</span>
+            <span className="ceo-sr-only">Expert</span>
+          </button>
         </header>
 
         <CEOResultStage
