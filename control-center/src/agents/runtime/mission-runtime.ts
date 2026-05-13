@@ -48,10 +48,13 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
     store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace }));
   }
 
+  const workflowPrompt = workOrder.deliverableType === "logo" && workOrder.brandName && !new RegExp(workOrder.brandName, "i").test(userPrompt)
+    ? `logo ${workOrder.brandName} ${userPrompt}`
+    : userPrompt;
   const workflow: WebsiteTeamResult | DesignTeamResult | null = workOrder.requestType === "website"
     ? runWebsiteDesignWorkflow(userPrompt, context?.previousDeliverable?.primaryVisual ?? null)
     : workOrder.deliverableType === "logo"
-      ? runDesignTeamWorkflow(userPrompt)
+      ? runDesignTeamWorkflow(workflowPrompt)
       : null;
   const websiteWorkflow = workOrder.requestType === "website" ? workflow as WebsiteTeamResult : null;
   const logoWorkflow = workOrder.deliverableType === "logo" ? workflow as DesignTeamResult : null;

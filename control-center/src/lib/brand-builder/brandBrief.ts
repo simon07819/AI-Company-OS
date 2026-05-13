@@ -50,8 +50,8 @@ function cleanBrandCandidate(candidate: string) {
 export function extractBrandName(input: string): { brandName: string; explicit: boolean } {
   const patterns = [
     /(?:s['’]?\s*appelle|se\s+nomme|nommee?|nommée?|appelee?|appelée?|called|named)\s+([A-Za-z0-9À-ÿ][A-Za-z0-9À-ÿ&\- ]{1,48})/i,
-    new RegExp(`^\\s*(?:fais[-\\s]*(?:moi[-\\s]+)?un\\s+|cree\\s+un\\s+|crée\\s+un\\s+)?logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32})(?=\\s+(?:sur\\s+fond|avec|style|en\\s+)|$|[.,;!?])`, "i"),
-    new RegExp(`(?:^|\\s)logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32})(?=\\s+(?:sur\\s+fond|avec|style|en\\s+)|$|[.,;!?])`, "i"),
+    new RegExp(`^\\s*(?:fais[-\\s]*(?:moi[-\\s]+)?un\\s+|cree\\s+un\\s+|crée\\s+un\\s+)?logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32}?)(?=\\s+(?:sur\\s+fond|avec|style|en\\s+|pour\\s+)|$|[.,;!?])`, "i"),
+    new RegExp(`(?:^|\\s)logo\\s+(?:${LOGO_STYLE_WORDS}\\s+)?(?:pour\\s+|de\\s+)?([A-Z0-9][A-Z0-9&\\- ]{1,32}?)(?=\\s+(?:sur\\s+fond|avec|style|en\\s+|pour\\s+)|$|[.,;!?])`, "i"),
     /(?:pour|de|d['’])\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
     /(?:marque|compagnie|entreprise)\s+([A-Z0-9][A-Z0-9&\- ]{2,32})(?:\s|$|[.,;!?])/,
   ];
@@ -62,13 +62,17 @@ export function extractBrandName(input: string): { brandName: string; explicit: 
     if (candidate) return { brandName: candidate, explicit: true };
   }
 
+  const uppercaseToken = input.match(/\b([A-Z0-9][A-Z0-9&-]{2,})\b/);
+  const candidate = uppercaseToken?.[1] ? cleanBrandCandidate(uppercaseToken[1]) : "";
+  if (candidate && !STOP_WORDS.has(normalizeText(candidate))) return { brandName: candidate, explicit: true };
+
   return { brandName: UNNAMED_BRAND, explicit: false };
 }
 
 export function extractVisualPreferences(input: string): BrandBrief["visualPreferences"] {
   const lower = normalizeText(input);
   const styleKeywords = Array.from(new Set((lower.match(new RegExp(LOGO_STYLE_WORDS, "g")) ?? []).filter(Boolean)));
-  const background = /sur\s+fond\s+noir|fond\s+noir/.test(lower)
+  const background = /sur\s+fond\s+noir|fond\s+noir|\ben\s+noir\b/.test(lower)
     ? "black"
     : /sur\s+fond\s+blanc|fond\s+blanc/.test(lower)
       ? "white"

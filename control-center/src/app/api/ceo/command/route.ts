@@ -35,7 +35,9 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-    const conversationId = typeof body.conversationId === "string" && body.conversationId.trim() ? body.conversationId.trim() : "ceo-default";
+    const conversationId = typeof body.conversationId === "string" && body.conversationId.trim()
+      ? body.conversationId.trim()
+      : `ceo-standalone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     if (!prompt) {
       return NextResponse.json({
         ok: false,

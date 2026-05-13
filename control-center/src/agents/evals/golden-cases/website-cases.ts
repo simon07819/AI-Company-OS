@@ -1,0 +1,48 @@
+import type { EvalCase } from "../types";
+
+export const websiteEvalCases: EvalCase[] = [
+  {
+    id: "website_ekida_after_logo",
+    name: "Page web EKIDA après logo",
+    previousTurns: [{ prompt: "logo EKIDA", expectedDeliverableType: "logo", expectedBrandName: "EKIDA" }],
+    prompt: "Je veux une page web bien simple avec le logo ekida, tu peux mettre du contenu temporaire ses une compagnie de linge",
+    tags: ["website", "memory", "anti-recycle"],
+    expected: {
+      deliverableType: "landing_page",
+      visibleOutputKind: "website_preview",
+      brandName: "EKIDA",
+      style: "simple",
+      industry: "apparel",
+      mustHavePrimaryVisual: true,
+      mustHavePrimaryArtifact: true,
+      mustContain: ["EKIDA", "aria-label=\"nav\"", "aria-label=\"hero\"", "aria-label=\"sections\""],
+      mustNotContain: ["Brand system", "Marque à nommer", "score", "JSON", "README", "workspace", "process"],
+      mustUseWorkflow: "website_design",
+      mustCallAgents: ["product_owner", "ux_designer", "web_designer", "frontend_builder", "quality_director"],
+      mustCallTools: ["website.preview", "quality.evaluate", "artifact.store"],
+      mustHideInternalsInSimpleMode: true,
+      mustDifferFromPreviousPrimaryVisual: true,
+      mustBeWebsiteStructured: true,
+    },
+  },
+  {
+    id: "website_ekida_direct",
+    name: "Site simple EKIDA direct",
+    prompt: "fais-moi un site simple pour EKIDA, compagnie de linge",
+    tags: ["website", "routing"],
+    expected: {
+      deliverableType: "website",
+      visibleOutputKind: "website_preview",
+      brandName: "EKIDA",
+      style: "simple",
+      industry: "apparel",
+      mustHavePrimaryVisual: true,
+      mustHavePrimaryArtifact: true,
+      mustContain: ["EKIDA", "aria-label=\"nav\"", "aria-label=\"hero\"", "aria-label=\"sections\""],
+      mustNotContain: ["Brand system", "Marque à nommer", "score", "process"],
+      mustUseWorkflow: "website_design",
+      mustHideInternalsInSimpleMode: true,
+      mustBeWebsiteStructured: true,
+    },
+  },
+];
