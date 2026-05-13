@@ -11,6 +11,7 @@ import { decideContextReuse } from "@/agents/memory/reuse-policy";
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
 import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
+import { requireUser } from "@/lib/auth/serverAuth";
 import {
   addDeliverable,
   addMissionEvent,
@@ -100,6 +101,9 @@ function sanitizeAttachments(value: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+
   const startedAt = Date.now();
   try {
     const body = await req.json().catch(() => ({}));

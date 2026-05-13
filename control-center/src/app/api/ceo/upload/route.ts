@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveUpload } from "@/lib/ceoUploads";
 import { createFileDiscussion } from "@/lib/executiveDiscussion";
+import { requireUser } from "@/lib/auth/serverAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,9 @@ function isAllowed(file: File): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;

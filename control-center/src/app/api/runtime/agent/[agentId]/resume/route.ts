@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resumeAgent, getAgentState } from "@/lib/agentRuntime";
+import { requireAdmin } from "@/lib/auth/serverAuth";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const auth = requireAdmin(req);
+  if (auth.response) return auth.response;
+
   const { agentId } = await params;
   const ok = resumeAgent(agentId);
 

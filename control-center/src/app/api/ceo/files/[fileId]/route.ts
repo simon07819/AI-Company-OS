@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFileById } from "@/lib/ceoUploads";
+import { requireUser } from "@/lib/auth/serverAuth";
 import fs from "fs";
 
 export const dynamic = "force-dynamic";
@@ -9,9 +10,12 @@ function contentDispositionFileName(name: string) {
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: { fileId: string } },
 ) {
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+
   const file = getFileById(params.fileId);
   if (!file) {
     return NextResponse.json({ ok: false, message: "File not found" }, { status: 404 });

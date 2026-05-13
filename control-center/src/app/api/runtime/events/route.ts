@@ -1,8 +1,12 @@
 import { getRecentEvents, subscribeEvents } from "@/lib/runtimeEvents";
+import { requireUser } from "@/lib/auth/serverAuth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const auth = requireUser(req);
+  if (auth.response) return auth.response;
+
   const encoder = new TextEncoder();
   let closed = false;
   let unsubscribe: (() => void) | null = null;

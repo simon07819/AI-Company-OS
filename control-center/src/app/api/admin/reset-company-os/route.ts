@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/serverAuth";
 import { RESET_CONFIRMATION, RESET_UI_CONFIRMATION, resetCompanyOs } from "@/lib/resetCompanyOs";
 
 export async function POST(req: Request) {
+  const auth = requireAdmin(req);
+  if (auth.response) return auth.response;
+
   const body = await req.json().catch(() => ({})) as { confirmation?: string; resetGeneratedProducts?: boolean };
   if (body.confirmation !== RESET_UI_CONFIRMATION) {
     return NextResponse.json({ ok: false, message: `Confirmation invalide. Tape exactement: ${RESET_UI_CONFIRMATION}` }, { status: 400 });

@@ -6537,6 +6537,34 @@ html[data-theme="dark"] .ceo-os-result-details {
   line-height: 1.35;
 }
 
+.local-access-page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+
+.local-access-panel {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 18px;
+}
+
+.local-access-panel h1 {
+  margin: 0;
+  color: var(--text);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.local-access-panel p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
 .desktop-os-shell.platform-shell {
   background: #000000;
 }

@@ -1,5 +1,7 @@
 import { execFileSync } from "node:child_process";
 import Link from "next/link";
+import { headers } from "next/headers";
+import { getCurrentUser } from "@/lib/auth/serverAuth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -43,6 +45,20 @@ function present(key: string) {
 }
 
 export default function CeoSecurityPage() {
+  const auth = getCurrentUser({ headers: headers() as unknown as Headers });
+  if (!auth.user) {
+    return (
+      <main className="local-access-page">
+        <section className="local-access-panel os-card">
+          <span className="ceo-os-eyebrow">Expert security</span>
+          <h1>Accès requis</h1>
+          <p>Les diagnostics sécurité sont privés. Configure une auth serveur ou utilise le bypass local en développement.</p>
+          <Link className="os-button" href="/login">Accès local</Link>
+        </section>
+      </main>
+    );
+  }
+
   const env = [
     { key: "NEXT_PUBLIC_SUPABASE_URL", required: true },
     { key: "NEXT_PUBLIC_SUPABASE_ANON_KEY", required: true },
@@ -88,6 +104,15 @@ export default function CeoSecurityPage() {
                 <dd>{present(item.key)}{item.serverOnly ? " · serveur seulement" : ""}</dd>
               </div>
             ))}
+          </dl>
+        </article>
+
+        <article className="os-card">
+          <h2>Auth serveur</h2>
+          <dl className="ceo-diagnostics-list">
+            <div><dt>Bypass dev</dt><dd>{process.env.NODE_ENV === "production" ? "non" : "localhost seulement"}</dd></div>
+            <div><dt>Token local</dt><dd>{process.env.AI_COMPANY_AUTH_TOKEN || process.env.AIOS_AUTH_TOKEN ? "configuré" : "non configuré"}</dd></div>
+            <div><dt>Production sans auth</dt><dd>bloquée</dd></div>
           </dl>
         </article>
       </section>
