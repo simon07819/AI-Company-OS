@@ -6,7 +6,7 @@ function taskId(task: unknown) {
 }
 
 export function runAgentBrain(input: AgentBrainInput): AgentBrainOutput {
-  const method = getAgentMethod(input.agentRole);
+  const method = input.methodOverride ?? getAgentMethod(input.agentRole);
   const requiredSkillCalls = input.availableSkills.slice(0, 3);
   const requiredToolCalls = input.availableTools.slice(0, 3);
   return {

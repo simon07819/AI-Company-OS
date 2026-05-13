@@ -7,7 +7,7 @@ export const qualityKnowledge = {
   ],
   failureModes: [
     "Brand system visible",
-    "Marque a nommer visible",
+    "unnamed brand placeholder visible",
     "score visible in simple chat",
     "artifact grid visible in simple chat",
     "previous primary visual leaked",

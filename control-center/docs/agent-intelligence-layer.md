@@ -48,7 +48,7 @@ The runtime uses this planner before task execution.
 It rejects:
 
 - `Brand system`
-- `Marque a nommer`
+- `unnamed brand placeholder`
 - text-only logos
 - unrelated initials for EKIDA
 - website outputs without nav/hero/sections

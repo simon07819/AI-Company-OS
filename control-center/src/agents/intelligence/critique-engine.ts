@@ -1,4 +1,5 @@
 import type { WorkOrder } from "@/agents/runtime/types";
+import type { FailureMode, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import type { AgentMethod } from "./types";
 import type { CritiqueResult } from "./types";
 
@@ -12,6 +13,7 @@ export function critiqueAgentOutput(input: {
   workOrder: WorkOrder;
   method?: AgentMethod;
   previousOutputs?: unknown[];
+  selectedKnowledge?: SelectedAgentKnowledge;
 }): CritiqueResult {
   const text = textOf(input.output);
   const issues: string[] = [];
@@ -50,6 +52,12 @@ export function critiqueAgentOutput(input: {
     issues.push("Internal details visible");
     requiredChanges.push("Move internals to hiddenDetails only.");
   }
+  for (const mode of input.selectedKnowledge?.relevantFailureModes ?? []) {
+    if (failureModeMatches(mode, text)) {
+      issues.push(mode.description);
+      requiredChanges.push(mode.correctionStrategy);
+    }
+  }
 
   if (issues.length === 0) {
     return { status: "approved", issues: [], requiredChanges: [] };
@@ -62,6 +70,13 @@ export function critiqueAgentOutput(input: {
     recommendedAgent: recommendedAgentFor(input.workOrder),
     recommendedSkill: recommendedSkillFor(input.workOrder),
   };
+}
+
+function failureModeMatches(mode: FailureMode, text: string) {
+  return mode.detectionHints.some((hint) => {
+    if (/same fingerprint|same primaryVisual|only logo|no nav|no hero|no sections|no paths/i.test(hint)) return false;
+    return text.toLowerCase().includes(hint.toLowerCase());
+  });
 }
 
 function recommendedAgentFor(workOrder: WorkOrder) {

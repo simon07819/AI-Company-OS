@@ -1,6 +1,8 @@
 import { defaultToolContext, runToolAdapter } from "@/agents/capabilities/registry";
 import { getAgentMethod, runAgentBrain, critiqueAgentOutput, createRefinementStrategy } from "@/agents/intelligence";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
+import { compilePlaybookIntoAgentMethod, loadAgentPlaybook, selectPlaybookForTask } from "@/agents/playbooks";
+import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import { agentRegistry, runAgentSkill, skillRegistry } from "@/agents/registry";
 import type { AgentRunResult } from "@/agents/types";
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
@@ -13,6 +15,8 @@ export interface TaskRuntimeContext {
   brainOutputs?: AgentBrainOutput[];
   critiques?: CritiqueResult[];
   refinementStrategies?: RefinementStrategy[];
+  playbookTrace?: PlaybookTraceEntry[];
+  selectedKnowledge?: SelectedAgentKnowledge[];
 }
 
 export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): RuntimeCheckpoint {
@@ -26,14 +30,29 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     if (!agent.toolsAllowed.includes(toolId)) return blockedCheckpoint(context.workOrder.id, task.id, `Tool ${toolId} is not allowed for ${agent.id}`);
   }
 
+  const selectedKnowledge = selectPlaybookForTask({ agentRole: agent.role, workOrder: context.workOrder, task });
+  const playbook = loadAgentPlaybook(agent.role);
+  const compiledMethod = playbook ? compilePlaybookIntoAgentMethod(playbook) : getAgentMethod(agent.role);
+  context.selectedKnowledge?.push(selectedKnowledge);
+  context.playbookTrace?.push({
+    agentRole: agent.role,
+    taskId: task.id,
+    playbookId: selectedKnowledge.playbookId,
+    knowledgePackIds: selectedKnowledge.relevantKnowledgePacks,
+    appliedFailureModeIds: selectedKnowledge.relevantFailureModes.map((mode) => mode.id),
+    qualityStandards: compiledMethod?.qualityChecklist ?? [],
+  });
+
   const brain = runAgentBrain({
     agentRole: agent.role,
     task,
     workOrder: context.workOrder,
     availableSkills: agent.skills,
     availableTools: agent.toolsAllowed,
-    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput },
+    context: { constraints: context.workOrder.constraints, expectedOutput: task.expectedOutput, selectedKnowledge },
     mode: task.agentRole === "quality_director" ? "validate" : task.agentRole === "creative_director" ? "critique" : "produce",
+    methodOverride: compiledMethod,
+    selectedKnowledge,
   });
   context.brainOutputs?.push(brain);
 
@@ -49,10 +68,11 @@ export function runMissionTask(task: MissionTask, context: TaskRuntimeContext): 
     agentRole: agent.role,
     output: skillRun.output,
     workOrder: context.workOrder,
-    method: getAgentMethod(agent.role),
+    method: compiledMethod ?? getAgentMethod(agent.role),
+    selectedKnowledge,
   });
   context.critiques?.push(critique);
-  if (critique.status !== "approved") context.refinementStrategies?.push(createRefinementStrategy(critique, context.workOrder));
+  if (critique.status !== "approved") context.refinementStrategies?.push(createRefinementStrategy(critique, context.workOrder, selectedKnowledge.relevantFailureModes));
 
   for (const toolId of task.toolIds) {
     const trace = runToolAdapter(toolId, task.input, defaultToolContext({

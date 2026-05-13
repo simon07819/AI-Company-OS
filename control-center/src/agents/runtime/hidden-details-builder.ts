@@ -1,5 +1,6 @@
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
+import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import type { ExecutionTrace, MissionPlan, RuntimeCheckpoint, WorkOrder } from "./types";
 
 export function buildHiddenDetails(input: {
@@ -15,11 +16,13 @@ export function buildHiddenDetails(input: {
   finalApproval?: unknown;
   contextSelection?: unknown;
   intelligence?: {
-    brainOutputs: AgentBrainOutput[];
-    critiques: CritiqueResult[];
-    refinementStrategies: RefinementStrategy[];
-    taskDecomposition?: string[];
-  };
+      brainOutputs: AgentBrainOutput[];
+      critiques: CritiqueResult[];
+      refinementStrategies: RefinementStrategy[];
+      playbookTrace?: PlaybookTraceEntry[];
+      selectedKnowledge?: SelectedAgentKnowledge[];
+      taskDecomposition?: string[];
+    };
 }) {
   return {
     workOrder: input.workOrder,

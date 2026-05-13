@@ -19,6 +19,8 @@ export type AgentBrainInput = {
   availableTools: string[];
   context: unknown;
   mode: AgentThinkingMode;
+  methodOverride?: AgentMethod;
+  selectedKnowledge?: unknown;
 };
 
 export type AgentBrainOutput = {

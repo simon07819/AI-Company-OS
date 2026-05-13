@@ -1,5 +1,6 @@
 import type { ToolTraceEntry } from "@/agents/capabilities/types";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
+import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 
 export interface WorkOrder {
   id: string;
@@ -89,6 +90,8 @@ export interface MissionRuntimeResult<VisibleOutput = unknown> {
       brainOutputs: AgentBrainOutput[];
       critiques: CritiqueResult[];
       refinementStrategies: RefinementStrategy[];
+      playbookTrace?: PlaybookTraceEntry[];
+      selectedKnowledge?: SelectedAgentKnowledge[];
       taskDecomposition?: string[];
     };
   };

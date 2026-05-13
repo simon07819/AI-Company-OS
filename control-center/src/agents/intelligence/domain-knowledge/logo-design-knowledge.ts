@@ -10,7 +10,7 @@ export const logoDesignKnowledge = {
     "text-only logo",
     "generic unrelated initial",
     "Brand system placeholder",
-    "Marque a nommer placeholder",
+    "unnamed brand placeholder placeholder",
     "missing viewBox",
     "wrong background",
   ],

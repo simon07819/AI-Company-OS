@@ -15,6 +15,7 @@ import { buildWebsiteArtifact } from "@/agents/artifacts/website-artifact-builde
 import { runWebsiteDesignWorkflow, type WebsiteTeamResult } from "@/agents/workflows/website-design-workflow";
 import { createMissionPlanWithIntelligence, summarizeTaskDecomposition } from "@/agents/intelligence";
 import type { AgentBrainOutput, CritiqueResult, RefinementStrategy } from "@/agents/intelligence/types";
+import type { PlaybookTraceEntry, SelectedAgentKnowledge } from "@/agents/playbooks/types";
 import { approveFinalDeliverable } from "@/agents/quality/final-approval";
 import { evaluateDeliverable } from "@/agents/quality/deliverable-evaluator";
 import { runRefinementLoop } from "@/agents/quality/refinement-loop";
@@ -47,9 +48,11 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
   const brainOutputs: AgentBrainOutput[] = [];
   const critiques: CritiqueResult[] = [];
   const refinementStrategies: RefinementStrategy[] = [];
+  const playbookTrace: PlaybookTraceEntry[] = [];
+  const selectedKnowledge: SelectedAgentKnowledge[] = [];
 
   for (const task of sortTasksForExecution(graph)) {
-    store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace, brainOutputs, critiques, refinementStrategies }));
+    store.add(runMissionTask(task, { workOrder, agentRuns: runtimeAgentRuns, toolTrace: runtimeToolTrace, brainOutputs, critiques, refinementStrategies, playbookTrace, selectedKnowledge }));
   }
 
   const workflowPrompt = workOrder.deliverableType === "logo" && workOrder.brandName && !new RegExp(workOrder.brandName, "i").test(userPrompt)
@@ -177,6 +180,8 @@ export function runAgentMission(userPrompt: string, context?: { previousDelivera
         brainOutputs,
         critiques,
         refinementStrategies,
+        playbookTrace,
+        selectedKnowledge,
         taskDecomposition: summarizeTaskDecomposition(missionPlan),
       },
     }),
