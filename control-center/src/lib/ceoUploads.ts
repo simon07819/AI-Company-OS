@@ -40,6 +40,11 @@ function nextId(): string {
   return `file-${(_idBase++).toString(36)}`;
 }
 
+function sanitizeFileName(name: string): string {
+  const baseName = path.basename(name).replace(/[^\w.\- ]+/g, "_").trim();
+  return baseName && baseName !== "." && baseName !== ".." ? baseName : "upload.bin";
+}
+
 // ─── File Type Detection ──────────────────────────────────────────────────
 
 export function detectFileCategory(mimeType: string, fileName: string): FileCategory {
@@ -191,16 +196,20 @@ export function saveUpload(
   buffer: Buffer,
 ): UploadedFile {
   const id = nextId();
-  const category = detectFileCategory(mimeType, name);
+  const safeName = sanitizeFileName(name);
+  const category = detectFileCategory(mimeType, safeName);
   const fileDir = path.join(UPLOADS_DIR, id);
   fs.mkdirSync(fileDir, { recursive: true });
-  const storagePath = path.join(fileDir, name);
+  const storagePath = path.join(fileDir, safeName);
+  if (!storagePath.startsWith(fileDir + path.sep)) {
+    throw new Error("Invalid upload path");
+  }
   fs.writeFileSync(storagePath, buffer);
 
-  const analysis = generateFileAnalysis(name, category);
+  const analysis = generateFileAnalysis(safeName, category);
   const record: UploadedFile = {
     id,
-    name,
+    name: safeName,
     size,
     mimeType,
     category,

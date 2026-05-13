@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = path.join(process.cwd(), "supabase", "migrations", "20260513193500_enable_rls_public_tables.sql");
 const migrationSql = fs.readFileSync(migrationPath, "utf-8");
+const phase8MigrationPath = path.join(process.cwd(), "supabase", "migrations", "20260513175314_secure_rls_policies.sql");
+const phase8MigrationSql = fs.readFileSync(phase8MigrationPath, "utf-8");
+const securityPagePath = path.join(process.cwd(), "src", "app", "ceo", "expert", "security", "page.tsx");
+const securityPageSource = fs.readFileSync(securityPagePath, "utf-8");
 
 describe("Supabase RLS security migration", () => {
   it("backs up existing policies before changing RLS", () => {
@@ -55,5 +59,58 @@ describe("Supabase RLS security migration", () => {
     expect(migrationSql).toMatch(/to anon, authenticated using \(is_public = true\)/i);
     expect(migrationSql).toMatch(/to anon, authenticated using \(visibility = ''public''\)/i);
     expect(migrationSql).toMatch(/update storage\.buckets[\s\S]*set public = false/i);
+  });
+
+  it("adds Phase 8 expected RLS coverage for mission runtime tables", () => {
+    expect(phase8MigrationSql).toContain("security_audit.expected_rls_tables");
+    expect(phase8MigrationSql).toContain("security_audit.phase8_rls_expected_status");
+    for (const table of [
+      "companies",
+      "projects",
+      "missions",
+      "messages",
+      "chats",
+      "artifacts",
+      "outputs",
+      "uploads",
+      "files",
+      "logs",
+      "runtime_events",
+      "events",
+      "agent_runs",
+      "agent_logs",
+    ]) {
+      expect(phase8MigrationSql).toContain(`'${table}'`);
+    }
+  });
+
+  it("removes anonymous write policies and keeps privileged access scoped", () => {
+    expect(phase8MigrationSql).toMatch(/and 'anon' = any\(roles\)[\s\S]*cmd in \('INSERT', 'UPDATE', 'DELETE', 'ALL'\)/i);
+    expect(phase8MigrationSql).toMatch(/drop policy if exists %I on %s/i);
+    expect(phase8MigrationSql).toMatch(/security_audit\.is_admin\(\)/i);
+    expect(phase8MigrationSql).toMatch(/auth\.uid\(\) = user_id/i);
+    expect(phase8MigrationSql).toMatch(/auth\.uid\(\) = owner_id/i);
+    expect(phase8MigrationSql).not.toMatch(/using\s*\(\s*true\s*\)/i);
+    expect(phase8MigrationSql).not.toMatch(/with check\s*\(\s*true\s*\)/i);
+  });
+
+  it("locks expected storage buckets to private authenticated access", () => {
+    expect(phase8MigrationSql).toMatch(/update storage\.buckets[\s\S]*set public = false/i);
+    for (const bucket of ["uploads", "files", "artifacts", "mission-artifacts", "workspaces", "ceo-uploads"]) {
+      expect(phase8MigrationSql).toContain(`'${bucket}'`);
+    }
+    expect(phase8MigrationSql).toMatch(/create policy "phase8_storage_private_insert"/i);
+    expect(phase8MigrationSql).toMatch(/auth\.uid\(\) = owner/i);
+    expect(phase8MigrationSql).toMatch(/auth\.uid\(\)::text = owner_id/i);
+    expect(phase8MigrationSql).not.toMatch(/storage\.objects[^']*for insert[^']*to anon/i);
+  });
+
+  it("adds an expert security diagnostic page without exposing secret values", () => {
+    expect(securityPageSource).toContain("Supabase Security Diagnostics");
+    expect(securityPageSource).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(securityPageSource).toContain("SUPABASE_SERVICE_ROLE_KEY");
+    expect(securityPageSource).toContain("present(item.key)");
+    expect(securityPageSource).not.toContain("process.env.SUPABASE_SERVICE_ROLE_KEY");
+    expect(securityPageSource).not.toContain("process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY");
   });
 });

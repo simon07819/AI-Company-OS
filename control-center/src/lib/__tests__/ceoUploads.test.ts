@@ -155,6 +155,18 @@ describe("saveUpload", () => {
     expect(found?.name).toBe("facture.pdf");
   });
 
+  it("sanitizes upload names before writing to local storage", async () => {
+    const { saveUpload } = await import("@/lib/ceoUploads");
+    const buf = Buffer.from("text content");
+    const record = saveUpload("../secret\nfile.txt", buf.length, "text/plain", buf);
+
+    expect(record.name).toBe("secret_file.txt");
+    expect(record.storagePath).toContain(record.id);
+    expect(record.storagePath).toContain("secret_file.txt");
+    expect(record.storagePath).not.toContain("../");
+    expect(record.analysis?.delegationMessage).toContain("secret_file.txt");
+  });
+
   it("getFileById returns the correct record", async () => {
     const { saveUpload, getFileById } = await import("@/lib/ceoUploads");
     const buf = Buffer.from("text content");

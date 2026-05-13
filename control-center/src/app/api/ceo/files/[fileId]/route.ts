@@ -4,6 +4,10 @@ import fs from "fs";
 
 export const dynamic = "force-dynamic";
 
+function contentDispositionFileName(name: string) {
+  return name.replace(/["\r\n\\]/g, "_");
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: { fileId: string } },
@@ -20,8 +24,9 @@ export async function GET(
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": file.mimeType,
-      "Content-Disposition": `inline; filename="${file.name}"`,
+      "Content-Disposition": `inline; filename="${contentDispositionFileName(file.name)}"`,
       "Cache-Control": "private, max-age=3600",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

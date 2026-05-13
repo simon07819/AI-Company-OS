@@ -1194,6 +1194,21 @@ function ExpertRuntimeProofPanel() {
           >
             Diagnostics
           </a>
+          <a
+            href="/ceo/expert/security"
+            style={{
+              padding: "7px 11px",
+              borderRadius: 8,
+              border: "1px solid rgba(16,185,129,0.28)",
+              background: "rgba(16,185,129,0.1)",
+              color: "#10b981",
+              fontSize: 11,
+              fontWeight: 800,
+              textDecoration: "none",
+            }}
+          >
+            Sécurité
+          </a>
           <button
             type="button"
             onClick={loadProof}
