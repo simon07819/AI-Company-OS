@@ -14,6 +14,7 @@ import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 import {
   addDeliverable,
   addMissionEvent,
+  addProviderResult,
   applyMissionAction,
   buildLogoPromptsText,
   completeMissionStep,
@@ -22,6 +23,10 @@ import {
   planLogoMissionWithoutProvider,
   setMissionStatus,
 } from "@/lib/mission-runtime/missionRuntime";
+import {
+  createTraceableArtifact,
+  websiteArtifactProviderResult,
+} from "@/lib/providers/providerRegistry";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -164,7 +169,7 @@ export async function POST(req: NextRequest) {
 
       if (missionAction === "prepare_brief" || missionAction === "create_visual_prompts") {
         const isBrief = missionAction === "prepare_brief";
-        const { mission } = applyMissionAction(prompt, missionAction, preliminaryWorkOrder.missionId);
+        const { mission } = await applyMissionAction(prompt, missionAction, preliminaryWorkOrder.missionId);
         const summary = mission.deliverables[0]?.content ?? (isBrief ? "Brief disponible." : buildLogoPromptsText(preliminaryWorkOrder.brandName));
 
         return NextResponse.json({
@@ -178,6 +183,7 @@ export async function POST(req: NextRequest) {
           status: mission.status,
           mission,
           deliverables: mission.deliverables,
+          artifactId: mission.deliverables[0]?.artifactId,
           summary,
           shortMessage: undefined,
           primaryVisualPath: null,
@@ -228,15 +234,25 @@ export async function POST(req: NextRequest) {
       }
 
       if (missionAction === "request_local_prototype") {
-        const { mission } = applyMissionAction(prompt, "request_local_prototype", preliminaryWorkOrder.missionId);
+        const { mission } = await applyMissionAction(prompt, "request_local_prototype", preliminaryWorkOrder.missionId);
         const prototype = runDesignTeamWorkflow(prompt);
         const primaryArtifactFingerprint = createArtifactFingerprint(prototype.primaryVisual);
+        const artifact = createTraceableArtifact({
+          missionId: mission.missionId,
+          type: "local_prototype",
+          title: "Prototype SVG local",
+          sourceType: "local_svg",
+          providerUsed: "local_svg_renderer_explicit",
+          content: prototype.primaryVisual,
+        });
         addDeliverable(mission, {
           type: "local_prototype",
           title: "Prototype SVG local",
           content: prototype.primaryVisual,
           mediaType: "svg",
           sourceType: "local_svg",
+          providerUsed: "local_svg_renderer_explicit",
+          artifactId: artifact.artifactId,
         });
         setMissionStatus(mission, "needs_action");
         return NextResponse.json({
@@ -250,11 +266,12 @@ export async function POST(req: NextRequest) {
           status: mission.status,
           mission,
           deliverables: mission.deliverables,
+          artifactId: artifact.artifactId,
           summary: "Prototype SVG local créé à la demande explicite. Ce n'est pas un logo final.",
           shortMessage: undefined,
           primaryVisualPath: null,
           primaryVisual: prototype.primaryVisual,
-          primaryArtifactId: `explicit-local-svg-${preliminaryWorkOrder.missionId}`,
+          primaryArtifactId: artifact.artifactId,
           primaryArtifactFingerprint,
           sourceType: "local_svg",
           providerUsed: "local_svg_renderer_explicit",
@@ -307,7 +324,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (missionAction === "modify_current_deliverable") {
-        const { mission } = applyMissionAction(prompt, "modify_current_deliverable", preliminaryWorkOrder.missionId);
+        const { mission } = await applyMissionAction(prompt, "modify_current_deliverable", preliminaryWorkOrder.missionId);
         return NextResponse.json({
           ok: true,
           missionId: preliminaryWorkOrder.missionId,
@@ -319,6 +336,7 @@ export async function POST(req: NextRequest) {
           status: mission.status,
           mission,
           deliverables: mission.deliverables,
+          artifactId: null,
           summary: "Dis-moi quoi modifier: style, couleurs, nom, usage, ton ou contrainte. Aucun visuel n'est généré sans provider réel.",
           shortMessage: undefined,
           primaryVisualPath: null,
@@ -352,7 +370,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      const { mission } = planLogoMissionWithoutProvider(prompt, preliminaryWorkOrder.missionId);
+      const { mission } = await planLogoMissionWithoutProvider(prompt, preliminaryWorkOrder.missionId);
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
@@ -364,6 +382,7 @@ export async function POST(req: NextRequest) {
         status: mission.status,
         mission,
         deliverables: mission.deliverables,
+        artifactId: null,
         summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
         shortMessage: undefined,
         primaryVisualPath: null,
@@ -501,12 +520,24 @@ export async function POST(req: NextRequest) {
     missionRuntime.sourceType = primaryVisual ? "artifact" : "none";
     missionRuntime.retries = run.revisions.length;
     if (primaryVisual) {
+      const artifact = createTraceableArtifact({
+        missionId: missionRuntime.missionId,
+        type: workOrder.requestType === "website" ? "website_preview" : "artifact",
+        title: run.manifest.title,
+        sourceType: workOrder.requestType === "website" ? "code_artifact" : "local_storage",
+        providerUsed: workOrder.requestType === "website" ? "artifact_pipeline" : "local_storage",
+        content: primaryVisual,
+        path: primaryVisualPath ?? undefined,
+      });
+      addProviderResult(missionRuntime, websiteArtifactProviderResult(artifact.artifactId));
       addDeliverable(missionRuntime, {
         type: workOrder.requestType === "website" ? "website_preview" : "artifact",
         title: run.manifest.title,
         content: primaryVisual,
         mediaType: primaryVisual.includes("<html") ? "html" : "svg",
-        sourceType: "artifact",
+        sourceType: workOrder.requestType === "website" ? "code_artifact" : "local_storage",
+        providerUsed: workOrder.requestType === "website" ? "artifact_pipeline" : "local_storage",
+        artifactId: artifact.artifactId,
       });
     }
     setMissionStatus(
@@ -525,6 +556,9 @@ export async function POST(req: NextRequest) {
         brandName: workOrder.brandName ?? null,
         deliverableType: responseDeliverableType,
         status: "failed",
+        sourceType: missionRuntime.sourceType,
+        providerUsed: missionRuntime.providerUsed,
+        artifactId: missionRuntime.deliverables[0]?.artifactId,
         summary: requiresValidatedWorkflowVisual
           ? "Le workflow validé n'a pas produit de livrable visuel exploitable."
           : "La production n'a créé aucun artifact réel.",
@@ -558,12 +592,15 @@ export async function POST(req: NextRequest) {
       ok: true,
       missionId: run.id,
       mission: missionRuntime,
+      artifactId: missionRuntime.deliverables[0]?.artifactId,
       projectId: run.projectSlug,
       title: run.manifest.title,
       requestType: workOrder.requestType,
       brandName: workOrder.brandName ?? null,
       deliverableType: responseDeliverableType,
       status: missionRuntime.status,
+      sourceType: missionRuntime.sourceType,
+      providerUsed: missionRuntime.providerUsed,
       deliverables: missionRuntime.deliverables,
       summary: run.manifest.summary,
       shortMessage: workOrder.deliverableType === "logo" && workOrder.brandName && /\blogo\b/i.test(prompt)
@@ -575,6 +612,7 @@ export async function POST(req: NextRequest) {
       primaryArtifactFingerprint,
       artifactPaths,
       artifacts: artifactPaths.map((artifactPath) => ({
+        artifactId: missionRuntime.deliverables.find((deliverable) => deliverable.content === primaryVisual)?.artifactId,
         path: artifactPath,
         title: path.basename(artifactPath),
         exists: true,

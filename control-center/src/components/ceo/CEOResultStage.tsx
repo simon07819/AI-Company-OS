@@ -60,6 +60,18 @@ function isNoProviderLogoResult(result: CEOCurrentResult) {
   return result.deliverableType === "logo" && !result.primaryVisual && result.sourceType === "none";
 }
 
+function sourceBadge(result: CEOCurrentResult) {
+  if (result.status === "needs_action" || result.sourceType === "none" || result.sourceType === "provider_unavailable") {
+    return "Action requise";
+  }
+  if (result.sourceType === "local_svg" || result.allowLocalPrototype) return "Prototype local";
+  if (result.sourceType === "code_artifact" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text") {
+    return "Provider réel";
+  }
+  if (result.sourceType === "local_storage" || result.sourceType === "local_preview") return "Prototype local";
+  return null;
+}
+
 function SummaryText({ value }: { value: string }) {
   return (
     <>
@@ -94,9 +106,11 @@ function CEOResultMessage({
   const isRenderable = isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
+  const badge = sourceBadge(result);
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
+      {badge && <span className="ceo-source-badge">{badge}</span>}
       {!isLogoDeliverable && !isWebsite && !isTextRenderable && !isNoProviderLogo && <p>{responseIntro(result)}</p>}
       {isRenderable ? (
         <div className={isLogoDeliverable && hasValidPrimaryVisual ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>

@@ -75,9 +75,10 @@ export interface CEOCurrentResult {
   shortMessage?: string;
   primaryVisualPath?: string | null;
   primaryVisual?: string | null;
+  artifactId?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
-  sourceType?: "real-image-provider" | "nvidia" | "local" | "mock" | "fallback" | "none" | string;
+  sourceType?: "real-image-provider" | "nvidia" | "nvidia_text" | "provider_unavailable" | "code_artifact" | "local_storage" | "local_svg" | "local" | "mock" | "fallback" | "none" | string;
   providerUsed?: string | null;
   allowLocalPrototype?: boolean;
   prototypeVariants?: Array<{
@@ -93,6 +94,15 @@ export interface CEOCurrentResult {
   qualityStatus?: string;
   limitations?: string[];
   launchInstructions?: string[];
+  deliverables?: Array<{
+    id?: string;
+    artifactId?: string;
+    type?: string;
+    title: string;
+    sourceType?: string;
+    providerUsed?: string;
+    createdAt?: string;
+  }>;
   expert?: {
     plan?: unknown;
     qualityReport?: unknown;

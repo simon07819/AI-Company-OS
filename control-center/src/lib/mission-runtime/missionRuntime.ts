@@ -1,4 +1,12 @@
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
+import {
+  createTraceableArtifact,
+  getProviderRegistry,
+  imageProviderUnavailable,
+  localPrototypeProviderResult,
+  runTextProvider,
+  type ProviderResult,
+} from "@/lib/providers/providerRegistry";
 
 export type MissionType = "logo" | "website" | "general";
 
@@ -17,7 +25,16 @@ export type MissionAction =
   | "request_local_prototype"
   | "modify_current_deliverable";
 
-export type MissionSourceType = "none" | "real_image_provider" | "nvidia" | "local_svg" | "artifact";
+export type MissionSourceType =
+  | "none"
+  | "real_image_provider"
+  | "nvidia_text"
+  | "provider_unavailable"
+  | "local_svg"
+  | "local_storage"
+  | "local_preview"
+  | "code_artifact"
+  | "artifact";
 
 export interface MissionStep {
   id: string;
@@ -48,6 +65,9 @@ export interface MissionDeliverable {
   content?: string;
   mediaType?: "text" | "svg" | "html";
   sourceType: MissionSourceType;
+  providerUsed: string;
+  artifactId?: string;
+  createdAt: string;
 }
 
 export interface MissionRuntime {
@@ -61,6 +81,7 @@ export interface MissionRuntime {
   deliverables: MissionDeliverable[];
   providerUsed: string;
   sourceType: MissionSourceType;
+  providerResults: ProviderResult[];
   retries: number;
   logs: string[];
   createdAt: string;
@@ -157,6 +178,7 @@ export function createMissionRuntime(command: string, missionId?: string): Missi
     deliverables: [],
     providerUsed: "none",
     sourceType: "none",
+    providerResults: [],
     retries: 0,
     logs: ["queued"],
     createdAt,
@@ -206,9 +228,33 @@ export function blockMissionStep(mission: MissionRuntime, stepId: string, detail
   return mission;
 }
 
-export function addDeliverable(mission: MissionRuntime, deliverable: Omit<MissionDeliverable, "id">) {
-  mission.deliverables.push({ id: id("deliverable"), ...deliverable });
+export function addDeliverable(mission: MissionRuntime, deliverable: Omit<MissionDeliverable, "id" | "createdAt">) {
+  mission.deliverables.push({ id: id("deliverable"), createdAt: now(), ...deliverable });
   mission.updatedAt = now();
+  return mission;
+}
+
+export function addProviderResult(mission: MissionRuntime, result: ProviderResult) {
+  mission.providerResults.push(result);
+  mission.providerUsed = result.providerUsed;
+  mission.sourceType = result.sourceType === "real_image_provider"
+    || result.sourceType === "provider_unavailable"
+    || result.sourceType === "local_svg"
+    || result.sourceType === "local_storage"
+    || result.sourceType === "local_preview"
+    || result.sourceType === "code_artifact"
+    || result.sourceType === "nvidia_text"
+    ? result.sourceType
+    : mission.sourceType;
+  addMissionEvent(mission, "provider_result", `${result.capability} provider: ${result.providerUsed}`, {
+    providerUsed: result.providerUsed,
+    sourceType: result.sourceType,
+    capability: result.capability,
+    success: result.success,
+    artifactId: result.artifactId,
+    error: result.error,
+    durationMs: result.durationMs,
+  });
   return mission;
 }
 
@@ -251,10 +297,19 @@ export function buildLogoPromptsText(brandName?: string | null, context?: string
   ].join("\n\n");
 }
 
-export function planLogoMissionWithoutProvider(command: string, missionId?: string) {
+export async function planLogoMissionWithoutProvider(command: string, missionId?: string) {
   const workOrder = createWorkOrderFromPrompt(command);
   const mission = createMissionRuntime(command, missionId ?? workOrder.missionId);
+  const registry = getProviderRegistry();
   setMissionStatus(mission, "planning");
+  const textProvider = await runTextProvider({
+    system: "Prépare une analyse courte et utile pour une mission de logo. Ne génère aucune image.",
+    user: command,
+    purpose: "ceo_logo_text_reasoning",
+  });
+  addProviderResult(mission, textProvider);
+  const imageProvider = imageProviderUnavailable();
+  addProviderResult(mission, imageProvider);
   completeMissionStep(mission, "analyse_demande", "Demande logo analysée.");
   completeMissionStep(mission, "brief", "Brief texte disponible.");
   completeMissionStep(mission, "directions_creatives", "Directions créatives disponibles.");
@@ -270,32 +325,62 @@ export function planLogoMissionWithoutProvider(command: string, missionId?: stri
     title: "Brief disponible",
     content: buildLogoBriefText(command, workOrder.brandName, workOrder.constraints),
     mediaType: "text",
-    sourceType: "none",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "brief",
+      title: "Brief disponible",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: buildLogoBriefText(command, workOrder.brandName, workOrder.constraints),
+    }).artifactId,
   });
   addDeliverable(mission, {
     type: "directions",
     title: "Directions disponibles",
     content: buildLogoDirectionsText(workOrder.brandName),
     mediaType: "text",
-    sourceType: "none",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "directions",
+      title: "Directions disponibles",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: buildLogoDirectionsText(workOrder.brandName),
+    }).artifactId,
   });
   addDeliverable(mission, {
     type: "visual_prompts",
     title: "Prompts disponibles",
     content: buildLogoPromptsText(workOrder.brandName),
     mediaType: "text",
-    sourceType: "none",
+    sourceType: "local_storage",
+    providerUsed: "local_storage",
+    artifactId: createTraceableArtifact({
+      missionId: mission.missionId,
+      type: "visual_prompts",
+      title: "Prompts disponibles",
+      sourceType: "local_storage",
+      providerUsed: "local_storage",
+      content: buildLogoPromptsText(workOrder.brandName),
+    }).artifactId,
   });
+  mission.providerUsed = registry.image.providerUsed;
+  mission.sourceType = "none";
   setMissionStatus(mission, "needs_action");
   addMissionEvent(mission, "provider_missing", "Aucun provider image réel configuré.", {
     sourceType: "none",
     localSvgAutomatic: false,
+    preparedProviders: registry.image.preparedProviders,
   });
   return { mission, workOrder };
 }
 
-export function applyMissionAction(command: string, action: MissionAction, missionId?: string) {
-  const { mission, workOrder } = planLogoMissionWithoutProvider(command, missionId);
+export async function applyMissionAction(command: string, action: MissionAction, missionId?: string) {
+  const { mission, workOrder } = await planLogoMissionWithoutProvider(command, missionId);
   addMissionEvent(mission, "action_requested", `Action requested: ${action}.`, { action });
   if (action === "prepare_brief") {
     setMissionStatus(mission, "completed");
@@ -312,6 +397,7 @@ export function applyMissionAction(command: string, action: MissionAction, missi
   if (action === "request_local_prototype") {
     mission.sourceType = "local_svg";
     mission.providerUsed = "local_svg_renderer_explicit";
+    addProviderResult(mission, localPrototypeProviderResult());
     setMissionStatus(mission, "reviewing");
   }
   return { mission, workOrder };

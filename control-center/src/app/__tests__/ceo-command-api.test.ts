@@ -80,6 +80,11 @@ describe("CEO command API", () => {
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.sourceType).toBe("none");
     expect(payload.mission.sourceType).toBe("none");
+    expect(payload.mission.providerResults).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ capability: "image", success: false, sourceType: "provider_unavailable" }),
+      ]),
+    );
     expect(payload.deliverables.map((deliverable: { title: string }) => deliverable.title)).toEqual(
       expect.arrayContaining(["Brief disponible", "Directions disponibles", "Prompts disponibles"]),
     );
@@ -127,6 +132,7 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("completed");
     expect(payload.deliverableType).toBe("logo_brief");
     expect(payload.brandName).toBe("EKIDA");
+    expect(payload.artifactId).toMatch(/^artifact-/);
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.summary).toMatch(/Brief logo - EKIDA|Directions créatives|Palette|Typographie/i);
@@ -162,6 +168,8 @@ describe("CEO command API", () => {
     expect(payload.allowLocalPrototype).toBe(true);
     expect(payload.sourceType).toBe("local_svg");
     expect(payload.mission.sourceType).toBe("local_svg");
+    expect(payload.artifactId).toMatch(/^artifact-/);
+    expect(payload.primaryArtifactId).toBe(payload.artifactId);
     expect(payload.primaryVisual).toContain("<svg");
     expect(payload.summary).toMatch(/pas un logo final/i);
     expect(payload.expert.diagnostic.sourceType).toBe("local_svg");
@@ -206,6 +214,12 @@ describe("CEO command API", () => {
     expect(websitePayload.ok).toBe(true);
     expect(websitePayload.requestType).toBe("website");
     expect(websitePayload.deliverableType).toBe("website");
+    expect(websitePayload.artifactId).toMatch(/^artifact-/);
+    expect(websitePayload.deliverables[0]).toEqual(expect.objectContaining({
+      artifactId: websitePayload.artifactId,
+      sourceType: "code_artifact",
+      providerUsed: "artifact_pipeline",
+    }));
     expect(websitePayload.brandName).toBe("EKIDA");
     expect(websitePayload.title).toMatch(/EKIDA website|EKIDA/i);
     expect(websitePayload.primaryVisual).toContain("<svg");
@@ -249,5 +263,6 @@ describe("CEO command API", () => {
 
     expect(source).not.toMatch(/from ["']fs["']|from ["']path["']|require\(["']fs["']\)|require\(["']path["']\)/);
     expect(source).not.toContain("generated-products/");
+    expect(source).not.toContain("runDesignTeamWorkflow");
   });
 });

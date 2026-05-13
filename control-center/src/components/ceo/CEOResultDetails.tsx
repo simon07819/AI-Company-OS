@@ -78,6 +78,20 @@ export default function CEOResultDetails({
   const hasArtifacts = result.artifactPaths.length > 0;
   const workflow = workflowDetails(result.expert);
   const diagnostic = diagnosticDetails(result.expert);
+  const runtime = result.expert?.runtime as {
+    providerUsed?: string;
+    sourceType?: string;
+    providerResults?: Array<{
+      providerUsed?: string;
+      sourceType?: string;
+      capability?: string;
+      success?: boolean;
+      artifactId?: string;
+      error?: string;
+      durationMs?: number;
+    }>;
+    deliverables?: Array<{ artifactId?: string; title?: string; providerUsed?: string; sourceType?: string }>;
+  } | undefined;
 
   return (
     <div className="ceo-os-result-details" aria-label="Détails du résultat">
@@ -244,8 +258,9 @@ export default function CEOResultDetails({
           <strong>Mode expert</strong>
           {diagnostic && (
             <div>
-              <p>providerUsed: {diagnostic.providerUsed ?? "unknown"}</p>
-              <p>sourceType: {diagnostic.sourceType ?? "unknown"}</p>
+              <p>providerUsed: {runtime?.providerUsed ?? diagnostic.providerUsed ?? "unknown"}</p>
+              <p>sourceType: {runtime?.sourceType ?? diagnostic.sourceType ?? "unknown"}</p>
+              <p>artifactId: {result.artifactId ?? result.primaryArtifactId ?? runtime?.deliverables?.find((item) => item.artifactId)?.artifactId ?? "none"}</p>
               <p>route: {diagnostic.route ?? "unknown"}</p>
               <p>durée: {diagnostic.durationMs ?? 0}ms</p>
               <p>NVIDIA appelé: {diagnostic.nvidiaCalled ? "oui" : "non"}</p>
@@ -255,6 +270,21 @@ export default function CEOResultDetails({
               {diagnostic.localRendererFile && <p>renderer local désactivé: {diagnostic.localRendererFile} · {diagnostic.localRendererFunction}</p>}
             </div>
           )}
+          {runtime?.providerResults?.length ? (
+            <ul>
+              {runtime.providerResults.map((provider, index) => (
+                <li key={`${provider.capability}-${provider.providerUsed}-${index}`}>
+                  <span>{provider.capability}</span>
+                  <span>{provider.providerUsed}</span>
+                  <span>{provider.sourceType}</span>
+                  <span>{provider.success ? "success" : "unavailable"}</span>
+                  {provider.artifactId && <span>{provider.artifactId}</span>}
+                  {provider.error && <span>{provider.error}</span>}
+                  <span>{provider.durationMs ?? 0}ms</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <pre>{JSON.stringify({
             mission,
             qualityScore: result.qualityScore,

@@ -18,6 +18,7 @@ interface CommandResponse {
   shortMessage?: string;
   primaryVisualPath?: string | null;
   primaryVisual?: string | null;
+  artifactId?: string | null;
   primaryArtifactId?: string | null;
   primaryArtifactFingerprint?: string | null;
   sourceType?: CEOCurrentResult["sourceType"];
@@ -32,6 +33,7 @@ interface CommandResponse {
   qualityStatus?: string;
   limitations?: string[];
   launchInstructions?: string[];
+  deliverables?: CEOCurrentResult["deliverables"];
   error?: string;
   expert?: CEOCurrentResult["expert"];
 }
@@ -78,6 +80,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     shortMessage: payload.shortMessage,
     primaryVisualPath: payload.primaryVisualPath,
     primaryVisual: payload.primaryVisual,
+    artifactId: payload.artifactId,
     primaryArtifactId: payload.primaryArtifactId,
     primaryArtifactFingerprint: payload.primaryArtifactFingerprint,
     sourceType: payload.sourceType,
@@ -92,6 +95,7 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
     qualityStatus: payload.qualityStatus,
     limitations: payload.limitations,
     launchInstructions: payload.launchInstructions,
+    deliverables: payload.deliverables,
     expert: payload.expert,
   };
 }
