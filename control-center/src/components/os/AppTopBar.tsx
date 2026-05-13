@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AppTopBar({
   activeLabel,
@@ -18,6 +19,7 @@ export default function AppTopBar({
         <span>AI Company OS</span>
         <strong>{activeLabel}</strong>
       </div>
+      <ThemeToggle />
     </header>
   );
 }

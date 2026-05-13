@@ -24,7 +24,7 @@ export function resolveInitialViewMode(pathname: string, storage?: Pick<Storage,
     // Storage can be unavailable.
   }
 
-  return isAdvancedPath(pathname) ? "expert" : "simple";
+  return pathname === "/ceo/expert" || pathname.startsWith("/ceo/expert/") ? "expert" : "simple";
 }
 
 export function persistViewMode(mode: ViewMode, storage?: Pick<Storage, "setItem"> | null): void {

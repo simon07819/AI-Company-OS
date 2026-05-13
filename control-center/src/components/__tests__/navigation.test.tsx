@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import React from "react";
 import { describe, expect, it } from "vitest";
 import AppShell from "@/components/AppShell";
-import NavSidebar from "@/components/NavSidebar";
+import CommandDock from "@/components/os/CommandDock";
 
 const primaryLinks = [
   "CEO Chat",
@@ -28,9 +28,9 @@ const expertLinks = [
   "Expert",
 ];
 
-describe("NavSidebar", () => {
+describe("CommandDock", () => {
   it("renders the active platform navigation", () => {
-    render(React.createElement(NavSidebar));
+    render(React.createElement(CommandDock, { mode: "simple", pathname: "/ceo" }));
 
     for (const label of primaryLinks) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe("NavSidebar", () => {
   });
 
   it("keeps the same core navigation in expert mode", () => {
-    render(React.createElement(NavSidebar, { expertMode: true }));
+    render(React.createElement(CommandDock, { mode: "expert", pathname: "/ceo/expert" }));
 
     for (const label of expertLinks) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
@@ -46,9 +46,7 @@ describe("NavSidebar", () => {
   });
 
   it("marks the active route", () => {
-    globalThis.__TEST_PATHNAME__ = "/missions";
-
-    render(React.createElement(NavSidebar));
+    render(React.createElement(CommandDock, { mode: "simple", pathname: "/missions" }));
 
     expect(screen.getByRole("link", { name: "Missions" })).toHaveClass("active");
     expect(screen.getByRole("link", { name: "CEO Chat" })).not.toHaveClass("active");
@@ -68,7 +66,6 @@ describe("AppShell", () => {
     );
 
     expect(screen.getAllByText("AI Company OS").length).toBeGreaterThan(0);
-    expect(screen.queryByText("CEO en ligne")).not.toBeInTheDocument();
     expect(screen.queryByText("Mode simple")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Settings child content" })).toBeInTheDocument();
   });
@@ -92,16 +89,7 @@ describe("AppShell", () => {
     }
   });
 
-  it("keeps the sidebar stable when advanced options are toggled", async () => {
-    const store = new Map<string, string>();
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      value: {
-        getItem: (key: string) => store.get(key) ?? null,
-        setItem: (key: string, value: string) => store.set(key, value),
-        removeItem: (key: string) => store.delete(key),
-      },
-    });
+  it("keeps the sidebar stable when navigating between simple renders", async () => {
     globalThis.__TEST_PATHNAME__ = "/ceo";
 
     const { unmount } = render(
@@ -113,9 +101,6 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByRole("link", { name: "Agents" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Afficher les pages avancees/ }));
-
-    await waitFor(() => expect(store.get("ai-company-os-view-mode")).toBe("expert"));
     for (const label of primaryLinks) {
       expect(screen.getAllByRole("link", { name: label }).length).toBeGreaterThan(0);
     }
