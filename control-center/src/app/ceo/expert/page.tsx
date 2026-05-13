@@ -1160,6 +1160,7 @@ function ExpertRuntimeProofPanel() {
 
   return (
     <section
+      className="ceo-expert-runtime-proof-card"
       data-testid="ceo-expert-runtime-proof"
       style={{
         flexShrink: 0,
@@ -1169,7 +1170,7 @@ function ExpertRuntimeProofPanel() {
         padding: "12px 14px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div className="ceo-expert-runtime-proof-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
             Mission runtime trace
@@ -1178,7 +1179,7 @@ function ExpertRuntimeProofPanel() {
             Preuve chargee depuis POST /api/ceo/command.
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div className="ceo-expert-runtime-proof-actions" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <a
             href="/ceo/expert/diagnostics"
             style={{
@@ -1674,7 +1675,7 @@ export default function CeoPage() {
   ];
 
   return (
-    <div style={{
+    <div className="ceo-expert-workspace" style={{
       padding: "14px 18px",
       maxWidth: 1700,
       margin: "0 auto",
@@ -1782,7 +1783,7 @@ export default function CeoPage() {
       <ExpertRuntimeProofPanel />
 
       {/* ── 3-Column Layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr 300px", gap: 10, flex: 1, minHeight: 0 }}>
+      <div className="ceo-expert-main-grid" style={{ display: "grid", gridTemplateColumns: "320px 1fr 300px", gap: 10, flex: 1, minHeight: 0 }}>
 
         {/* ── LEFT: CEO Chat ── */}
         <div

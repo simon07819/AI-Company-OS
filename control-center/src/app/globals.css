@@ -6744,6 +6744,46 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   .ceo-logo-variants {
     grid-template-columns: 1fr;
   }
+
+  .ceo-expert-workspace {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    min-height: calc(100dvh - 42px) !important;
+    overflow-x: hidden !important;
+    padding: 12px !important;
+  }
+
+  .ceo-expert-main-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .ceo-expert-runtime-proof-head {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    align-items: start !important;
+  }
+
+  .ceo-expert-runtime-proof-actions {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  .ceo-expert-runtime-proof-actions a,
+  .ceo-expert-runtime-proof-actions button {
+    flex: 1 1 112px !important;
+    min-height: 34px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    white-space: normal !important;
+  }
 }
 
 @media (max-width: 1180px) {
