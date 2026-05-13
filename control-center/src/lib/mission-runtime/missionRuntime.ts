@@ -1,5 +1,11 @@
 import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import {
+  runMissionAgentFlow,
+  type AgentRun,
+  type CriticResult,
+  type ReviewerResult,
+} from "@/lib/agents/agentRegistry";
+import {
   createTraceableArtifact,
   getProviderRegistry,
   imageProviderUnavailable,
@@ -82,6 +88,11 @@ export interface MissionRuntime {
   providerUsed: string;
   sourceType: MissionSourceType;
   providerResults: ProviderResult[];
+  agentRuns: AgentRun[];
+  criticResult?: CriticResult;
+  reviewerResult?: ReviewerResult;
+  retryEvents: Array<{ attempt: number; issues: string[]; changedDirection: string }>;
+  finalDecision?: string;
   retries: number;
   logs: string[];
   createdAt: string;
@@ -179,11 +190,57 @@ export function createMissionRuntime(command: string, missionId?: string): Missi
     providerUsed: "none",
     sourceType: "none",
     providerResults: [],
+    agentRuns: [],
+    retryEvents: [],
     retries: 0,
     logs: ["queued"],
     createdAt,
     updatedAt: createdAt,
   };
+}
+
+export function runMissionAgents(mission: MissionRuntime, options: { imageProviderAvailable: boolean; localPrototypeRequested?: boolean; reset?: boolean }) {
+  if (options.reset) {
+    mission.agentRuns = [];
+    mission.retryEvents = [];
+    mission.criticResult = undefined;
+    mission.reviewerResult = undefined;
+    mission.finalDecision = undefined;
+    mission.retries = 0;
+  }
+  const flow = runMissionAgentFlow({
+    missionId: mission.missionId,
+    missionType: mission.type,
+    command: mission.command,
+    sourceType: mission.sourceType,
+    providerUsed: mission.providerUsed,
+    imageProviderAvailable: options.imageProviderAvailable,
+    localPrototypeRequested: options.localPrototypeRequested,
+    deliverables: mission.deliverables,
+  });
+  mission.agentRuns.push(...flow.runs);
+  mission.criticResult = flow.critic;
+  mission.reviewerResult = flow.reviewer;
+  mission.retryEvents.push(...flow.retryEvents);
+  mission.retries += flow.retries;
+  mission.finalDecision = flow.finalDecision;
+  for (const retry of flow.retryEvents) {
+    addMissionEvent(mission, "retry", `Retry ${retry.attempt}: ${retry.changedDirection}`, {
+      attempt: retry.attempt,
+      issues: retry.issues,
+    });
+  }
+  addMissionEvent(mission, "critic_result", flow.critic.passed ? "Critic passed." : "Critic blocked output.", {
+    passed: flow.critic.passed,
+    issues: flow.critic.issues,
+    retryable: flow.critic.retryable,
+  });
+  addMissionEvent(mission, "reviewer_result", flow.reviewer.summary, {
+    passed: flow.reviewer.passed,
+    decision: flow.reviewer.decision,
+    issues: flow.reviewer.issues,
+  });
+  return mission;
 }
 
 export function addMissionEvent(
@@ -376,6 +433,7 @@ export async function planLogoMissionWithoutProvider(command: string, missionId?
     localSvgAutomatic: false,
     preparedProviders: registry.image.preparedProviders,
   });
+  runMissionAgents(mission, { imageProviderAvailable: false });
   return { mission, workOrder };
 }
 
@@ -385,20 +443,24 @@ export async function applyMissionAction(command: string, action: MissionAction,
   if (action === "prepare_brief") {
     setMissionStatus(mission, "completed");
     mission.deliverables = mission.deliverables.filter((deliverable) => deliverable.type === "brief");
+    runMissionAgents(mission, { imageProviderAvailable: false, reset: true });
   }
   if (action === "create_visual_prompts") {
     setMissionStatus(mission, "completed");
     mission.deliverables = mission.deliverables.filter((deliverable) => deliverable.type === "visual_prompts");
+    runMissionAgents(mission, { imageProviderAvailable: false, reset: true });
   }
   if (action === "modify_current_deliverable") {
     setMissionStatus(mission, "needs_action");
     addMissionEvent(mission, "modification_waiting_for_instruction", "Modification requires a specific instruction.");
+    runMissionAgents(mission, { imageProviderAvailable: false, reset: true });
   }
   if (action === "request_local_prototype") {
     mission.sourceType = "local_svg";
     mission.providerUsed = "local_svg_renderer_explicit";
     addProviderResult(mission, localPrototypeProviderResult());
     setMissionStatus(mission, "reviewing");
+    runMissionAgents(mission, { imageProviderAvailable: false, localPrototypeRequested: true, reset: true });
   }
   return { mission, workOrder };
 }

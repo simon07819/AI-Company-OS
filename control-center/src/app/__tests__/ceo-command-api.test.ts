@@ -85,6 +85,11 @@ describe("CEO command API", () => {
         expect.objectContaining({ capability: "image", success: false, sourceType: "provider_unavailable" }),
       ]),
     );
+    expect(payload.mission.agentRuns.map((run: { agentId: string }) => run.agentId)).toEqual(
+      expect.arrayContaining(["planner", "brand_strategist", "creative_director", "visual_prompt_engineer", "critic", "reviewer"]),
+    );
+    expect(payload.mission.criticResult.passed).toBe(true);
+    expect(payload.mission.reviewerResult.passed).toBe(true);
     expect(payload.deliverables.map((deliverable: { title: string }) => deliverable.title)).toEqual(
       expect.arrayContaining(["Brief disponible", "Directions disponibles", "Prompts disponibles"]),
     );

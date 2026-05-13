@@ -91,6 +91,18 @@ export default function CEOResultDetails({
       durationMs?: number;
     }>;
     deliverables?: Array<{ artifactId?: string; title?: string; providerUsed?: string; sourceType?: string }>;
+    agentRuns?: Array<{
+      agentId?: string;
+      name?: string;
+      role?: string;
+      providerUsed?: string;
+      durationMs?: number;
+      confidence?: number;
+      output?: { summary?: string; issues?: string[]; decisions?: string[] };
+    }>;
+    criticResult?: { passed?: boolean; issues?: string[]; retryable?: boolean };
+    reviewerResult?: { passed?: boolean; decision?: string; issues?: string[]; summary?: string };
+    retryEvents?: Array<{ attempt?: number; issues?: string[]; changedDirection?: string }>;
   } | undefined;
 
   return (
@@ -284,6 +296,30 @@ export default function CEOResultDetails({
                 </li>
               ))}
             </ul>
+          ) : null}
+          {runtime?.agentRuns?.length ? (
+            <div>
+              <strong>Timeline agents</strong>
+              <ul>
+                {runtime.agentRuns.map((run, index) => (
+                  <li key={`${run.agentId}-${index}`}>
+                    <span>{run.name ?? run.agentId}</span>
+                    <span>{run.providerUsed}</span>
+                    <span>{Math.round((run.confidence ?? 0) * 100)}%</span>
+                    <span>{run.durationMs ?? 0}ms</span>
+                    {run.output?.issues?.length ? <span>{run.output.issues.join(", ")}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {(runtime?.criticResult || runtime?.reviewerResult || runtime?.retryEvents?.length) ? (
+            <div>
+              <strong>Critic, reviewer et retries</strong>
+              {runtime.criticResult && <p>critic: {runtime.criticResult.passed ? "passed" : "blocked"} · {(runtime.criticResult.issues ?? []).join(", ") || "no issues"}</p>}
+              {runtime.reviewerResult && <p>reviewer: {runtime.reviewerResult.decision ?? "unknown"} · {(runtime.reviewerResult.issues ?? []).join(", ") || "no issues"}</p>}
+              {runtime.retryEvents?.length ? <p>retries: {runtime.retryEvents.length}</p> : null}
+            </div>
           ) : null}
           <pre>{JSON.stringify({
             mission,

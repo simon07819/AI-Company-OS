@@ -21,6 +21,7 @@ import {
   createMissionRuntime,
   normalizeMissionAction,
   planLogoMissionWithoutProvider,
+  runMissionAgents,
   setMissionStatus,
 } from "@/lib/mission-runtime/missionRuntime";
 import {
@@ -254,6 +255,7 @@ export async function POST(req: NextRequest) {
           providerUsed: "local_svg_renderer_explicit",
           artifactId: artifact.artifactId,
         });
+        runMissionAgents(mission, { imageProviderAvailable: false, localPrototypeRequested: true, reset: true });
         setMissionStatus(mission, "needs_action");
         return NextResponse.json({
           ok: true,
@@ -540,6 +542,10 @@ export async function POST(req: NextRequest) {
         artifactId: artifact.artifactId,
       });
     }
+    runMissionAgents(missionRuntime, {
+      imageProviderAvailable: workOrder.deliverableType === "logo" ? hasRealLogoVisualProvider() : false,
+      reset: true,
+    });
     setMissionStatus(
       missionRuntime,
       hasArtifacts && (!requiresValidatedWorkflowVisual || (primaryVisual && primaryArtifactId)) ? "completed" : "failed",
