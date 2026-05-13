@@ -10,6 +10,24 @@ const primaryLinks = [
   "Agents",
 ];
 
+const expertLinks = [
+  "CEO Chat",
+  "Missions",
+  "Agents",
+  "Companies",
+  "Projects",
+  "Outputs",
+  "Approvals",
+  "Workspaces",
+  "Artifacts",
+  "Skills",
+  "Evals",
+  "Settings",
+  "Logs",
+  "Runtime",
+  "Expert",
+];
+
 describe("NavSidebar", () => {
   it("renders the active platform navigation", () => {
     render(React.createElement(NavSidebar));
@@ -22,7 +40,7 @@ describe("NavSidebar", () => {
   it("keeps the same core navigation in expert mode", () => {
     render(React.createElement(NavSidebar, { expertMode: true }));
 
-    for (const label of primaryLinks) {
+    for (const label of expertLinks) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });
@@ -135,9 +153,9 @@ describe("AppShell", () => {
     );
 
     await waitFor(() => expect(screen.getAllByRole("link", { name: "Agents" }).length).toBeGreaterThan(0));
-    expect(screen.getAllByRole("link", { name: "Missions" }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("link", { name: "Workspaces" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Settings" })).not.toBeInTheDocument();
+    for (const label of expertLinks) {
+      expect(screen.getAllByRole("link", { name: label }).length).toBeGreaterThan(0);
+    }
     expect(screen.getByRole("heading", { name: "Projects child content" })).toBeInTheDocument();
   });
 });

@@ -18,7 +18,7 @@ describe("active AI Company OS platform shell", () => {
     for (const label of ["CEO Chat", "Missions", "Agents"]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
     }
-    for (const hiddenLabel of ["Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+    for (const hiddenLabel of ["Companies", "Projects", "Outputs", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert"]) {
       expect(scope.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
     expect(scope.getByText("Nouveau chat")).toBeInTheDocument();
@@ -37,7 +37,34 @@ describe("active AI Company OS platform shell", () => {
     const sidebar = container.querySelector(".platform-sidebar");
     const scope = within(sidebar as HTMLElement);
 
-    for (const label of ["CEO Chat", "Missions", "Agents", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime"]) {
+    for (const label of [
+      "CEO Chat",
+      "Missions",
+      "Agents",
+      "Companies",
+      "Projects",
+      "Outputs",
+      "Approvals",
+      "Workspaces",
+      "Artifacts",
+      "Skills",
+      "Evals",
+      "Settings",
+      "Logs",
+      "Runtime",
+      "Expert",
+    ]) {
+      expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("keeps the full expert menu active on advanced routes", () => {
+    globalThis.__TEST_PATHNAME__ = "/projects";
+    const { container } = render(React.createElement(AppShell, null, React.createElement("main", null, "Projects route")));
+    const sidebar = container.querySelector(".platform-sidebar");
+    const scope = within(sidebar as HTMLElement);
+
+    for (const label of ["CEO Chat", "Missions", "Agents", "Companies", "Projects", "Outputs", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert"]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });

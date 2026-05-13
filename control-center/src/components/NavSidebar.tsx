@@ -3,17 +3,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Activity,
-  Bot,
-  ClipboardList,
-  Database,
-  Crown,
-  Eye,
-  Settings,
-  Shield,
-  Sparkles,
-} from "lucide-react";
+import { Shield } from "lucide-react";
+import { EXPERT_NAV, SIMPLE_NAV } from "@/lib/navigation";
 export type NavItem = {
   href: string;
   label: string;
@@ -25,21 +16,15 @@ export type NavItem = {
 const SIMPLE_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "AI Company OS",
-    items: [
-      { href: "/ceo", label: "CEO Chat", description: "Talk to the AI CEO", icon: <Crown size={16} /> },
-      { href: "/missions", label: "Missions", description: "Mission pipeline", icon: <ClipboardList size={16} /> },
-      { href: "/agents", label: "Agents", description: "AI agent team", icon: <Bot size={16} /> },
-      { href: "/workspaces", label: "Workspaces", description: "Company workspaces", icon: <Database size={16} /> },
-      { href: "/artifacts", label: "Artifacts", description: "Generated deliverables", icon: <Eye size={16} /> },
-      { href: "/skills", label: "Skills", description: "Agent skills library", icon: <Sparkles size={16} /> },
-      { href: "/evals", label: "Evals", description: "Product regression suite", icon: <Activity size={16} /> },
-      { href: "/settings", label: "Settings", description: "System settings", icon: <Settings size={16} /> },
-    ],
+    items: SIMPLE_NAV.map((item) => ({ ...item, description: item.label })),
   },
 ];
 
 const EXPERT_NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
-  ...SIMPLE_NAV_SECTIONS,
+  {
+    label: "AI Company OS Expert",
+    items: EXPERT_NAV.map((item) => ({ ...item, description: item.label })),
+  },
 ];
 
 export const NAV_ITEMS = [...SIMPLE_NAV_SECTIONS, ...EXPERT_NAV_SECTIONS].flatMap((section) => section.items);

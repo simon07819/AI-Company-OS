@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { navigationForMode, pageLabel } from "@/lib/navigation";
+import { isAdvancedPath, navigationForMode, pageLabel } from "@/lib/navigation";
 import AppTopBar from "./AppTopBar";
 import CommandDock from "./CommandDock";
 import { useViewMode, ViewModeProvider } from "./ViewModeProvider";
@@ -13,7 +13,7 @@ function DesktopShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { toggleMode } = useViewMode();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const effectiveMode = pathname.startsWith("/ceo/expert") ? "expert" : "simple";
+  const effectiveMode = isAdvancedPath(pathname) ? "expert" : "simple";
   const navItems = useMemo(() => navigationForMode(effectiveMode), [effectiveMode]);
   const activeLabel = pageLabel(pathname, navItems);
 

@@ -1,12 +1,17 @@
 import {
   Activity,
+  BadgeCheck,
   Bot,
+  Building2,
   ClipboardList,
   Crown,
   Eye,
+  FileStack,
+  FolderOpen,
   FolderKanban,
   LayoutDashboard,
   Settings,
+  SlidersHorizontal,
   Sparkles,
   TerminalSquare,
 } from "lucide-react";
@@ -23,13 +28,17 @@ export type DesktopNavItem = {
 };
 
 export const SIMPLE_NAV: DesktopNavItem[] = [
-  { href: "/ceo", label: "CEO Chat", icon: createElement(Crown, { size: 18 }) },
+  { href: "/ceo", label: "CEO Chat", icon: createElement(Crown, { size: 18 }), exact: true },
   { href: "/missions", label: "Missions", icon: createElement(ClipboardList, { size: 18 }) },
   { href: "/agents", label: "Agents", icon: createElement(Bot, { size: 18 }) },
 ];
 
 export const EXPERT_NAV: DesktopNavItem[] = [
   ...SIMPLE_NAV,
+  { href: "/companies", label: "Companies", icon: createElement(Building2, { size: 18 }), advanced: true },
+  { href: "/projects", label: "Projects", icon: createElement(FolderOpen, { size: 18 }), advanced: true },
+  { href: "/outputs", label: "Outputs", icon: createElement(FileStack, { size: 18 }), advanced: true },
+  { href: "/approvals", label: "Approvals", icon: createElement(BadgeCheck, { size: 18 }), advanced: true },
   { href: "/workspaces", label: "Workspaces", icon: createElement(FolderKanban, { size: 18 }), advanced: true },
   { href: "/artifacts", label: "Artifacts", icon: createElement(Eye, { size: 18 }), advanced: true },
   { href: "/skills", label: "Skills", icon: createElement(Sparkles, { size: 18 }), advanced: true },
@@ -37,17 +46,22 @@ export const EXPERT_NAV: DesktopNavItem[] = [
   { href: "/settings", label: "Settings", icon: createElement(Settings, { size: 18 }), advanced: true },
   { href: "/logs", label: "Logs", icon: createElement(TerminalSquare, { size: 18 }), advanced: true },
   { href: "/runtime", label: "Runtime", icon: createElement(LayoutDashboard, { size: 18 }), advanced: true },
+  { href: "/ceo/expert", label: "Expert", icon: createElement(SlidersHorizontal, { size: 18 }), advanced: true, exact: true },
 ];
 
 export const ADVANCED_ROUTE_PREFIXES = [
   "ceo/expert",
+  "companies",
+  "projects",
+  "outputs",
+  "approvals",
   "evals",
   "skills",
   "settings",
   "workspaces",
-  "agents",
-  "missions",
   "artifacts",
+  "logs",
+  "runtime",
 ];
 
 export function isAdvancedPath(pathname: string) {
