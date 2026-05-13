@@ -73,6 +73,18 @@ function sourceBadge(result: CEOCurrentResult) {
   return null;
 }
 
+function teamStatus(result: CEOCurrentResult) {
+  if (result.status === "completed" && (result.deliverableType === "logo" || result.requestType === "logo" || result.requestType === "branding")) {
+    return "Équipe branding terminée · Review validée";
+  }
+  if (result.status === "completed" && (result.deliverableType === "website" || result.requestType === "website")) {
+    return "Équipe website terminée · Review validée";
+  }
+  if (result.status === "needs_action") return "Action requise · Review validée";
+  if (result.status === "reviewing") return "Review en cours";
+  return null;
+}
+
 function SummaryText({ value }: { value: string }) {
   return (
     <>
@@ -108,11 +120,13 @@ function CEOResultMessage({
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
   const badge = sourceBadge(result);
+  const shortTeamStatus = teamStatus(result);
   const isNvidiaImage = Boolean(result.primaryVisual && /^data:image\//i.test(result.primaryVisual) && result.sourceType === "nvidia_image");
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
       {badge && <span className="ceo-source-badge">{badge}</span>}
+      {shortTeamStatus && <small>{shortTeamStatus}</small>}
       {!isLogoDeliverable && !isWebsite && !isTextRenderable && !isNoProviderLogo && <p>{responseIntro(result)}</p>}
       {isRenderable ? (
         <div className={isLogoDeliverable && hasValidPrimaryVisual ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
@@ -171,6 +185,10 @@ function CEOResultMessage({
         <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
           <Info size={15} />
           Voir détails
+        </button>
+        <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
+          <Info size={15} />
+          Voir travail de l’équipe
         </button>
       </div>
       {detailsOpen && <CEOResultDetails result={result} mission={mission} expertMode={expertMode} />}

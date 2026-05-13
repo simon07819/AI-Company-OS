@@ -251,6 +251,67 @@ describe("CEO command components", () => {
     expect(container.querySelector(".ceo-chat-messages")).not.toHaveClass("text-slate-50");
   });
 
+  it("shows only team status in simple mode and keeps timeline in expert details", () => {
+    const expertResult: CEOCurrentResult = {
+      ...result,
+      title: "Image logo NVIDIA EKIDA",
+      requestType: "logo",
+      deliverableType: "logo",
+      brandName: "EKIDA",
+      status: "completed",
+      summary: "Image logo générée par le provider NVIDIA.",
+      sourceType: "nvidia_image",
+      providerUsed: "nvidia",
+      primaryVisual: "data:image/png;base64,ZmFrZQ==",
+      primaryArtifactId: "artifact-image",
+      artifactId: "artifact-image",
+      artifactPaths: [],
+      expert: {
+        runtime: {
+          providerUsed: "nvidia",
+          sourceType: "nvidia_image",
+          agentRuns: [
+            { agentId: "ceo", name: "CEO", role: "Cadre l'objectif", providerUsed: "local_rules", durationMs: 1, confidence: 0.86, output: { summary: "CEO: mission cadrée." } },
+            { agentId: "nvidia_image_agent", name: "NVIDIA Image Agent", role: "Génère via NVIDIA", providerUsed: "local_rules", durationMs: 2, confidence: 0.86, output: { summary: "Provider NVIDIA prêt." } },
+            { agentId: "reviewer", name: "Reviewer", role: "Valide la décision finale", providerUsed: "local_rules", durationMs: 1, confidence: 0.86, output: { summary: "Review approved." } },
+          ],
+          retryEvents: [],
+          deliverables: [{ title: "Image logo NVIDIA EKIDA", artifactId: "artifact-image", sourceType: "nvidia_image", providerUsed: "nvidia" }],
+        },
+      },
+    };
+
+    const { rerender } = render(React.createElement(CEOResultStage, {
+      result: expertResult,
+      mission: { ...mission, requestType: "logo", status: "completed", artifactCount: 1 },
+      expertMode: false,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByText(/Équipe branding terminée/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Voir travail de l’équipe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
+    expect(screen.queryByTestId("ceo-team-timeline")).not.toBeInTheDocument();
+    expect(screen.queryByText("NVIDIA Image Agent")).not.toBeInTheDocument();
+
+    rerender(React.createElement(CEOResultStage, {
+      result: expertResult,
+      mission: { ...mission, requestType: "logo", status: "completed", artifactCount: 1 },
+      expertMode: true,
+      loading: false,
+      error: null,
+      onModify: vi.fn(),
+      onContinue: vi.fn(),
+    }));
+
+    expect(screen.getByTestId("ceo-team-timeline")).toBeInTheDocument();
+    expect(screen.getByText("NVIDIA Image Agent")).toBeInTheDocument();
+    expect(screen.getAllByText(/providerUsed: local_rules/).length).toBeGreaterThan(0);
+  });
+
   it("does not fake success when artifacts are missing", () => {
     render(React.createElement(CEOResultStage, {
       result: { ...result, artifactPaths: [], workspaceHref: undefined, status: "rejected", qualityStatus: "Aucun artifact réel créé" },

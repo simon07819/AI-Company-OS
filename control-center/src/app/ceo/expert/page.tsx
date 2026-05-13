@@ -45,6 +45,7 @@ import {
   ExpertiseBadge,
 } from "@/components/ui";
 import { ApprovalCard, ApprovalPreviewModal } from "@/components/approvals/ApprovalCard";
+import TeamTimeline from "@/components/ceo/TeamTimeline";
 import type { ApprovalItem, ApprovalPreview } from "@/lib/approvalPreview";
 import { cleanupCompanyOsClientStorage } from "@/lib/clientStorageReset";
 import type { ExecutiveDiscussion, DiscussionMessage } from "@/lib/executiveDiscussion";
@@ -1089,12 +1090,19 @@ interface RuntimeProofPayload {
     runtime?: {
       providerUsed?: string;
       sourceType?: string;
+      playbook?: { id?: string; name?: string };
       agentRuns?: Array<{
         agentId?: string;
         name?: string;
+        role?: string;
         providerUsed?: string;
         durationMs?: number;
         confidence?: number;
+        output?: {
+          summary?: string;
+          issues?: string[];
+          decisions?: string[];
+        };
       }>;
       criticResult?: {
         passed?: boolean;
@@ -1111,6 +1119,7 @@ interface RuntimeProofPayload {
         sourceType?: string;
         providerUsed?: string;
       }>;
+      retryEvents?: Array<{ attempt?: number; issues?: string[]; changedDirection?: string }>;
     };
   };
 }
@@ -1120,15 +1129,18 @@ function ExpertRuntimeProofPanel() {
   const [proof, setProof] = useState<RuntimeProofPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProof = async () => {
+  const loadProof = async (kind: "logo" | "website" = "logo") => {
     setLoading(true);
     setError(null);
+    const prompt = kind === "website"
+      ? "Je veux une page web simple pour EKIDA, une compagnie de linge"
+      : "je veux un logo ekida";
     try {
       const response = await fetch("/api/ceo/command", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: "je veux un logo ekida",
+          prompt,
           conversationId: `expert-proof-${Date.now().toString(36)}`,
           expertMode: true,
         }),
@@ -1151,6 +1163,7 @@ function ExpertRuntimeProofPanel() {
   const runtime = proof?.expert?.runtime;
   const diagnostic = proof?.expert?.diagnostic;
   const agents = runtime?.agentRuns ?? [];
+  const retries = runtime?.retryEvents ?? [];
   const critic = runtime?.criticResult;
   const reviewer = runtime?.reviewerResult;
   const artifactId = proof?.artifactId
@@ -1212,7 +1225,7 @@ function ExpertRuntimeProofPanel() {
           </a>
           <button
             type="button"
-            onClick={loadProof}
+            onClick={() => loadProof("logo")}
             disabled={loading}
             style={{
               padding: "7px 11px",
@@ -1226,6 +1239,23 @@ function ExpertRuntimeProofPanel() {
             }}
           >
             {loading ? "Chargement..." : "Charger preuve runtime"}
+          </button>
+          <button
+            type="button"
+            onClick={() => loadProof("website")}
+            disabled={loading}
+            style={{
+              padding: "7px 11px",
+              borderRadius: 8,
+              border: "1px solid rgba(56,189,248,0.35)",
+              background: loading ? "rgba(107,114,128,0.25)" : "rgba(56,189,248,0.14)",
+              color: "#38bdf8",
+              fontSize: 11,
+              fontWeight: 800,
+              cursor: loading ? "wait" : "pointer",
+            }}
+          >
+            Preuve équipe website
           </button>
         </div>
       </div>
@@ -1241,15 +1271,16 @@ function ExpertRuntimeProofPanel() {
             <p style={{ margin: 0 }}>providerUsed: {runtime?.providerUsed ?? proof.providerUsed ?? diagnostic?.providerUsed ?? "unknown"}</p>
             <p style={{ margin: 0 }}>sourceType: {runtime?.sourceType ?? proof.sourceType ?? diagnostic?.sourceType ?? "unknown"}</p>
             <p style={{ margin: 0 }}>artifactId: {artifactId}</p>
+            <p style={{ margin: 0 }}>playbook: {runtime?.playbook?.id ?? "unknown"}</p>
             <p style={{ margin: 0 }}>duree: {diagnostic?.durationMs ?? 0}ms</p>
           </div>
           <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
-            <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Timeline agents</strong>
-            {agents.length ? agents.map((agent, index) => (
-              <p key={`${agent.agentId ?? agent.name}-${index}`} style={{ margin: 0 }}>
-                {agent.name ?? agent.agentId}: {agent.providerUsed ?? "none"} · {Math.round((agent.confidence ?? 0) * 100)}% · {agent.durationMs ?? 0}ms
-              </p>
-            )) : <p style={{ margin: 0 }}>Aucun agent retourne.</p>}
+            {agents.length ? <TeamTimeline runs={agents} retries={retries} compact /> : (
+              <>
+                <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Timeline équipe</strong>
+                <p style={{ margin: 0 }}>Aucun agent retourne.</p>
+              </>
+            )}
           </div>
           <div style={{ fontSize: 10, lineHeight: 1.55, color: "var(--text-2)" }}>
             <strong style={{ display: "block", color: "var(--text)", marginBottom: 4 }}>Critic / reviewer</strong>

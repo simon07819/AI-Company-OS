@@ -52,6 +52,8 @@ test.describe("CEO runtime shell", () => {
 
     await expect(page.getByLabel(/Prototype de logo/i)).toHaveCount(0);
     await expect(page.locator(".ceo-chat-visual-reply.brand")).toHaveCount(0);
+    await expect(page.getByText("Timeline équipe")).toHaveCount(0);
+    await expect(page.getByText(/providerUsed:/)).toHaveCount(0);
 
     await page.getByRole("button", { name: /Preparer le brief|Préparer le brief/ }).click();
     await expect(page.getByText(/Brief logo EKIDA/i)).toBeVisible();
@@ -97,7 +99,12 @@ test.describe("CEO expert runtime evidence", () => {
     }
 
     await page.getByRole("button", { name: "Charger preuve runtime" }).click();
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Timeline agents");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Timeline équipe");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("CEO");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Mission Planner");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Brand Strategist");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("NVIDIA Image Agent");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Artifact Manager");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("providerUsed");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("sourceType");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("critic");
@@ -107,6 +114,20 @@ test.describe("CEO expert runtime evidence", () => {
     await page.getByRole("link", { name: "CEO Chat", exact: true }).click();
     await expect(page).toHaveURL(/\/ceo$/);
     await expect(page.getByRole("link", { name: "Companies", exact: true })).toHaveCount(0);
+  });
+
+  test("loads website team diagnostics with the full website team", async ({ page }) => {
+    await page.goto("/ceo/expert");
+    await page.getByRole("button", { name: "Preuve équipe website" }).click();
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("website-team-playbook");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("CEO");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Product Owner");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("UX Strategist");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("UI Designer");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Frontend Architect");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("QA");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Reviewer");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Artifact Manager");
   });
 
   test("shows expert diagnostics without exposing secret values", async ({ page }) => {

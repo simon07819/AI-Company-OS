@@ -2,6 +2,7 @@
 
 import { FileText } from "lucide-react";
 import Link from "next/link";
+import TeamTimeline from "./TeamTimeline";
 import type { CEOCurrentMission, CEOCurrentResult } from "./types";
 
 function artifactName(artifactPath: string) {
@@ -299,18 +300,7 @@ export default function CEOResultDetails({
           ) : null}
           {runtime?.agentRuns?.length ? (
             <div>
-              <strong>Timeline agents</strong>
-              <ul>
-                {runtime.agentRuns.map((run, index) => (
-                  <li key={`${run.agentId}-${index}`}>
-                    <span>{run.name ?? run.agentId}</span>
-                    <span>{run.providerUsed}</span>
-                    <span>{Math.round((run.confidence ?? 0) * 100)}%</span>
-                    <span>{run.durationMs ?? 0}ms</span>
-                    {run.output?.issues?.length ? <span>{run.output.issues.join(", ")}</span> : null}
-                  </li>
-                ))}
-              </ul>
+              <TeamTimeline runs={runtime.agentRuns} retries={runtime.retryEvents ?? []} compact />
             </div>
           ) : null}
           {(runtime?.criticResult || runtime?.reviewerResult || runtime?.retryEvents?.length) ? (
