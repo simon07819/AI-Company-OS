@@ -234,12 +234,20 @@ function agentLabel(agentId: string) {
   return AGENT_NAMES[agentId]?.name ?? agentId.replace(/_/g, " ");
 }
 
+const MONTHS_FR = ["jan.", "fév.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
 function displayDate(value?: string | null) {
-  if (!value) return "Recent";
+  if (!value) return "Récent";
   try {
-    return new Intl.DateTimeFormat("fr-CA", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "Récent";
+    const day = d.getDate();
+    const month = MONTHS_FR[d.getMonth()];
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${day} ${month} ${hh}:${mm}`;
   } catch {
-    return "Recent";
+    return "Récent";
   }
 }
 
