@@ -119,22 +119,40 @@ export function isCreativeAgencyRequest(command: string) {
   return CREATIVE_KEYWORDS.test(normalize(command));
 }
 
+const BRAND_STYLE_WORDS = /^(sportif|premium|moderne|professionnel|professionnelle|simple|luxe|tech|corporate|minimal|minimaliste|pour|ma|votre|notre|sur|avec|de|un|une|le|la|les|noir|blanc|transparent|original)$/i;
+const BRAND_VERB_PREFIXES = /^(cr[eé]e?|fais|refais|je|logo|image|design|crea|cree)$/i;
+
 export function extractBrandName(command: string) {
   const original = command.replace(/\s+/g, " ").trim();
-  const quoted = original.match(/["“](.+?)["”]/)?.[1];
+
+  // 1. Quoted string: "EKIDA" or «EKIDA» or "EKIDA"
+  const quoted = original.match(/["\u201c\u201d\u00ab\u00bb](.+?)["\u201c\u201d\u00ab\u00bb]/)?.[1];
   if (quoted) return quoted.trim();
-  const afterFor = original.match(/\b(?:pour|for|appelle|nomm[eé]e?|called)\s+([A-Za-z0-9& -]{2,50})\b/);
+
+  // 2. After explicit keyword (pour, appelle, nommé, called) — strip noise words, take first real token
+  const afterFor = original.match(/\b(?:pour|for|appelle|nomm[eé]e?|called)\s+(?:(?:la|le|les|ma|votre|notre|une?)\s+)?(?:marque|compagnie|entreprise|brand)?\s*([A-Za-z0-9À-ɏ&][A-Za-z0-9À-ɏ& -]{1,50})/i);
   if (afterFor?.[1]) {
-    const candidate = afterFor[1]
-      .replace(/\b(une|un|compagnie|entreprise|company|construction|logo|original|premium|professionnel|professionnelle)\b/gi, "")
-      .trim();
-    if (candidate.length >= 3) return candidate;
+    const firstToken = afterFor[1].trim().split(/\s+/)[0].replace(/[.,;!?]$/, "");
+    if (firstToken.length >= 2 && !BRAND_STYLE_WORDS.test(firstToken) && !BRAND_VERB_PREFIXES.test(firstToken)) {
+      return firstToken;
+    }
   }
+
+  // 3. All-caps token (EKIDA, PROSHOTS, ELEVIO…)
   const caps = original.match(/\b([A-Z][A-Z0-9]{2,}(?:\s+[A-Z][A-Z0-9]{2,}){0,3})\b/);
   if (caps?.[1]) return caps[1].trim();
-  const title = original.match(/\b([A-Z][a-z0-9]+(?:\s+[A-Z][a-z0-9]+){0,2})\b/);
+
+  // 4. Word right after "logo" or "branding" keyword — handles "logo ekida", "logo Ekida"
+  const afterLogo = original.match(/\b(?:logo|branding|marque)\s+(?:(?:la|le|ma|votre|notre|une?|de)\s+)?([A-Za-z0-9À-ɏ][A-Za-z0-9À-ɏ&-]{1,30})\b/i);
+  if (afterLogo?.[1] && !BRAND_STYLE_WORDS.test(afterLogo[1]) && !BRAND_VERB_PREFIXES.test(afterLogo[1])) {
+    return afterLogo[1];
+  }
+
+  // 5. TitleCase token
+  const title = original.match(/\b([A-Z][a-z0-9À-ɏ]+(?:\s+[A-Z][a-z0-9À-ɏ]+){0,2})\b/);
   const titleName = title?.[1]?.trim();
-  if (titleName && titleName.length >= 3 && !/^(Cr|Crée|Créer|Fais|Refais|Je|Logo|Image|Design)$/i.test(titleName)) return titleName;
+  if (titleName && titleName.length >= 3 && !BRAND_VERB_PREFIXES.test(titleName)) return titleName;
+
   return "Marque";
 }
 
@@ -287,19 +305,22 @@ export function createImageGenerationPlan(input: {
   memorySummary?: string;
 }): ImageGenerationPlan {
   const referenceArtifacts = memoryLines(input.memorySummary ?? "", /Artifacts acceptés|Références visuelles approuvées/i, 4);
+  const brandName = input.brief.brandName;
+  const brandInstruction = brandName !== "Marque"
+    ? `BRAND NAME: "${brandName}" — this exact text must appear clearly and prominently in the logo. Do not invent different text. Write "${brandName}".`
+    : "";
   const finalCreativePrompt = [
-    `Create a final ${input.brief.deliverableType} for ${input.brief.brandName}.`,
+    brandInstruction,
+    `Create a final ${input.brief.deliverableType} for ${brandName}.`,
     `Agency direction: ${input.selected.directionName}.`,
     `Creative rationale: ${input.selected.creativeRationale}`,
     `Brand essence: ${input.strategy.brandEssence}.`,
-    `Marketing intent: ${input.marketing.messagingAngle}.`,
     `Visual language: ${input.selected.visualLanguage}.`,
-    `Typography: ${input.selected.typographyStyle}.`,
     `Color logic: ${input.selected.colorLogic}.`,
     `Shape language: ${input.selected.shapeLanguage}.`,
     `Composition: ${input.selected.compositionGuidelines}.`,
-    `Concept narrative: ${input.concept.conceptNarrative}.`,
     referenceArtifacts.length ? `Preserve approved reference direction: ${referenceArtifacts.join(" | ")}` : "",
+    brandInstruction,
     "Final image only. Premium brand design. No mockup. No watermark. No placeholder text. Avoid generic clipart, washed-out milky haze, low contrast, blurry marks, and pale unusable logos.",
   ].filter(Boolean).join("\n");
   return {
