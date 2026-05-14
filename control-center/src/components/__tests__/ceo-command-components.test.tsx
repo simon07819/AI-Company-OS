@@ -133,6 +133,17 @@ describe("CEO command components", () => {
     expect(screen.queryByText("Mode simple")).not.toBeInTheDocument();
   });
 
+  it("keeps the upload button visible in simple and expert CEO chat modes", () => {
+    const { unmount } = render(React.createElement(CEOCommandSurface));
+    expect(screen.getByRole("button", { name: "Ajouter des fichiers" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Choisir des fichiers")).toBeInTheDocument();
+
+    unmount();
+    render(React.createElement(CEOCommandSurface, { expertMode: true }));
+    expect(screen.getByRole("button", { name: "Ajouter des fichiers" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Choisir des fichiers")).toBeInTheDocument();
+  });
+
   it("submits text, clears the input and prevents double submit while busy", async () => {
     const onSubmit = vi.fn(() => Promise.resolve());
     render(React.createElement(CEOCommandComposer, { loading: false, onSubmit }));
