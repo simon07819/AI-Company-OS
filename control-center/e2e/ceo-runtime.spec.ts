@@ -143,6 +143,9 @@ test.describe("CEO expert runtime evidence", () => {
     await expect(page).toHaveURL(/\/ceo$/);
     await expect(page.getByRole("link", { name: "Companies", exact: true })).toBeVisible();
     await expect(page.locator(".platform-shell")).toHaveAttribute("data-mode", "expert");
+    await page.getByRole("button", { name: "Mode normal" }).click();
+    await expect(page.locator(".platform-shell")).toHaveAttribute("data-mode", "simple");
+    await expect(page.getByRole("link", { name: "Companies", exact: true })).toHaveCount(0);
   });
 
   test("loads website team diagnostics with the full website team", async ({ page }) => {

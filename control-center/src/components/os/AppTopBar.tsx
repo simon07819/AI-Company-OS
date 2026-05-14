@@ -2,6 +2,8 @@
 
 import { Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useOptionalViewMode } from "./ViewModeProvider";
+import ViewModeToggle from "./ViewModeToggle";
 
 export default function AppTopBar({
   activeLabel,
@@ -10,6 +12,8 @@ export default function AppTopBar({
   activeLabel: string;
   onMenuClick: () => void;
 }) {
+  const viewMode = useOptionalViewMode();
+
   return (
     <header className="platform-topbar app-top-bar desktop-appbar">
       <button className="platform-mobile-menu-button" type="button" onClick={onMenuClick} aria-label="Ouvrir le menu">
@@ -19,7 +23,10 @@ export default function AppTopBar({
         <span>AI Company OS</span>
         <strong>{activeLabel}</strong>
       </div>
-      <ThemeToggle />
+      <div className="platform-topbar-actions">
+        {viewMode && <ViewModeToggle mode={viewMode.mode} onToggle={viewMode.toggleMode} />}
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

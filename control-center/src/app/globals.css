@@ -7027,8 +7027,22 @@ html[data-theme="dark"] .ceo-os-result-details {
   gap: 8px;
 }
 
+.platform-topbar.desktop-appbar {
+  position: sticky;
+  top: 0;
+  z-index: 120;
+  width: auto;
+  height: 62px;
+  min-height: 62px;
+  overflow: visible;
+  opacity: 1;
+  pointer-events: auto;
+  padding: 0 20px;
+}
+
 .platform-mobile-menu-button,
 .platform-more-button,
+.platform-topbar .view-mode-toggle,
 .platform-topbar .theme-toggle,
 .platform-topbar .command-palette-trigger {
   min-width: 34px;
@@ -7053,7 +7067,14 @@ html[data-theme="dark"] .ceo-os-result-details {
   display: none;
 }
 
+.platform-topbar .view-mode-toggle {
+  width: auto;
+  padding: 0 12px;
+  font-size: 11px;
+}
+
 .platform-more-button:hover,
+.platform-topbar .view-mode-toggle:hover,
 .platform-topbar .theme-toggle:hover,
 .platform-topbar .command-palette-trigger:hover {
   color: #fafafa;
