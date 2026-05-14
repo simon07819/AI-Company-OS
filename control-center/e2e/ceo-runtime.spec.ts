@@ -35,6 +35,9 @@ test.describe("CEO runtime shell", () => {
     for (const label of ["AI Company OS", "Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Expert Mode"]) {
       await expect(sidebar.getByText(label, { exact: label !== "AI Company OS" })).toBeVisible();
     }
+    await expect(sidebar.getByRole("link", { name: /chat|conversation/i })).toHaveCount(1);
+    await expect(sidebar.getByRole("link", { name: "CEO Chat", exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: /Conversations/i })).toHaveCount(0);
 
     for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs"]) {
       const item = sidebar.getByRole("link", { name: label });
@@ -119,6 +122,9 @@ test.describe("CEO expert runtime evidence", () => {
     for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Companies", "Runtime", "Expert Mode"]) {
       await expect(sidebar.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
+    await expect(sidebar.getByRole("link", { name: /chat|conversation/i })).toHaveCount(1);
+    await expect(sidebar.getByRole("link", { name: "CEO Chat", exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: /Conversations/i })).toHaveCount(0);
 
     await page.getByRole("button", { name: "Charger preuve runtime" }).click();
     await expect(page.getByRole("button", { name: "Charger preuve runtime" })).toBeEnabled({ timeout: 60_000 });
