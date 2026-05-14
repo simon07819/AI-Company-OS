@@ -1,7 +1,7 @@
 "use client";
 
-import CEOCommandSurface from "@/components/ceo/CEOCommandSurface";
+import { AgencyDashboard } from "@/components/os/AgencyDashboard";
 
 export default function HomePage() {
-  return <CEOCommandSurface />;
+  return <AgencyDashboard variant="dashboard" />;
 }
