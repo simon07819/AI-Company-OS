@@ -86,6 +86,29 @@ test.describe("CEO runtime shell", () => {
     await expect(page.locator(".ceo-chat-visual-reply.brand")).toHaveCount(0);
     await expect(page.getByText(/Brand system|Marque à nommer|Prototype visuel/i)).toHaveCount(0);
   });
+
+  test("real CEO logo flow uses NVIDIA image when configured or shows exact config error", async ({ page, request }) => {
+    const diagnosticResponse = await request.get("/api/diagnostics/nvidia-image");
+    const diagnostic = await diagnosticResponse.json();
+
+    await page.goto("/ceo");
+    await page.getByPlaceholder("Message").fill("je veux un logo EKIDA CANADA");
+    await page.getByRole("button", { name: "Envoyer" }).click();
+
+    if (diagnostic.canAttemptGeneration) {
+      await expect(
+        page.locator(".ceo-chat-generated-image, .ceo-chat-visual-reply.failed").first(),
+      ).toBeVisible({ timeout: 30_000 });
+      const imageCount = await page.locator(".ceo-chat-generated-image").count();
+      if (imageCount === 0) {
+        await expect(page.getByText(/NVIDIA image provider failed|Expected:|Received:|status/i).first()).toBeVisible();
+      }
+    } else {
+      await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT|NVIDIA_API_KEY|Variables manquantes/i).first()).toBeVisible({ timeout: 20_000 });
+    }
+
+    await page.screenshot({ path: "test-results/real-ceo-logo-flow.png", fullPage: true });
+  });
 });
 
 test.describe("CEO expert runtime evidence", () => {

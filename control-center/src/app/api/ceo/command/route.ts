@@ -31,6 +31,7 @@ import {
   hasImageProvider,
   websiteArtifactProviderResult,
 } from "@/lib/providers/providerRegistry";
+import { getNvidiaImageDiagnostics } from "@/lib/providers/nvidiaImageProvider";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -504,11 +505,18 @@ export async function POST(req: NextRequest) {
       }
 
       const { mission } = await planLogoMissionWithoutProvider(prompt, preliminaryWorkOrder.missionId);
+      const nvidiaImageDiagnostic = getNvidiaImageDiagnostics();
+      const missingImageConfig = nvidiaImageDiagnostic.missing.length
+        ? `Variables manquantes: ${nvidiaImageDiagnostic.missing.join(", ")}.`
+        : nvidiaImageDiagnostic.reasons.join(" ");
+      const noProviderSummary = nvidiaImageDiagnostic.providerSelected
+        ? `NVIDIA image est sélectionné, mais indisponible. ${missingImageConfig} Modèle: ${nvidiaImageDiagnostic.model}. Endpoint: ${nvidiaImageDiagnostic.endpointHost ?? "manquant"}.`
+        : `Aucun générateur visuel réel branché. ${missingImageConfig} Pour NVIDIA image: IMAGE_PROVIDER=nvidia, NVIDIA_IMAGE_ENDPOINT et NVIDIA_API_KEY doivent être configurés. Modèle: ${nvidiaImageDiagnostic.model}.`;
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
         projectId: null,
-        title: "Aucun générateur visuel réel branché",
+        title: nvidiaImageDiagnostic.providerSelected ? "Provider image NVIDIA indisponible" : "Aucun générateur visuel réel branché",
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType: "logo",
@@ -516,7 +524,7 @@ export async function POST(req: NextRequest) {
         mission,
         deliverables: mission.deliverables,
         artifactId: null,
-        summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
+        summary: noProviderSummary,
         shortMessage: undefined,
         primaryVisualPath: null,
         primaryVisual: null,
@@ -548,6 +556,15 @@ export async function POST(req: NextRequest) {
             localRendererFile: "src/lib/design-team/logoWorkflow.ts",
             localRendererFunction: "runDesignTeamWorkflow",
             displayDecision: "simple_mode_blocks_local_mock_visuals",
+            nvidiaImage: {
+              providerSelected: nvidiaImageDiagnostic.providerSelected,
+              providerAvailable: nvidiaImageDiagnostic.providerAvailable,
+              endpointHost: nvidiaImageDiagnostic.endpointHost ?? null,
+              model: nvidiaImageDiagnostic.model,
+              missing: nvidiaImageDiagnostic.missing,
+              reasons: nvidiaImageDiagnostic.reasons,
+              suggestedFix: nvidiaImageDiagnostic.suggestedFix,
+            },
           },
           runtime: mission,
           plan: {

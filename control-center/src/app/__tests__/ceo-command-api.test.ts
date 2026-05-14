@@ -80,7 +80,9 @@ describe("CEO command API", () => {
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("ELEVIO");
     expect(payload.title).toBe("Aucun générateur visuel réel branché");
-    expect(payload.summary).toBe("Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.");
+    expect(payload.summary).toContain("Aucun générateur visuel réel branché.");
+    expect(payload.summary).toContain("Variables manquantes");
+    expect(payload.summary).toContain("NVIDIA_IMAGE_ENDPOINT");
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.sourceType).toBe("none");

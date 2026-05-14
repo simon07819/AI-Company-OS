@@ -9,6 +9,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:evals": "vitest run src/agents/evals/agent-evals.test.ts",
+    "diagnose:nvidia-image": "npx tsx scripts/diagnose-nvidia-image.ts",
+    "test:nvidia-image:real": "npx tsx scripts/test-nvidia-image-real.ts",
     "lint": "next lint",
     "reset:company-os": "node scripts/reset-ai-company-os.mjs"
   },

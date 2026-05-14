@@ -1,6 +1,8 @@
 import { execFileSync } from "node:child_process";
 import Link from "next/link";
+import NvidiaImageDiagnosticButton from "@/components/diagnostics/NvidiaImageDiagnosticButton";
 import { getProviderRegistry, listTraceableArtifacts } from "@/lib/providers/providerRegistry";
+import { getNvidiaImageDiagnostics } from "@/lib/providers/nvidiaImageProvider";
 import { runtimeDataRoot } from "@/lib/runtime/runtimeFileStore";
 import { listProductionRuns } from "@/lib/runtime/missionState";
 
@@ -30,6 +32,7 @@ function statusPill(ok: boolean) {
 
 export default function CeoDiagnosticsPage() {
   const registry = getProviderRegistry();
+  const nvidiaImage = getNvidiaImageDiagnostics();
   const artifacts = listTraceableArtifacts();
   const productionRuns = listProductionRuns();
   const lastArtifact = artifacts[0];
@@ -75,6 +78,8 @@ export default function CeoDiagnosticsPage() {
           <dl className="ceo-diagnostics-list">
             <div><dt>Texte</dt><dd>{registry.text.providerUsed} · {yesNo(registry.text.available)}</dd></div>
             <div><dt>Image</dt><dd>{registry.image.providerUsed} · {yesNo(registry.image.available)}</dd></div>
+            <div><dt>NVIDIA image endpoint</dt><dd>{nvidiaImage.endpointHost ?? "manquant"}</dd></div>
+            <div><dt>NVIDIA image model</dt><dd>{nvidiaImage.model}</dd></div>
             <div><dt>Website</dt><dd>{registry.website.providerUsed} · {registry.website.sourceType}</dd></div>
             <div><dt>Local prototype</dt><dd>{registry.localPrototype.providerUsed} · explicite</dd></div>
           </dl>
@@ -114,6 +119,23 @@ export default function CeoDiagnosticsPage() {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="ceo-diagnostics-section os-card">
+        <h2>NVIDIA Image réel</h2>
+        <div className="ceo-diagnostics-checks">
+          <div className={`ceo-diagnostics-check ${statusPill(nvidiaImage.providerAvailable)}`}>
+            <strong>Provider disponible</strong>
+            <span>{yesNo(nvidiaImage.providerAvailable)}</span>
+            <span>{nvidiaImage.reasons.join(" ") || "Configuration prête."}</span>
+          </div>
+          <div className={`ceo-diagnostics-check ${statusPill(nvidiaImage.canAttemptGeneration)}`}>
+            <strong>Génération testable</strong>
+            <span>{yesNo(nvidiaImage.canAttemptGeneration)}</span>
+            <span>{nvidiaImage.suggestedFix}</span>
+          </div>
+        </div>
+        <NvidiaImageDiagnosticButton />
       </section>
 
       <section className="ceo-diagnostics-section os-card">
