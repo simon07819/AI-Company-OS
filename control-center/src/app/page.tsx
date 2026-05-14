@@ -1,5 +1,5 @@
-import DesktopHome from "@/components/os/DesktopHome";
+import HomePage from "@/components/home/HomePage";
 
 export default function DashboardPage() {
-  return <DesktopHome />;
+  return <HomePage />;
 }

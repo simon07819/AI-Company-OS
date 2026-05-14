@@ -14,12 +14,14 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
 test.describe("CEO runtime shell", () => {
   test("opens the product home and starts a new CEO chat", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Que veux-tu construire aujourd'hui?" })).toBeVisible();
-    await page.getByRole("link", { name: /Parler au CEO/ }).click();
-    await expect(page).toHaveURL(/\/ceo$/);
-    await expect(page.getByLabel("Chat CEO")).toBeVisible();
-    await page.getByRole("link", { name: "Nouveau chat" }).click();
-    await expect(page.getByPlaceholder("Message")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Que voulez-vous créer aujourd’hui?" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Accueil" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Agents" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Projets" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(page.getByPlaceholder("Tapez votre demande ici...")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Changer le thème" })).toBeVisible();
+    await expect(page.getByText("Nouveau chat")).toHaveCount(0);
   });
 
   test("shows the black sidebar and complete simple CEO controls", async ({ page }) => {

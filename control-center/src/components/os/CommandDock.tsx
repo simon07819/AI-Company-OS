@@ -27,10 +27,6 @@ export default function CommandDock({
           <small>{mode === "expert" ? "Mode expert" : "CEO workspace"}</small>
         </span>
       </Link>
-      <Link className="platform-new-mission" href="/ceo">
-        <span aria-hidden="true">+</span>
-        Nouveau chat
-      </Link>
       <nav className="platform-sidebar-nav">
         {navItems.map((item) => (
           <Link

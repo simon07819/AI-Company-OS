@@ -21,7 +21,7 @@ describe("active AI Company OS platform shell", () => {
     for (const hiddenLabel of ["Companies", "Projects", "Outputs", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert"]) {
       expect(scope.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
-    expect(scope.getByText("Nouveau chat")).toBeInTheDocument();
+    expect(scope.queryByText("Nouveau chat")).not.toBeInTheDocument();
     expect(container.textContent ?? "").not.toMatch(/\b(?:C|M|A)\.\.\./);
 
     expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();

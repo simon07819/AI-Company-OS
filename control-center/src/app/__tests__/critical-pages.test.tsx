@@ -31,10 +31,10 @@ describe("critical Control Center pages", () => {
   it("renders the simple OS dashboard", async () => {
     render(React.createElement(DashboardPage));
 
-    expect(await screen.findByRole("heading", { name: "Que veux-tu construire aujourd'hui?" })).toBeInTheDocument();
-    expect(screen.getByText("AI Company OS Desktop")).toBeInTheDocument();
-    expect(screen.getByText("Command Center")).toBeInTheDocument();
-    expect(screen.getByText("Entreprises")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Que voulez-vous créer aujourd’hui?" })).toBeInTheDocument();
+    expect(screen.getByText("AI Company OS")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Tapez votre demande ici...")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Agents" })).toBeInTheDocument();
   });
 
   it("renders Settings without crashing", () => {
@@ -95,7 +95,7 @@ describe("critical Control Center pages", () => {
     const pages = [DashboardPage, CompaniesPage, ProjectsPage, AgentsPage, OutputsPage, ApprovalsPage, WorkspacesPage];
     for (const Page of pages) {
       const { unmount, container } = render(React.createElement(Page));
-      await screen.findByText("Parler au CEO");
+      await screen.findByText(Page === DashboardPage ? "AI Company OS" : "Parler au CEO");
       expect(container.textContent ?? "").not.toMatch(/sessionId|projectId|workspaceId|\{|\}/);
       unmount();
     }
@@ -138,6 +138,7 @@ describe("critical Control Center pages", () => {
   });
 
   it("renders CEO inside desktop shell without WordPress sidebar or permanent rails", async () => {
+    globalThis.__TEST_PATHNAME__ = "/ceo";
     const { container } = render(React.createElement(AppShell, null, React.createElement(CeoPage)));
 
     expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
@@ -155,6 +156,7 @@ describe("critical Control Center pages", () => {
   });
 
   it("renders the global dark mode toggle and stores the preference", () => {
+    globalThis.__TEST_PATHNAME__ = "/ceo";
     const store = new Map<string, string>();
     Object.defineProperty(window, "localStorage", {
       configurable: true,
