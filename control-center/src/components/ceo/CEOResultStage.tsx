@@ -72,7 +72,7 @@ function sourceBadge(result: CEOCurrentResult) {
   if (result.status === "needs_action" || result.sourceType === "none" || result.sourceType === "provider_unavailable") {
     return "Action requise";
   }
-  if (result.sourceType === "code_artifact" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text" || result.sourceType === "nvidia_image" || result.sourceType === "deepinfra_image") {
+  if (result.sourceType === "code_artifact" || result.sourceType === "codex_code" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text" || result.sourceType === "nvidia_image" || result.sourceType === "deepinfra_image") {
     return "Provider réel";
   }
   if (result.sourceType === "local_storage" || result.sourceType === "local_preview") return "Prototype local";
@@ -123,6 +123,7 @@ function CEOResultMessage({
   const hasValidPrimaryVisual = hasValidatedPrimaryVisual(result);
   const requiresVisual = isLogoDeliverable;
   const isTextRenderable = isLogoSupportResult(result);
+  const isCodeDeliverable = result.deliverableType === "code" || result.sourceType === "codex_code";
   const isNoProviderLogo = isNoProviderLogoResult(result);
   const isGeneratedProviderImage = Boolean(
     result.primaryVisual
@@ -132,7 +133,7 @@ function CEOResultMessage({
       || (result.sourceType === "deepinfra_image" && result.providerUsed === "deepinfra")
     ),
   );
-  const isRenderable = isGeneratedProviderImage || isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
+  const isRenderable = isGeneratedProviderImage || isCodeDeliverable || isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
   const badge = sourceBadge(result);
@@ -156,6 +157,11 @@ function CEOResultMessage({
               svg={result.primaryVisual}
               variants={result.prototypeVariants}
             />
+          ) : isCodeDeliverable ? (
+            <div className="ceo-chat-text-deliverable">
+              <strong>{result.title}</strong>
+              <pre><code>{result.summary}</code></pre>
+            </div>
           ) : isTextRenderable || isNoProviderLogo ? (
             <div className="ceo-chat-text-deliverable">
               <strong>{result.title}</strong>

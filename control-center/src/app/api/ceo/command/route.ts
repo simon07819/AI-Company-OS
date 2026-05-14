@@ -12,7 +12,7 @@ import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
 import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 import { requireUser } from "@/lib/auth/serverAuth";
-import { isGraphicDesignerRequest, runGraphicDesignerAgent } from "@/lib/agents/graphic-designer/graphicDesignerAgent";
+import { runCeoWorkflow } from "@/lib/agents/ceoWorkflowRouter";
 import {
   addDeliverable,
   addMissionEvent,
@@ -156,22 +156,36 @@ export async function POST(req: NextRequest) {
         }
         : null;
 
-    if (isGraphicDesignerRequest(prompt) && preliminaryWorkOrder.requestType !== "website" && !missionAction) {
-      await holdVisibleProductionState();
-      const graphic = await runGraphicDesignerAgent(prompt, preliminaryWorkOrder.missionId);
-      const primaryArtifactFingerprint = graphic.outputData ? createArtifactFingerprint(graphic.outputData) : null;
-      const durationMs = Date.now() - startedAt;
+    const ceoWorkflow = preliminaryWorkOrder.requestType !== "website" && !missionAction
+      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId)
+      : null;
 
-      if (graphic.artifactId && graphic.outputData) {
+    if (ceoWorkflow) {
+      await holdVisibleProductionState();
+      const primaryArtifactFingerprint = ceoWorkflow.outputData ? createArtifactFingerprint(ceoWorkflow.outputData) : null;
+      const durationMs = Date.now() - startedAt;
+      const isImageOutput = ceoWorkflow.sourceType === "deepinfra_image" || ceoWorkflow.sourceType === "nvidia_image";
+      const deliverableType = ceoWorkflow.workflowType === "code"
+        ? "code"
+        : ceoWorkflow.workflowType === "assets"
+          ? "asset"
+          : "graphic_image";
+      const title = ceoWorkflow.title;
+      const summary = ceoWorkflow.workflowType === "code" && ceoWorkflow.outputData
+        ? ceoWorkflow.outputData
+        : ceoWorkflow.shortMessage;
+      const workflowModel = "model" in ceoWorkflow.expert ? ceoWorkflow.expert.model : undefined;
+
+      if (ceoWorkflow.artifactId && ceoWorkflow.outputData && isImageOutput) {
         memoryStore.addTurn({
           id: preliminaryWorkOrder.turnId,
           userPrompt: prompt,
           workOrderId: preliminaryWorkOrder.id,
-          missionId: graphic.missionId,
-          deliverableType: "graphic_image",
+          missionId: ceoWorkflow.missionId,
+          deliverableType,
           brandName: preliminaryWorkOrder.brandName,
           visibleOutputKind: "image",
-          primaryArtifactId: graphic.artifactId,
+          primaryArtifactId: ceoWorkflow.artifactId,
           primaryArtifactFingerprint: primaryArtifactFingerprint ?? undefined,
           status: "approved",
         });
@@ -179,58 +193,49 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json({
         ok: true,
-        missionId: graphic.missionId,
+        missionId: ceoWorkflow.missionId,
         projectId: null,
-        title: graphic.title,
+        title,
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
-        deliverableType: "graphic_image",
-        status: graphic.status,
-        artifactId: graphic.artifactId,
-        summary: graphic.shortMessage,
-        shortMessage: graphic.shortMessage,
+        deliverableType,
+        status: ceoWorkflow.status,
+        artifactId: ceoWorkflow.artifactId,
+        summary,
+        shortMessage: ceoWorkflow.shortMessage,
         primaryVisualPath: null,
-        primaryVisual: graphic.outputData,
-        primaryArtifactId: graphic.artifactId,
+        primaryVisual: isImageOutput ? ceoWorkflow.outputData : null,
+        primaryArtifactId: ceoWorkflow.artifactId,
         primaryArtifactFingerprint,
-        sourceType: graphic.sourceType,
-        providerUsed: graphic.providerUsed,
+        sourceType: ceoWorkflow.sourceType,
+        providerUsed: ceoWorkflow.providerUsed,
         artifactPaths: [],
-        artifacts: graphic.artifactId ? [{
-          artifactId: graphic.artifactId,
-          title: "Visuel final Agent Graphiste",
+        artifacts: ceoWorkflow.artifactId ? [{
+          artifactId: ceoWorkflow.artifactId,
+          title,
           exists: true,
-          sourceType: graphic.sourceType,
-          providerUsed: graphic.providerUsed,
+          sourceType: ceoWorkflow.sourceType,
+          providerUsed: ceoWorkflow.providerUsed,
         }] : [],
         missingArtifacts: [],
         workspaceHref: null,
-        limitations: graphic.outputData ? [] : ["Aucun fallback SVG ou local n'est généré sans provider DeepInfra."],
+        limitations: ceoWorkflow.outputData ? [] : ["Aucun fallback SVG ou local n'est généré sans provider configuré."],
         launchInstructions: [],
         expert: {
-          productionStatus: graphic.status === "completed" ? "graphic_designer_image_created" : "graphic_designer_provider_unavailable",
-          provider: graphic.providerUsed,
+          productionStatus: ceoWorkflow.status === "completed" ? "ceo_workflow_completed" : "ceo_workflow_needs_action",
+          provider: ceoWorkflow.providerUsed,
           diagnostic: {
-            providerUsed: graphic.providerUsed,
-            sourceType: graphic.sourceType,
-            artifactId: graphic.artifactId,
+            providerUsed: ceoWorkflow.providerUsed,
+            sourceType: ceoWorkflow.sourceType,
+            artifactId: ceoWorkflow.artifactId,
             route: "POST /api/ceo/command",
             durationMs,
-            model: graphic.expert.model,
-            providerDurationMs: graphic.expert.durationMs,
-            artifactsCreated: Boolean(graphic.artifactId),
-            agent: "graphic-designer",
+            model: workflowModel,
+            providerDurationMs: ceoWorkflow.expert.durationMs,
+            artifactsCreated: Boolean(ceoWorkflow.artifactId),
+            agent: ceoWorkflow.agent,
           },
-          runtime: {
-            missionId: graphic.missionId,
-            agent: "graphic-designer",
-            providerUsed: graphic.providerUsed,
-            sourceType: graphic.sourceType,
-            artifactId: graphic.artifactId,
-            durationMs: graphic.expert.durationMs,
-            model: graphic.expert.model,
-            retries: graphic.expert.retries,
-          },
+          runtime: ceoWorkflow.runtime,
           inputAttachments: attachments,
         },
       });

@@ -141,7 +141,7 @@ describe("CEO command API", () => {
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.artifactPaths).toEqual([]);
-    expect(payload.expert.productionStatus).toBe("graphic_designer_provider_unavailable");
+    expect(payload.expert.productionStatus).toBe("ceo_workflow_needs_action");
     expect(payload.expert.runtime.agent).toBe("graphic-designer");
     expect(payload.expert.runtime.providerUsed).toBe("deepinfra_unavailable");
     expect(payload.expert.diagnostic.sourceType).toBe("provider_unavailable");
