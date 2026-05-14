@@ -175,6 +175,9 @@ export async function POST(req: NextRequest) {
         ? ceoWorkflow.outputData
         : ceoWorkflow.shortMessage;
       const workflowModel = "model" in ceoWorkflow.expert ? ceoWorkflow.expert.model : undefined;
+      const workflowArtifactPath = "artifactPath" in ceoWorkflow ? ceoWorkflow.artifactPath : undefined;
+      const workflowArtifactUrl = "artifactUrl" in ceoWorkflow ? ceoWorkflow.artifactUrl : undefined;
+      const artifactPaths = workflowArtifactPath ? [workflowArtifactPath] : [];
 
       if (ceoWorkflow.artifactId && ceoWorkflow.outputData && isImageOutput) {
         memoryStore.addTurn({
@@ -200,6 +203,7 @@ export async function POST(req: NextRequest) {
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType,
         status: ceoWorkflow.status,
+        qualityStatus: ceoWorkflow.artifactId && (artifactPaths.length > 0 || ceoWorkflow.outputData) ? "Artifact image créé" : undefined,
         artifactId: ceoWorkflow.artifactId,
         summary,
         shortMessage: ceoWorkflow.shortMessage,
@@ -209,10 +213,12 @@ export async function POST(req: NextRequest) {
         primaryArtifactFingerprint,
         sourceType: ceoWorkflow.sourceType,
         providerUsed: ceoWorkflow.providerUsed,
-        artifactPaths: [],
+        artifactPaths,
         artifacts: ceoWorkflow.artifactId ? [{
           artifactId: ceoWorkflow.artifactId,
           title,
+          path: workflowArtifactPath,
+          url: workflowArtifactUrl,
           exists: true,
           sourceType: ceoWorkflow.sourceType,
           providerUsed: ceoWorkflow.providerUsed,

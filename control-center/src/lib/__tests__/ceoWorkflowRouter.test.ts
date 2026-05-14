@@ -84,6 +84,8 @@ describe("CEO multi-agent workflow router", () => {
     expect(result?.providerUsed).toBe("deepinfra");
     expect(result?.sourceType).toBe("deepinfra_image");
     expect(result?.artifactId).toMatch(/^artifact-/);
+    expect(result?.artifactPath).toMatch(/^public\/generated-artifacts\/ceo-images\//);
+    expect(fs.existsSync(path.resolve(process.cwd(), result?.artifactPath ?? ""))).toBe(true);
     expect(result?.runtime.timeline.map((step) => step.agent)).toEqual([
       "ceo",
       "product_owner",
@@ -98,6 +100,7 @@ describe("CEO multi-agent workflow router", () => {
       missionId: result?.missionId,
       providerUsed: "deepinfra",
       sourceType: "deepinfra_image",
+      path: result?.artifactPath,
     }));
     expect(JSON.stringify(result)).not.toContain("deepinfra-test-secret-value");
   });

@@ -123,10 +123,14 @@ describe("CEO command API", () => {
     expect(payload.primaryArtifactId).toMatch(/^artifact-/);
     expect(payload.artifactId).toBe(payload.primaryArtifactId);
     expect(payload.primaryVisual).toBe(`data:image/png;base64,${imageBase64}`);
+    expect(payload.artifactPaths).toHaveLength(1);
+    expect(payload.artifactPaths[0]).toMatch(/^public\/generated-artifacts\/ceo-images\//);
+    expect(fs.existsSync(path.resolve(process.cwd(), payload.artifactPaths[0]))).toBe(true);
     expect(payload.artifacts[0]).toEqual(expect.objectContaining({
       artifactId: payload.primaryArtifactId,
       sourceType: "deepinfra_image",
       providerUsed: "deepinfra",
+      path: payload.artifactPaths[0],
     }));
     expect(payload.expert.diagnostic.agent).toBe("graphic-designer");
     expect(payload.expert.diagnostic.model).toBe("black-forest-labs/FLUX-2-klein-9b");

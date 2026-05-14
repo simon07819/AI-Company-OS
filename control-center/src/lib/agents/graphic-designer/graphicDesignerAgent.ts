@@ -1,4 +1,4 @@
-import { createTraceableArtifact } from "@/lib/providers/providerRegistry";
+import { createTraceableImageArtifact } from "@/lib/providers/providerRegistry";
 import {
   DEEPINFRA_IMAGE_MODEL,
   DEEPINFRA_IMAGE_PROVIDER,
@@ -17,6 +17,8 @@ export interface GraphicDesignerResult {
   providerUsed: string;
   sourceType: string;
   artifactId: string | null;
+  artifactPath?: string | null;
+  artifactUrl?: string | null;
   outputData: string | null;
   mimeType?: string;
   durationMs: number;
@@ -67,6 +69,14 @@ function createDeepInfraPrompt(command: string, retry = false) {
   ].filter(Boolean).join("\n");
 }
 
+function styleReferenceFromCommand(command: string) {
+  const lines = command.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  return lines
+    .filter((line) => /Préférences|Branding retenu|Prompts efficaces|Artifacts acceptés|style|composition|palette|typographie/i.test(line))
+    .slice(0, 8)
+    .join(" ");
+}
+
 function imageQualityOk(imageDataUrl?: string) {
   if (!imageDataUrl?.startsWith("data:image/")) return false;
   const base64 = imageDataUrl.replace(/^data:image\/[a-z0-9.+-]+;base64,/i, "");
@@ -77,6 +87,7 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
   const status = getDeepInfraImageStatus();
   const started = Date.now();
   const internalBrief = createInternalBrief(command);
+  const visualReference = styleReferenceFromCommand(command);
 
   if (!status.available) {
     return {
@@ -89,6 +100,8 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
       providerUsed: "deepinfra_unavailable",
       sourceType: "provider_unavailable",
       artifactId: null,
+      artifactPath: null,
+      artifactUrl: null,
       outputData: null,
       durationMs: Date.now() - started,
       expert: {
@@ -104,10 +117,13 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
   }
 
   let retries = 0;
-  let image = await generateDeepInfraImage({ prompt: createDeepInfraPrompt(`${internalBrief}\n${command}`) });
+  const referenceInstruction = visualReference ? `Reference direction to preserve: ${visualReference}\n` : "";
+  let finalPrompt = createDeepInfraPrompt(`${internalBrief}\n${referenceInstruction}${command}`);
+  let image = await generateDeepInfraImage({ prompt: finalPrompt });
   if (!imageQualityOk(image.imageDataUrl)) {
     retries = 1;
-    image = await generateDeepInfraImage({ prompt: createDeepInfraPrompt(`${internalBrief}\n${command}`, true) });
+    finalPrompt = createDeepInfraPrompt(`${internalBrief}\n${referenceInstruction}${command}`, true);
+    image = await generateDeepInfraImage({ prompt: finalPrompt });
   }
 
   if (!image.success || !imageQualityOk(image.imageDataUrl)) {
@@ -121,6 +137,8 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
       providerUsed: image.providerUsed,
       sourceType: image.sourceType,
       artifactId: null,
+      artifactPath: null,
+      artifactUrl: null,
       outputData: null,
       durationMs: Date.now() - started,
       expert: {
@@ -135,13 +153,26 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
     };
   }
 
-  const artifact = createTraceableArtifact({
+  const imageDataUrl = image.imageDataUrl;
+  if (!imageDataUrl) {
+    throw new Error("DeepInfra image passed validation without image data.");
+  }
+
+  const artifact = createTraceableImageArtifact({
     missionId,
     type: "graphic_image",
     title: "Visuel final Agent Graphiste",
     sourceType: DEEPINFRA_IMAGE_SOURCE,
     providerUsed: DEEPINFRA_IMAGE_PROVIDER,
-    content: image.imageDataUrl,
+    imageDataUrl,
+    mimeType: image.mimeType,
+    promptUsed: finalPrompt,
+    metadata: {
+      agent: "graphic-designer",
+      model: image.model,
+      styleReference: visualReference,
+      qualityCheck: "image_data_url_gt_1kb",
+    },
   });
 
   return {
@@ -154,7 +185,9 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
     providerUsed: "deepinfra",
     sourceType: "deepinfra_image",
     artifactId: artifact.artifactId,
-    outputData: image.imageDataUrl ?? null,
+    artifactPath: artifact.path,
+    artifactUrl: artifact.url,
+    outputData: imageDataUrl,
     mimeType: image.mimeType,
     durationMs: Date.now() - started,
     expert: {

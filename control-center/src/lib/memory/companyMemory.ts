@@ -1,4 +1,5 @@
 import { readRuntimeJson, writeRuntimeJson } from "@/lib/runtime/runtimeFileStore";
+import { listTraceableArtifacts } from "@/lib/providers/providerRegistry";
 
 export type CompanyMemoryAction =
   | "retain_direction"
@@ -34,6 +35,7 @@ export interface CompanyMemoryContext {
   avoidStyles: string[];
   retainedBranding: string[];
   effectivePrompts: string[];
+  acceptedArtifacts: string[];
   reviewerNotes: string[];
   summary: string;
 }
@@ -57,12 +59,30 @@ function safeText(value: unknown, fallback = "") {
   return text;
 }
 
+function clip(value: string, max = 220) {
+  return value.length > max ? `${value.slice(0, max).trim()}...` : value;
+}
+
+function summaryItems(values: string[], maxItems = 3, maxChars = 220) {
+  return values.slice(0, maxItems).map((value) => clip(value, maxChars));
+}
+
 function uniq(values: string[]) {
   return Array.from(new Set(values.map((item) => item.trim()).filter(Boolean))).slice(0, 40);
 }
 
 function allEntries() {
   return readRuntimeJson<CompanyMemoryEntry[]>(MEMORY_FILE, []);
+}
+
+function missionTypeMatches(entryType: string, requestedType?: string, command = "") {
+  if (!requestedType) return true;
+  if (entryType === requestedType) return true;
+  const lower = command.toLowerCase();
+  if (lower.includes(entryType)) return true;
+  const visualTypes = new Set(["graphic", "graphic_image", "logo", "branding", "branding_pack", "image"]);
+  if (visualTypes.has(requestedType) && visualTypes.has(entryType)) return true;
+  return false;
 }
 
 function writeEntries(entries: CompanyMemoryEntry[]) {
@@ -86,19 +106,33 @@ export function buildCompanyMemoryContext(input: {
   const companyId = input.companyId ?? defaultCompanyId();
   const lower = (input.command ?? "").toLowerCase();
   const entries = listCompanyMemory(companyId)
-    .filter((entry) => !input.missionType || entry.missionType === input.missionType || lower.includes(entry.missionType))
+    .filter((entry) => missionTypeMatches(entry.missionType, input.missionType, lower))
     .slice(0, input.limit ?? 12);
   const preferences = uniq(entries.flatMap((entry) => entry.userPreferences));
   const avoidStyles = uniq(entries.flatMap((entry) => entry.visualStyleRejected));
   const retainedBranding = uniq(entries.flatMap((entry) => entry.retainedBranding));
   const effectivePrompts = uniq(entries.flatMap((entry) => entry.effectivePrompts));
+  const acceptedArtifacts = uniq(entries.flatMap((entry) => entry.acceptedArtifacts));
   const reviewerNotes = uniq(entries.flatMap((entry) => entry.reviewerNotes));
+  const artifactContext = acceptedArtifacts
+    .map((artifactId) => listTraceableArtifacts().find((artifact) => artifact.artifactId === artifactId))
+    .filter(Boolean)
+    .map((artifact) => {
+      const metadata = artifact?.metadata as { styleReference?: string } | undefined;
+      return [
+        artifact?.title,
+        artifact?.promptUsed ? `prompt=${clip(artifact.promptUsed, 220)}` : "",
+        metadata?.styleReference ? `style=${clip(metadata.styleReference, 180)}` : "",
+      ].filter(Boolean).join(" ");
+    });
   const summary = [
-    preferences.length ? `Préférences: ${preferences.join("; ")}` : "",
-    avoidStyles.length ? `À éviter: ${avoidStyles.join("; ")}` : "",
-    retainedBranding.length ? `Branding retenu: ${retainedBranding.join("; ")}` : "",
-    effectivePrompts.length ? `Prompts efficaces: ${effectivePrompts.slice(0, 5).join("; ")}` : "",
-    reviewerNotes.length ? `Notes reviewer: ${reviewerNotes.slice(0, 5).join("; ")}` : "",
+    preferences.length ? `Préférences: ${summaryItems(preferences).join("; ")}` : "",
+    avoidStyles.length ? `À éviter: ${summaryItems(avoidStyles).join("; ")}` : "",
+    retainedBranding.length ? `Branding retenu: ${summaryItems(retainedBranding).join("; ")}` : "",
+    effectivePrompts.length ? `Prompts efficaces: ${summaryItems(effectivePrompts).join("; ")}` : "",
+    acceptedArtifacts.length ? `Artifacts acceptés: ${acceptedArtifacts.slice(0, 5).join("; ")}` : "",
+    artifactContext.length ? `Références visuelles approuvées: ${artifactContext.slice(0, 3).join(" | ")}` : "",
+    reviewerNotes.length ? `Notes reviewer: ${summaryItems(reviewerNotes).join("; ")}` : "",
   ].filter(Boolean).join("\n");
   return {
     companyId,
@@ -108,6 +142,7 @@ export function buildCompanyMemoryContext(input: {
     avoidStyles,
     retainedBranding,
     effectivePrompts,
+    acceptedArtifacts,
     reviewerNotes,
     summary,
   };
@@ -150,6 +185,15 @@ export function recordUserMemoryAction(input: {
   brandName?: string | null;
 }) {
   const text = safeText(input.text) || safeText(input.brandName) || input.action;
+  const artifact = input.artifactId ? listTraceableArtifacts().find((item) => item.artifactId === input.artifactId) : undefined;
+  const artifactPrompt = safeText(artifact?.promptUsed ?? "", "");
+  const artifactStyle = safeText((artifact?.metadata as { styleReference?: string } | undefined)?.styleReference ?? "", "");
+  const artifactDecision = safeText([
+    input.brandName ? `Marque: ${input.brandName}` : "",
+    text,
+    artifactStyle ? `Style: ${artifactStyle}` : "",
+    artifactPrompt ? `Prompt efficace: ${artifactPrompt}` : "",
+  ].filter(Boolean).join(" | "), text);
   const base = {
     companyId: input.companyId ?? defaultCompanyId(),
     missionId: input.missionId,
@@ -167,8 +211,10 @@ export function recordUserMemoryAction(input: {
     source: "user_action" as const,
   };
   if (input.action === "retain_direction") {
-    base.acceptedDecisions = [text];
-    base.retainedBranding = [text];
+    base.acceptedDecisions = [artifactDecision];
+    base.retainedBranding = [artifactDecision];
+    base.visualStylePreferred = [artifactStyle || artifactDecision];
+    if (artifactPrompt) base.effectivePrompts = [artifactPrompt];
     if (input.artifactId) base.acceptedArtifacts = [input.artifactId];
   }
   if (input.action === "reject_direction") {
@@ -177,8 +223,10 @@ export function recordUserMemoryAction(input: {
   }
   if (input.action === "avoid_style") base.visualStyleRejected = [text];
   if (input.action === "use_style_for_project") {
-    base.userPreferences = [text];
-    base.visualStylePreferred = [text];
+    base.userPreferences = [artifactDecision];
+    base.visualStylePreferred = [artifactStyle || artifactDecision];
+    if (artifactPrompt) base.effectivePrompts = [artifactPrompt];
+    if (input.artifactId) base.acceptedArtifacts = [input.artifactId];
   }
   return recordCompanyMemory(base);
 }

@@ -47,7 +47,7 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByRole("button", { name: "Envoyer" })).toBeVisible();
   });
 
-  test("routes logo flow to Agent Graphiste without fake SVG when DeepInfra is missing", async ({ page }) => {
+  test("routes logo flow to Agent Graphiste with real artifacts or clear provider error", async ({ page }) => {
     await submitLogoRequest(page);
     await page.screenshot({ path: "test-results/ceo-shell.png", fullPage: true });
 
@@ -66,7 +66,12 @@ test.describe("CEO runtime shell", () => {
 
     await page.getByRole("button", { name: "Voir détails" }).last().click();
     await expect(page.getByLabel("Détails du résultat")).toBeVisible();
-    await expect(page.getByText("Aucun artifact réel créé")).toBeVisible();
+    if (await page.locator(".ceo-chat-generated-image").count()) {
+      await expect(page.getByText("Artifacts créés").first()).toBeVisible();
+      await expect(page.getByText("Aucun artifact réel créé")).toHaveCount(0);
+    } else {
+      await expect(page.getByText("Aucun artifact réel créé")).toBeVisible();
+    }
 
     await expect(page.getByRole("link", { name: "Ouvrir le mode expert" })).toHaveAttribute("href", "/ceo/expert");
   });

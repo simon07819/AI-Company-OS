@@ -1,3 +1,4 @@
+import fs from "fs";
 import path from "path";
 import { generateWithLlm } from "@/lib/ai/llmClient";
 import {
@@ -37,13 +38,18 @@ export interface ProviderResult {
 export interface TraceableArtifact {
   artifactId: string;
   missionId: string;
+  projectId?: string | null;
   type: string;
   title: string;
   sourceType: ProviderSourceType | string;
   providerUsed: string;
   createdAt: string;
   path?: string;
+  url?: string;
   content?: string;
+  mimeType?: string;
+  promptUsed?: string;
+  metadata?: Record<string, unknown>;
 }
 
 const ARTIFACT_STORE_FILE = "ceo-traceable-artifacts.json";
@@ -74,6 +80,63 @@ export function createTraceableArtifact(input: Omit<TraceableArtifact, "artifact
   const existing = listTraceableArtifacts().filter((item) => item.artifactId !== artifact.artifactId);
   writeRuntimeJson(ARTIFACT_STORE_FILE, [artifact, ...existing].slice(0, 1000));
   return artifact;
+}
+
+function extensionForMime(mimeType?: string) {
+  if (mimeType?.includes("webp")) return "webp";
+  if (mimeType?.includes("jpeg") || mimeType?.includes("jpg")) return "jpg";
+  return "png";
+}
+
+function imageBytesFromDataUrl(dataUrl: string) {
+  const match = dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (!match) return null;
+  return {
+    mimeType: match[1],
+    bytes: Buffer.from(match[2], "base64"),
+  };
+}
+
+export function createTraceableImageArtifact(input: {
+  missionId: string;
+  projectId?: string | null;
+  type: string;
+  title: string;
+  sourceType: ProviderSourceType | string;
+  providerUsed: string;
+  imageDataUrl: string;
+  mimeType?: string;
+  promptUsed?: string;
+  metadata?: Record<string, unknown>;
+}) {
+  const parsed = imageBytesFromDataUrl(input.imageDataUrl);
+  if (!parsed || parsed.bytes.length <= 1024) {
+    throw new Error("Image artifact rejected: invalid or empty image data.");
+  }
+
+  const artifactId = id("artifact");
+  const mimeType = input.mimeType || parsed.mimeType;
+  const extension = extensionForMime(mimeType);
+  const relativePath = path.join("public", "generated-artifacts", "ceo-images", input.missionId, `${artifactId}.${extension}`);
+  const absolutePath = path.resolve(process.cwd(), relativePath);
+  fs.mkdirSync(path.dirname(absolutePath), { recursive: true });
+  fs.writeFileSync(absolutePath, parsed.bytes);
+
+  return createTraceableArtifact({
+    artifactId,
+    missionId: input.missionId,
+    projectId: input.projectId ?? null,
+    type: input.type,
+    title: input.title,
+    sourceType: input.sourceType,
+    providerUsed: input.providerUsed,
+    path: relativePath,
+    url: `/${path.posix.join("generated-artifacts", "ceo-images", input.missionId, `${artifactId}.${extension}`)}`,
+    content: input.imageDataUrl,
+    mimeType,
+    promptUsed: input.promptUsed,
+    metadata: input.metadata,
+  });
 }
 
 export function hasNvidiaTextProvider() {

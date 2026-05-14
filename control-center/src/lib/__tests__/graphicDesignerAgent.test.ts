@@ -82,6 +82,9 @@ describe("Agent Graphiste IA", () => {
     expect(result.providerUsed).toBe("deepinfra");
     expect(result.sourceType).toBe("deepinfra_image");
     expect(result.artifactId).toMatch(/^artifact-/);
+    expect(result.artifactPath).toMatch(/^public\/generated-artifacts\/ceo-images\//);
+    expect(result.artifactUrl).toMatch(/^\/generated-artifacts\/ceo-images\//);
+    expect(fs.existsSync(path.resolve(process.cwd(), result.artifactPath ?? ""))).toBe(true);
     expect(result.outputData).toBe(`data:image/png;base64,${imageBase64}`);
     expect(JSON.stringify(result)).not.toContain("deepinfra-test-secret-value");
 
@@ -91,6 +94,9 @@ describe("Agent Graphiste IA", () => {
       providerUsed: "deepinfra",
       sourceType: "deepinfra_image",
       content: result.outputData,
+      path: result.artifactPath,
+      url: result.artifactUrl,
+      promptUsed: expect.stringContaining("Premium professional graphic design"),
     }));
   });
 });

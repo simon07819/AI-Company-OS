@@ -1,5 +1,6 @@
 .env.local
 generated-products/*
 !generated-products/.gitkeep
+public/generated-artifacts/
 test-results/
 playwright-report/

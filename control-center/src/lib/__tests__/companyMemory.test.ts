@@ -9,6 +9,7 @@ import {
   recordUserMemoryAction,
 } from "@/lib/memory/companyMemory";
 import { createMissionRuntime, runMissionAgents, addDeliverable, setMissionStatus } from "@/lib/mission-runtime/missionRuntime";
+import { createTraceableImageArtifact } from "@/lib/providers/providerRegistry";
 
 let runtimeRoot = "";
 
@@ -95,5 +96,37 @@ describe("company memory", () => {
     const inferred = inferPreferencesFromCommand("je veux noir ChatGPT, pas bleu");
     expect(inferred.preferences).toContain("style noir ChatGPT");
     expect(inferred.rejected).toContain("bleu");
+  });
+
+  it("retains approved image artifact style for future graphic generations", () => {
+    const imageDataUrl = `data:image/png;base64,${Buffer.from("approved-ekida-direction".repeat(120)).toString("base64")}`;
+    const artifact = createTraceableImageArtifact({
+      missionId: "mission-ekida-approved",
+      type: "graphic_image",
+      title: "Logo EKIDA Canada approuvé",
+      sourceType: "deepinfra_image",
+      providerUsed: "deepinfra",
+      imageDataUrl,
+      promptUsed: "minimal black and white EKIDA CANADA logo, sharp geometric maple-inspired mark",
+      metadata: {
+        styleReference: "minimal black and white, sharp geometric maple-inspired mark",
+      },
+    });
+
+    recordUserMemoryAction({
+      action: "retain_direction",
+      missionId: "mission-ekida-approved",
+      missionType: "graphic_image",
+      text: "Direction logo EKIDA Canada validée",
+      artifactId: artifact.artifactId,
+      brandName: "EKIDA CANADA",
+    });
+
+    const context = buildCompanyMemoryContext({ missionType: "graphic", command: "Crée un logo EKIDA CANADA similaire" });
+    expect(context.acceptedArtifacts).toContain(artifact.artifactId);
+    expect(context.retainedBranding.join("\n")).toContain("EKIDA CANADA");
+    expect(context.effectivePrompts.join("\n")).toContain("minimal black and white EKIDA CANADA logo");
+    expect(context.summary).toContain("Références visuelles approuvées");
+    expect(context.summary).toContain("sharp geometric maple-inspired mark");
   });
 });
