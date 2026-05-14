@@ -67,8 +67,9 @@ describe("Agent Graphiste IA", () => {
 
     const result = await runGraphicDesignerAgent("Crée un logo professionnel premium pour une compagnie de construction.");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const imageCalls = (fetchMock.mock.calls as [string, RequestInit][]).filter(([u]) => u.includes("images/generations"));
+    expect(imageCalls.length).toBe(1);
+    const [url, init] = imageCalls[0];
     const headers = init.headers as Headers;
     expect(url).toBe("https://api.deepinfra.com/v1/openai/images/generations");
     expect(init.method).toBe("POST");
@@ -112,7 +113,7 @@ describe("Agent Graphiste IA", () => {
       content: result.outputData,
       path: result.artifactPath,
       url: result.artifactUrl,
-      promptUsed: expect.stringContaining("Agency direction"),
+      promptUsed: expect.stringContaining("professional logo design"),
       metadata: expect.objectContaining({
         selectedDirection: result.expert.agency?.imageGenerationPlan.selectedDirection,
         creativeAgency: expect.objectContaining({ mode: "agency" }),

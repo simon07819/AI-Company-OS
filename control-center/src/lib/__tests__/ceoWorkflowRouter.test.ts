@@ -80,7 +80,7 @@ describe("CEO multi-agent workflow router", () => {
 
     const result = await runCeoWorkflow("Crée un logo premium pour une compagnie de construction");
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("images/generations"), expect.anything());
     expect(result?.workflowType).toBe("graphic");
     expect(result?.providerUsed).toBe("deepinfra");
     expect(result?.sourceType).toBe("deepinfra_image");
@@ -97,6 +97,7 @@ describe("CEO multi-agent workflow router", () => {
       "marketing_strategist",
       "art_director",
       "copy_concept_agent",
+      "logo_designer",
       "image_designer",
       "creative_critic",
       "ceo_synthesis",

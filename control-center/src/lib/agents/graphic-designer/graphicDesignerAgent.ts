@@ -115,7 +115,7 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
   const status = getDeepInfraImageStatus();
   const started = Date.now();
   const visualReference = [styleReferenceFromCommand(command), styleReferenceFromCommand(memorySummary)].filter(Boolean).join(" ");
-  const agencyWorkflow = buildCreativeAgencyWorkflow(command, memorySummary);
+  const agencyWorkflow = await buildCreativeAgencyWorkflow(command, memorySummary);
   const selectedDirection = agencyWorkflow.recommendedDirection;
 
   if (!status.available) {

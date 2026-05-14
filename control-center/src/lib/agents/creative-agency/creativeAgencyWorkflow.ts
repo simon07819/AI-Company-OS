@@ -1,3 +1,5 @@
+import { generateStructuredObject } from "@/lib/ai/structuredGeneration";
+
 export interface CreativeBrief {
   userGoal: string;
   businessContext: string;
@@ -107,7 +109,7 @@ export interface CreativeAgencyWorkflow {
 const CREATIVE_KEYWORDS = /\b(logo|design|visuel|banni[eè]re|image|branding|affiche|illustration|identit[eé]|campagne|pub|publicit[eé]|social|marketing)\b/i;
 
 function normalize(input: string) {
-  return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return input.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 function clip(value: string, max = 420) {
@@ -125,12 +127,10 @@ const BRAND_VERB_PREFIXES = /^(cr[eé]e?|fais|refais|je|logo|image|design|crea|c
 export function extractBrandName(command: string) {
   const original = command.replace(/\s+/g, " ").trim();
 
-  // 1. Quoted string: "EKIDA" or «EKIDA» or "EKIDA"
-  const quoted = original.match(/["\u201c\u201d\u00ab\u00bb](.+?)["\u201c\u201d\u00ab\u00bb]/)?.[1];
+  const quoted = original.match(/["“”«»](.+?)["“”«»]/)?.[1];
   if (quoted) return quoted.trim();
 
-  // 2. After explicit keyword (pour, appelle, nommé, called) — strip noise words, take first real token
-  const afterFor = original.match(/\b(?:pour|for|appelle|nomm[eé]e?|called)\s+(?:(?:la|le|les|ma|votre|notre|une?)\s+)?(?:marque|compagnie|entreprise|brand)?\s*([A-Za-z0-9À-ɏ&][A-Za-z0-9À-ɏ& -]{1,50})/i);
+  const afterFor = original.match(/\b(?:pour|for|appelle|nomm[eé]e?|called)\s+(?:(?:la|le|les|ma|votre|notre|une?)\s+)?(?:marque|compagnie|entreprise|brand)?\s*([A-Za-z0-9\xC0-ɏ&][A-Za-z0-9\xC0-ɏ& -]{1,50})/i);
   if (afterFor?.[1]) {
     const firstToken = afterFor[1].trim().split(/\s+/)[0].replace(/[.,;!?]$/, "");
     if (firstToken.length >= 2 && !BRAND_STYLE_WORDS.test(firstToken) && !BRAND_VERB_PREFIXES.test(firstToken)) {
@@ -138,18 +138,15 @@ export function extractBrandName(command: string) {
     }
   }
 
-  // 3. All-caps token (EKIDA, PROSHOTS, ELEVIO…)
   const caps = original.match(/\b([A-Z][A-Z0-9]{2,}(?:\s+[A-Z][A-Z0-9]{2,}){0,3})\b/);
   if (caps?.[1]) return caps[1].trim();
 
-  // 4. Word right after "logo" or "branding" keyword — handles "logo ekida", "logo Ekida"
-  const afterLogo = original.match(/\b(?:logo|branding|marque)\s+(?:(?:la|le|ma|votre|notre|une?|de)\s+)?([A-Za-z0-9À-ɏ][A-Za-z0-9À-ɏ&-]{1,30})\b/i);
+  const afterLogo = original.match(/\b(?:logo|branding|marque)\s+(?:(?:la|le|ma|votre|notre|une?|de)\s+)?([A-Za-z0-9\xC0-ɏ][A-Za-z0-9\xC0-ɏ&-]{1,30})\b/i);
   if (afterLogo?.[1] && !BRAND_STYLE_WORDS.test(afterLogo[1]) && !BRAND_VERB_PREFIXES.test(afterLogo[1])) {
     return afterLogo[1];
   }
 
-  // 5. TitleCase token
-  const title = original.match(/\b([A-Z][a-z0-9À-ɏ]+(?:\s+[A-Z][a-z0-9À-ɏ]+){0,2})\b/);
+  const title = original.match(/\b([A-Z][a-z0-9\xC0-ɏ]+(?:\s+[A-Z][a-z0-9\xC0-ɏ]+){0,2})\b/);
   const titleName = title?.[1]?.trim();
   if (titleName && titleName.length >= 3 && !BRAND_VERB_PREFIXES.test(titleName)) return titleName;
 
@@ -168,10 +165,13 @@ function inferDeliverableType(command: string): CreativeBrief["deliverableType"]
 function inferBusinessContext(command: string) {
   const lower = normalize(command);
   if (/construction|contracteur|chantier|batiment|renovation/.test(lower)) return "construction et services terrain";
-  if (/linge|vetement|apparel|mode|clothing/.test(lower)) return "marque de vêtements";
+  if (/linge|vetement|apparel|mode|clothing/.test(lower)) return "marque de vetements";
   if (/photo|sport|athlete|proshots/.test(lower)) return "photographie sportive";
   if (/saas|logiciel|app|module/.test(lower)) return "produit logiciel";
-  return "marque commerciale à clarifier";
+  if (/fintech|finance|banque|paiement|crypto/.test(lower)) return "fintech / finance";
+  if (/sante|health|wellness|medical/.test(lower)) return "sante / wellness";
+  if (/restaurant|cafe|food|cuisine/.test(lower)) return "restauration";
+  return "marque commerciale";
 }
 
 function memoryLines(memorySummary: string, pattern: RegExp, limit = 3) {
@@ -191,55 +191,57 @@ export function createCreativeBrief(command: string, memorySummary = ""): Creati
     userGoal: clip(command),
     businessContext: inferBusinessContext(command),
     brandName,
-    targetAudience: "clients qui doivent comprendre rapidement la valeur et faire confiance à la marque",
+    targetAudience: "clients qui doivent comprendre rapidement la valeur et faire confiance a la marque",
     deliverableType,
     stylePreferences: [
       "premium",
       "professionnel",
-      "mémorable",
+      "memorable",
       ...memoryLines(memorySummary, /Préférences|Prompts efficaces/i, 2),
     ],
     constraints: [
       "pas de placeholder",
-      "pas de mockup décoratif",
+      "pas de mockup decoratif",
       "pas de watermark",
-      "texte minimal et lisible si présent",
-      ...memoryLines(memorySummary, /À éviter/i, 2),
+      "texte minimal et lisible si present",
+      ...memoryLines(memorySummary, /A eviter/i, 2),
     ],
     references: retained,
     successCriteria: [
       "identifiable en petit format",
-      "cohérent avec le positionnement",
-      "distinctif sans être gratuit",
-      "prêt à présenter au client",
+      "coherent avec le positionnement",
+      "distinctif sans etre gratuit",
+      "pret a presenter au client",
     ],
   };
 }
 
+// ─── Local fallbacks (always available, no API needed) ───────────────────────
+
 export function createBrandStrategy(brief: CreativeBrief): BrandStrategy {
   const isConstruction = /construction|chantier|batiment/i.test(brief.businessContext);
   return {
-    brandEssence: isConstruction ? "fiabilité premium, maîtrise technique et solidité" : "clarté, confiance et différenciation mémorable",
+    brandEssence: isConstruction ? "fiabilite premium, maitrise technique et solidite" : "clarte, confiance et differenciation memorable",
     targetAudience: brief.targetAudience,
-    emotionalGoal: isConstruction ? "rassurer et donner envie de confier un projet important" : "créer une impression immédiate de qualité",
-    marketPosition: isConstruction ? "acteur sérieux et haut de gamme dans un marché souvent générique" : "marque moderne qui paraît établie dès le premier contact",
-    valueProposition: isConstruction ? "un partenaire qui livre proprement, durablement et avec rigueur" : "une identité visuelle claire qui rend la marque plus crédible",
-    keyTraits: ["confiance", "précision", "présence", "mémorisation"],
-    avoidTraits: ["générique", "clipart", "trop décoratif", "illisible"],
-    competitiveSignals: isConstruction ? ["structure", "matériaux", "monogramme solide", "géométrie architecturale"] : ["simplicité", "signature propriétaire", "contraste maîtrisé"],
+    emotionalGoal: isConstruction ? "rassurer et donner envie de confier un projet important" : "creer une impression immediate de qualite",
+    marketPosition: isConstruction ? "acteur serieux et haut de gamme dans un marche souvent generique" : "marque moderne qui parait etablie des le premier contact",
+    valueProposition: isConstruction ? "un partenaire qui livre proprement, durablement et avec rigueur" : "une identite visuelle claire qui rend la marque plus credible",
+    keyTraits: ["confiance", "precision", "presence", "memorisation"],
+    avoidTraits: ["generique", "clipart", "trop decoratif", "illisible"],
+    competitiveSignals: isConstruction ? ["structure", "materiaux", "monogramme solide", "geometrie architecturale"] : ["simplicite", "signature proprietaire", "contraste maitrise"],
   };
 }
 
 export function createMarketingDirection(brief: CreativeBrief, strategy: BrandStrategy): MarketingDirection {
   return {
-    campaignObjective: brief.deliverableType === "logo" ? "installer une première impression crédible et mémorable" : "produire un visuel qui clarifie l’offre et attire l’attention",
+    campaignObjective: brief.deliverableType === "logo" ? "installer une premiere impression credible et memorable" : "produire un visuel qui clarifie l'offre et attire l'attention",
     conversionGoal: "augmenter la confiance et faciliter le prochain contact",
-    audiencePsychology: "le public juge la qualité en quelques secondes; le visuel doit donc paraître maîtrisé, simple et spécifique",
+    audiencePsychology: "le public juge la qualite en quelques secondes; le visuel doit donc paraitre maitrise, simple et specifique",
     messagingAngle: `${strategy.brandEssence} avec une lecture rapide de la promesse`,
-    trustSignals: ["composition stable", "contraste net", "forme propriétaire", "absence de surcharge"],
-    differentiationAngle: "éviter le rendu banque d’images en construisant une signature visuelle liée au nom et au contexte métier",
+    trustSignals: ["composition stable", "contraste net", "forme proprietaire", "absence de surcharge"],
+    differentiationAngle: "eviter le rendu banque d'images en construisant une signature visuelle liee au nom et au contexte metier",
     CTAStyle: "sobre, direct, premium",
-    priorityEmotions: ["confiance", "maîtrise", "désir de sérieux"],
+    priorityEmotions: ["confiance", "maitrise", "desir de serieux"],
   };
 }
 
@@ -248,39 +250,39 @@ export function createArtisticDirections(brief: CreativeBrief, strategy: BrandSt
   const directions: ArtisticDirection[] = [
     {
       directionName: construction ? "Monolithe architectural" : "Signature monogramme premium",
-      creativeRationale: `Transforme ${brief.brandName} en signe propriétaire, stable et mémorable. C’est la direction la plus sûre pour ${marketing.campaignObjective}.`,
-      visualLanguage: construction ? "géométrie architecturale, volumes simples, contraste noir/blanc" : "monogramme net, espace négatif, forme très reconnaissable",
-      typographyStyle: "sans-serif premium, compacte, très lisible",
-      colorLogic: "noir, blanc, gris profond; accent très contrôlé seulement si nécessaire",
-      shapeLanguage: construction ? "verticales, angles précis, silhouette solide" : "formes simples, coupe nette, équilibre symétrique",
-      compositionGuidelines: "logo mark centré, peu d’éléments, hiérarchie claire entre symbole et nom",
+      creativeRationale: `Transforme ${brief.brandName} en signe proprietaire, stable et memorable. C'est la direction la plus sure pour ${marketing.campaignObjective}.`,
+      visualLanguage: construction ? "geometrie architecturale, volumes simples, contraste noir/blanc" : "monogramme net, espace negatif, forme tres reconnaissable",
+      typographyStyle: "sans-serif premium, compacte, tres lisible",
+      colorLogic: "noir, blanc, gris profond; accent tres controle seulement si necessaire",
+      shapeLanguage: construction ? "verticales, angles precis, silhouette solide" : "formes simples, coupe nette, equilibre symetrique",
+      compositionGuidelines: "logo mark centre, peu d'elements, hierarchie claire entre symbole et nom",
       inspirationKeywords: construction ? ["architectural", "solid", "premium contractor", "monolith"] : ["minimal", "premium", "iconic", "brand mark"],
-      whatToAvoid: ["clipart", "outils clichés", "effets 3D", "texte long"],
+      whatToAvoid: ["clipart", "outils cliches", "effets 3D", "texte long"],
       fitScore: construction ? 94 : 91,
     },
     {
       directionName: "Sceau de confiance moderne",
-      creativeRationale: `Met l’accent sur la crédibilité et le sérieux de ${brief.brandName}, utile si la marque doit inspirer confiance immédiatement.`,
-      visualLanguage: "emblème contemporain, contours nets, sensation institutionnelle sans lourdeur",
-      typographyStyle: "capitals lisibles, espacement modéré, présence stable",
+      creativeRationale: `Met l'accent sur la credibilite et le serieux de ${brief.brandName}, utile si la marque doit inspirer confiance immediatement.`,
+      visualLanguage: "embleme contemporain, contours nets, sensation institutionnelle sans lourdeur",
+      typographyStyle: "capitals lisibles, espacement modere, presence stable",
       colorLogic: "contraste fort avec palette restreinte",
-      shapeLanguage: "cadre, cercle ou bouclier abstrait sans tomber dans le badge générique",
+      shapeLanguage: "cadre, cercle ou bouclier abstrait sans tomber dans le badge generique",
       compositionGuidelines: "forme compacte utilisable en avatar, favicon et enseigne",
       inspirationKeywords: ["trusted", "badge", "modern seal", "crafted"],
-      whatToAvoid: ["badge sportif", "ornement vintage", "trop d’icônes"],
+      whatToAvoid: ["badge sportif", "ornement vintage", "trop d'icones"],
       fitScore: 84,
     },
     {
       directionName: "Mouvement ascendant",
-      creativeRationale: `Rend la marque plus dynamique et commerciale, avec un signal de progression et d’ambition.`,
-      visualLanguage: "diagonales contrôlées, sensation d’élan, symbole simple",
-      typographyStyle: "sans-serif moderne avec poids moyen à bold",
-      colorLogic: "base neutre avec accent froid ou métallique discret",
-      shapeLanguage: "flèche implicite, pli, coupe, chemin ascendant",
-      compositionGuidelines: "éviter la flèche littérale; garder un signe abstrait lié au nom",
+      creativeRationale: "Rend la marque plus dynamique et commerciale, avec un signal de progression et d'ambition.",
+      visualLanguage: "diagonales controlees, sensation d'elan, symbole simple",
+      typographyStyle: "sans-serif moderne avec poids moyen a bold",
+      colorLogic: "base neutre avec accent froid ou metallique discret",
+      shapeLanguage: "fleche implicite, pli, coupe, chemin ascendant",
+      compositionGuidelines: "eviter la fleche litterale; garder un signe abstrait lie au nom",
       inspirationKeywords: ["progress", "premium growth", "sharp", "forward"],
-      whatToAvoid: ["flèche évidente", "startup générique", "dégradés excessifs"],
-      fitScore: strategy.keyTraits.includes("présence") ? 88 : 80,
+      whatToAvoid: ["fleche evidente", "startup generique", "degrades excessifs"],
+      fitScore: strategy.keyTraits.includes("presence") ? 88 : 80,
     },
   ];
   return directions.sort((a, b) => b.fitScore - a.fitScore).slice(0, 3);
@@ -289,53 +291,269 @@ export function createArtisticDirections(brief: CreativeBrief, strategy: BrandSt
 export function createConceptSupport(brief: CreativeBrief, selected: ArtisticDirection): ConceptSupport {
   return {
     namingIdeas: [selected.directionName, `${brief.brandName} Signature`, `${brief.brandName} Mark`],
-    taglineIdeas: ["Bâti pour inspirer confiance", "Une présence claire. Une exécution solide.", "Premium, précis, mémorable."],
-    conceptNarrative: `${brief.brandName} doit paraître établi, crédible et distinctif. La direction ${selected.directionName} donne une structure visuelle claire au lieu d’un logo décoratif.`,
-    shortBrandStatement: `${brief.brandName} est présenté comme une marque fiable, premium et immédiatement reconnaissable.`,
-    copyToneGuidance: "phrases courtes, assurance calme, pas d’hyperbole",
+    taglineIdeas: ["Bati pour inspirer confiance", "Une presence claire. Une execution solide.", "Premium, precis, memorable."],
+    conceptNarrative: `${brief.brandName} doit paraitre etabli, credible et distinctif. La direction ${selected.directionName} donne une structure visuelle claire au lieu d'un logo decoratif.`,
+    shortBrandStatement: `${brief.brandName} est presente comme une marque fiable, premium et immediatement reconnaissable.`,
+    copyToneGuidance: "phrases courtes, assurance calme, pas d'hyperbole",
   };
 }
 
-export function createImageGenerationPlan(input: {
+// ─── LLM-powered agents (NVIDIA → DeepInfra → local fallback) ────────────────
+
+const BRAND_STRATEGY_SYSTEM = `You are a brand strategist. Analyze the brand brief and output a JSON brand strategy.
+Output ONLY valid JSON, no explanations, no markdown.
+Required schema:
+{
+  "brandEssence": string,
+  "targetAudience": string,
+  "emotionalGoal": string,
+  "marketPosition": string,
+  "valueProposition": string,
+  "keyTraits": string[],
+  "avoidTraits": string[],
+  "competitiveSignals": string[]
+}
+Rules: each string under 90 chars; arrays: 3-5 items; be specific to this brand, not generic.`;
+
+function validateBrandStrategy(value: unknown, fallback: BrandStrategy): BrandStrategy {
+  if (!value || typeof value !== "object") return fallback;
+  const v = value as Record<string, unknown>;
+  const str = (k: string, d: string) => (typeof v[k] === "string" && (v[k] as string).trim() ? (v[k] as string).trim() : d);
+  const arr = (k: string, d: string[]) => (Array.isArray(v[k]) && (v[k] as unknown[]).length > 0 ? (v[k] as string[]).filter(s => typeof s === "string") : d);
+  return {
+    brandEssence: str("brandEssence", fallback.brandEssence),
+    targetAudience: str("targetAudience", fallback.targetAudience),
+    emotionalGoal: str("emotionalGoal", fallback.emotionalGoal),
+    marketPosition: str("marketPosition", fallback.marketPosition),
+    valueProposition: str("valueProposition", fallback.valueProposition),
+    keyTraits: arr("keyTraits", fallback.keyTraits),
+    avoidTraits: arr("avoidTraits", fallback.avoidTraits),
+    competitiveSignals: arr("competitiveSignals", fallback.competitiveSignals),
+  };
+}
+
+const ART_DIRECTOR_SYSTEM = `You are an art director for brand identity. Generate 3 distinct visual directions for a logo.
+Output ONLY valid JSON, no explanations.
+Required schema:
+{
+  "directions": [
+    {
+      "directionName": string,
+      "creativeRationale": string,
+      "visualLanguage": string,
+      "typographyStyle": string,
+      "colorLogic": string,
+      "shapeLanguage": string,
+      "compositionGuidelines": string,
+      "inspirationKeywords": string[],
+      "whatToAvoid": string[],
+      "fitScore": number
+    }
+  ]
+}
+Rules:
+- 3 genuinely different directions (e.g., one monogram, one wordmark, one emblem)
+- fitScore: 70-100, the best fit scores highest
+- Be specific to the brand name, industry, and positioning
+- inspirationKeywords/whatToAvoid: 3-5 items each`;
+
+function validateArtDirections(value: unknown, fallback: ArtisticDirection[]): ArtisticDirection[] {
+  if (!value || typeof value !== "object") return fallback;
+  const v = value as Record<string, unknown>;
+  if (!Array.isArray(v.directions) || v.directions.length < 2) return fallback;
+  const dirs = (v.directions as unknown[]).slice(0, 3).map((d: unknown): ArtisticDirection | null => {
+    if (!d || typeof d !== "object") return null;
+    const dir = d as Record<string, unknown>;
+    if (!dir.directionName || !dir.creativeRationale) return null;
+    return {
+      directionName: String(dir.directionName),
+      creativeRationale: String(dir.creativeRationale ?? ""),
+      visualLanguage: String(dir.visualLanguage ?? ""),
+      typographyStyle: String(dir.typographyStyle ?? "sans-serif, lisible"),
+      colorLogic: String(dir.colorLogic ?? "contraste fort"),
+      shapeLanguage: String(dir.shapeLanguage ?? "geometrie nette"),
+      compositionGuidelines: String(dir.compositionGuidelines ?? "centree, equilibree"),
+      inspirationKeywords: Array.isArray(dir.inspirationKeywords) ? dir.inspirationKeywords.map(String) : ["premium", "minimal"],
+      whatToAvoid: Array.isArray(dir.whatToAvoid) ? dir.whatToAvoid.map(String) : ["generique"],
+      fitScore: typeof dir.fitScore === "number" ? Math.max(60, Math.min(100, dir.fitScore)) : 80,
+    };
+  }).filter((d): d is ArtisticDirection => d !== null);
+  return dirs.length >= 2 ? dirs.sort((a, b) => b.fitScore - a.fitScore) : fallback;
+}
+
+const LOGO_DESIGNER_SYSTEM = `You are a prompt engineer for FLUX image generation, specialized in logos.
+Given an approved artistic direction and brand context, craft an optimized FLUX prompt.
+
+REQUIRED FORMAT — comma-separated in this exact order:
+1. Style descriptor (geometric minimalist lettermark / bold sans-serif wordmark / etc.)
+2. Subject with EXACT brand name if text needed ("letter E" or "wordmark EKIDA")
+3. Color palette with hex codes ("deep navy #0F1B4C, crisp white #FFFFFF")
+4. Composition ("centered, symmetric, generous negative space")
+5. Lighting ("flat 2D vector, no shadows, no gradients")
+6. Mood ("premium, authoritative, trustworthy")
+7. Technical specs ("high-contrast edges, scalable vector geometry")
+8. Fixed ending: "professional logo design, vector style, white background, high detail, sharp edges"
+
+BANNED WORDS: beautiful, amazing, nice, good, great, wonderful, stunning, elegant
+REQUIRED: use at least 3 of: negative space, sans-serif, geometric, minimalist, lettermark, wordmark, emblem, monochrome, bold
+Total: 60-130 words.
+
+Output ONLY valid JSON:
+{ "fluxPrompt": string, "negativePrompt": string }
+
+negativePrompt: "realistic, photograph, 3D render, gradient, shadow, blur, watermark, decorative frame, ornate, clipart, stock photo, low contrast, milky haze"`;
+
+interface FluxPromptOutput {
+  fluxPrompt: string;
+  negativePrompt: string;
+}
+
+function validateFluxPrompt(value: unknown, fallback: FluxPromptOutput): FluxPromptOutput {
+  if (!value || typeof value !== "object") return fallback;
+  const v = value as Record<string, unknown>;
+  const prompt = typeof v.fluxPrompt === "string" ? v.fluxPrompt.trim() : "";
+  if (!prompt || prompt.length < 30) return fallback;
+  return {
+    fluxPrompt: prompt,
+    negativePrompt: typeof v.negativePrompt === "string" ? v.negativePrompt.trim() : fallback.negativePrompt,
+  };
+}
+
+async function buildBrandStrategyWithLlm(brief: CreativeBrief): Promise<{ strategy: BrandStrategy; providerUsed: string }> {
+  const fallback = createBrandStrategy(brief);
+  const result = await generateStructuredObject(
+    {
+      system: BRAND_STRATEGY_SYSTEM,
+      user: JSON.stringify({
+        brandName: brief.brandName,
+        industry: brief.businessContext,
+        deliverable: brief.deliverableType,
+        userGoal: brief.userGoal,
+        styleHints: brief.stylePreferences.slice(0, 3),
+      }),
+      purpose: "brand_strategy",
+    },
+    fallback,
+    validateBrandStrategy,
+  );
+  return { strategy: result.value, providerUsed: result.mode === "prototype" ? "local_strategy" : result.mode };
+}
+
+async function buildArtDirectionsWithLlm(brief: CreativeBrief, strategy: BrandStrategy, marketing: MarketingDirection): Promise<{ directions: ArtisticDirection[]; providerUsed: string }> {
+  const fallback = createArtisticDirections(brief, strategy, marketing);
+  const result = await generateStructuredObject(
+    {
+      system: ART_DIRECTOR_SYSTEM,
+      user: JSON.stringify({
+        brandName: brief.brandName,
+        industry: brief.businessContext,
+        deliverable: brief.deliverableType,
+        brandEssence: strategy.brandEssence,
+        keyTraits: strategy.keyTraits,
+        avoidTraits: strategy.avoidTraits,
+        emotionalGoal: strategy.emotionalGoal,
+        messagingAngle: marketing.messagingAngle,
+      }),
+      purpose: "art_direction",
+    },
+    fallback,
+    validateArtDirections,
+  );
+  return { directions: result.value, providerUsed: result.mode === "prototype" ? "local_strategy" : result.mode };
+}
+
+async function buildFluxPromptWithLlm(brief: CreativeBrief, selected: ArtisticDirection, strategy: BrandStrategy): Promise<{ prompt: string; negativePrompt: string; providerUsed: string }> {
+  const localFallbackPrompt = buildLocalFluxPrompt(brief, selected);
+  const fallback: FluxPromptOutput = {
+    fluxPrompt: localFallbackPrompt,
+    negativePrompt: "realistic, photograph, 3D render, gradient, shadow, blur, watermark, decorative frame, ornate, clipart, stock photo, low contrast, milky haze",
+  };
+  const result = await generateStructuredObject(
+    {
+      system: LOGO_DESIGNER_SYSTEM,
+      user: JSON.stringify({
+        brandName: brief.brandName,
+        industry: brief.businessContext,
+        approvedDirection: {
+          name: selected.directionName,
+          visualLanguage: selected.visualLanguage,
+          typographyStyle: selected.typographyStyle,
+          colorLogic: selected.colorLogic,
+          shapeLanguage: selected.shapeLanguage,
+          compositionGuidelines: selected.compositionGuidelines,
+          whatToAvoid: selected.whatToAvoid,
+        },
+        brandEssence: strategy.brandEssence,
+        deliverableType: brief.deliverableType,
+      }),
+      purpose: "flux_prompt_engineering",
+    },
+    fallback,
+    validateFluxPrompt,
+  );
+  return {
+    prompt: result.value.fluxPrompt,
+    negativePrompt: result.value.negativePrompt,
+    providerUsed: result.mode === "prototype" ? "local_strategy" : result.mode,
+  };
+}
+
+function buildLocalFluxPrompt(brief: CreativeBrief, selected: ArtisticDirection): string {
+  const brandName = brief.brandName !== "Marque" ? brief.brandName : "";
+  const parts = [
+    selected.visualLanguage || "geometric minimalist lettermark",
+    brandName ? `wordmark ${brandName}, text must be legible` : "abstract symbol, negative space",
+    selected.colorLogic || "high contrast black and white",
+    selected.compositionGuidelines || "centered, symmetric composition",
+    "flat 2D vector, no shadows, no gradients",
+    "premium authoritative mood",
+    "bold sans-serif, clean vector geometry, sharp edges",
+    "professional logo design, vector style, white background, high detail, sharp edges",
+  ];
+  if (brandName) {
+    parts.unshift(`BRAND NAME: write "${brandName}" clearly in the logo`);
+  }
+  return parts.join(", ");
+}
+
+export async function createImageGenerationPlan(input: {
   brief: CreativeBrief;
   strategy: BrandStrategy;
   marketing: MarketingDirection;
   selected: ArtisticDirection;
   concept: ConceptSupport;
   memorySummary?: string;
-}): ImageGenerationPlan {
-  const referenceArtifacts = memoryLines(input.memorySummary ?? "", /Artifacts acceptés|Références visuelles approuvées/i, 4);
+}): Promise<{ plan: ImageGenerationPlan; fluxPromptProviderUsed: string }> {
+  const referenceArtifacts = memoryLines(input.memorySummary ?? "", /Artifacts acceptes|References visuelles approuvees/i, 4);
   const brandName = input.brief.brandName;
+
+  const fluxResult = await buildFluxPromptWithLlm(input.brief, input.selected, input.strategy);
+
   const brandInstruction = brandName !== "Marque"
-    ? `BRAND NAME: "${brandName}" — this exact text must appear clearly and prominently in the logo. Do not invent different text. Write "${brandName}".`
+    ? `BRAND NAME: "${brandName}" must appear clearly and prominently. Write "${brandName}" exactly.`
     : "";
+
   const finalCreativePrompt = [
     brandInstruction,
-    `Create a final ${input.brief.deliverableType} for ${brandName}.`,
-    `Agency direction: ${input.selected.directionName}.`,
-    `Creative rationale: ${input.selected.creativeRationale}`,
-    `Brand essence: ${input.strategy.brandEssence}.`,
-    `Visual language: ${input.selected.visualLanguage}.`,
-    `Color logic: ${input.selected.colorLogic}.`,
-    `Shape language: ${input.selected.shapeLanguage}.`,
-    `Composition: ${input.selected.compositionGuidelines}.`,
+    fluxResult.prompt,
     referenceArtifacts.length ? `Preserve approved reference direction: ${referenceArtifacts.join(" | ")}` : "",
-    brandInstruction,
-    "Final image only. Premium brand design. No mockup. No watermark. No placeholder text. Avoid generic clipart, washed-out milky haze, low contrast, blurry marks, and pale unusable logos.",
   ].filter(Boolean).join("\n");
-  return {
+
+  const plan: ImageGenerationPlan = {
     selectedDirection: input.selected.directionName,
     finalCreativePrompt,
-    visualGoals: ["mémorisation rapide", "crédibilité premium", "forme propriétaire", "lisibilité"],
+    visualGoals: ["memorisation rapide", "credibilite premium", "forme proprietaire", "lisibilite"],
     consistencyRules: [
-      "respecter la direction artistique sélectionnée",
-      "ne pas changer de style si une référence approuvée existe",
-      "éviter les clichés métier littéraux",
-      "garder le nom lisible si du texte est généré",
+      "respecter la direction artistique selectionnee",
+      "ne pas changer de style si une reference approuvee existe",
+      "eviter les cliches metier litteraux",
+      "garder le nom lisible si du texte est genere",
     ],
     reuseReferenceArtifacts: referenceArtifacts,
     expectedOutputType: input.brief.deliverableType,
   };
+
+  return { plan, fluxPromptProviderUsed: fluxResult.providerUsed };
 }
 
 export function createCritiqueReport(input: {
@@ -360,12 +578,12 @@ export function createCritiqueReport(input: {
     marketingEffectivenessScore,
     visualCohesionScore,
     strengths: hasImage
-      ? [`direction ${input.plan.selectedDirection} respectée`, "artifact image réel créé", "intention marketing claire"]
-      : ["brief et direction prêts"],
-    weaknesses: hasImage ? [] : ["aucune image exploitable retournée par le provider"],
+      ? [`direction ${input.plan.selectedDirection} respectee`, "artifact image reel cree", "intention marketing claire"]
+      : ["brief et direction prets"],
+    weaknesses: hasImage ? [] : ["aucune image exploitable retournee par le provider"],
     revisionSuggestions: decision === "approve"
       ? []
-      : ["relancer avec une composition plus simple", "renforcer le contraste", "éviter tout rendu laiteux ou délavé", "réduire les détails décoratifs"],
+      : ["relancer avec une composition plus simple", "renforcer le contraste", "eviter tout rendu laiteux ou delave", "reduire les details decoratifs"],
     decision,
   };
 }
@@ -377,25 +595,43 @@ export function createFinalCEOCard(input: {
 }): FinalCEOCard {
   return {
     finalArtifact: input.artifactId,
-    conciseExplanation: input.artifactId ? "Voici votre visuel final." : "L’équipe a préparé la direction, mais le rendu image n’est pas disponible.",
+    conciseExplanation: input.artifactId ? "Voici votre visuel final." : "L'equipe a prepare la direction, mais le rendu image n'est pas disponible.",
     chosenDirection: input.selected.directionName,
     whyItWorks: input.selected.creativeRationale,
     optionalAlternatives: [],
     nextRecommendedActions: input.artifactId
-      ? ["Retenir cette direction", "Régénérer une variante", "Décliner en bannière ou social post"]
-      : ["Configurer le provider image", "Relancer la génération"],
+      ? ["Retenir cette direction", "Regenerer une variante", "Decliner en banniere ou social post"]
+      : ["Configurer le provider image", "Relancer la generation"],
   };
 }
 
-export function buildCreativeAgencyWorkflow(command: string, memorySummary = ""): CreativeAgencyWorkflow {
+export async function buildCreativeAgencyWorkflow(command: string, memorySummary = ""): Promise<CreativeAgencyWorkflow> {
   const started = Date.now();
   const creativeBrief = createCreativeBrief(command, memorySummary);
-  const brandStrategy = createBrandStrategy(creativeBrief);
+
+  // Agent 1: Creative Project Manager (local — brief parsing is deterministic)
+  const pmDone = Date.now();
+
+  // Agent 2: Brand Strategist — LLM-powered, local fallback
+  const brandStart = Date.now();
+  const { strategy: brandStrategy, providerUsed: brandProvider } = await buildBrandStrategyWithLlm(creativeBrief);
+  const brandDone = Date.now();
+
+  // Agent 3: Marketing Strategist — derives from brand strategy (local)
   const marketingDirection = createMarketingDirection(creativeBrief, brandStrategy);
-  const artisticDirections = createArtisticDirections(creativeBrief, brandStrategy, marketingDirection);
+
+  // Agent 4: Art Director — LLM-powered, local fallback
+  const artStart = Date.now();
+  const { directions: artisticDirections, providerUsed: artProvider } = await buildArtDirectionsWithLlm(creativeBrief, brandStrategy, marketingDirection);
+  const artDone = Date.now();
   const recommendedDirection = artisticDirections[0];
+
+  // Agent 5: Copy/Concept (local — naming/taglines)
   const conceptSupport = createConceptSupport(creativeBrief, recommendedDirection);
-  const imageGenerationPlan = createImageGenerationPlan({
+
+  // Agent 6: Logo Designer — LLM-powered FLUX prompt, local fallback
+  const planStart = Date.now();
+  const { plan: imageGenerationPlan, fluxPromptProviderUsed } = await createImageGenerationPlan({
     brief: creativeBrief,
     strategy: brandStrategy,
     marketing: marketingDirection,
@@ -403,7 +639,8 @@ export function buildCreativeAgencyWorkflow(command: string, memorySummary = "")
     concept: conceptSupport,
     memorySummary,
   });
-  const elapsed = Date.now() - started;
+  const planDone = Date.now();
+
   return {
     mode: "agency",
     creativeBrief,
@@ -414,11 +651,54 @@ export function buildCreativeAgencyWorkflow(command: string, memorySummary = "")
     conceptSupport,
     imageGenerationPlan,
     agentOutputs: [
-      { agent: "creative_project_manager", role: "Creative Project Manager", status: "completed", summary: `Brief structuré pour ${creativeBrief.brandName}.`, durationMs: elapsed, providerUsed: "local_strategy" },
-      { agent: "brand_strategist", role: "Brand Strategist", status: "completed", summary: brandStrategy.brandEssence, durationMs: 0, providerUsed: "local_strategy" },
-      { agent: "marketing_strategist", role: "Marketing Strategist", status: "completed", summary: marketingDirection.messagingAngle, durationMs: 0, providerUsed: "local_strategy" },
-      { agent: "art_director", role: "Art Director", status: "completed", summary: `${artisticDirections.length} directions; recommandée: ${recommendedDirection.directionName}.`, durationMs: 0, providerUsed: "local_strategy" },
-      { agent: "copy_concept_agent", role: "Copy / Concept Agent", status: "completed", summary: conceptSupport.shortBrandStatement, durationMs: 0, providerUsed: "local_strategy" },
+      {
+        agent: "creative_project_manager",
+        role: "Creative Project Manager",
+        status: "completed",
+        summary: `Brief structure pour ${creativeBrief.brandName}.`,
+        durationMs: pmDone - started,
+        providerUsed: "local_strategy",
+      },
+      {
+        agent: "brand_strategist",
+        role: "Brand Strategist",
+        status: "completed",
+        summary: brandStrategy.brandEssence,
+        durationMs: brandDone - brandStart,
+        providerUsed: brandProvider,
+      },
+      {
+        agent: "marketing_strategist",
+        role: "Marketing Strategist",
+        status: "completed",
+        summary: marketingDirection.messagingAngle,
+        durationMs: 0,
+        providerUsed: "local_strategy",
+      },
+      {
+        agent: "art_director",
+        role: "Art Director",
+        status: "completed",
+        summary: `${artisticDirections.length} directions; recommandee: ${recommendedDirection.directionName}.`,
+        durationMs: artDone - artStart,
+        providerUsed: artProvider,
+      },
+      {
+        agent: "copy_concept_agent",
+        role: "Copy / Concept Agent",
+        status: "completed",
+        summary: conceptSupport.shortBrandStatement,
+        durationMs: 0,
+        providerUsed: "local_strategy",
+      },
+      {
+        agent: "logo_designer",
+        role: "Logo Designer / FLUX Prompt Engineer",
+        status: "completed",
+        summary: `Prompt FLUX optimise via ${fluxPromptProviderUsed} pour direction: ${recommendedDirection.directionName}.`,
+        durationMs: planDone - planStart,
+        providerUsed: fluxPromptProviderUsed,
+      },
     ],
   };
 }
