@@ -112,6 +112,10 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
   const [error, setError] = useState<string | null>(null);
   const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
 
+  const handleFileUpload = (file: File) => {
+    setDroppedFiles((current) => [...current, file]);
+  };
+
   const submitCommand = async (prompt: string, attachments: ChatAttachment[] = [], action?: CEOMissionAction) => {
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
@@ -227,7 +231,7 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
 
   return (
     <main className="ceo-chat-page">
-      <AttachmentDropzone disabled={loading} onFiles={(files) => setDroppedFiles(files)}>
+      <AttachmentDropzone disabled={loading} onFiles={(files) => files.forEach(handleFileUpload)}>
         <section className="ceo-chat-shell" aria-label="Chat CEO">
           <header className="ceo-chat-header">
             <div className="ceo-chat-agent">
