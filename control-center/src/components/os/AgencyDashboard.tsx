@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Bot,
   Building2,
-  CheckCircle2,
   FolderKanban,
   MessageSquare,
   RefreshCw,
@@ -132,12 +131,12 @@ const PAGE_COPY: Record<PageVariant, { eyebrow: string; title: string; subtitle:
   dashboard: {
     eyebrow: "Simple OS",
     title: "Ce que votre agence AI fait maintenant",
-    subtitle: "Entreprises, projets, agents, resultats et decisions dans une seule vue claire.",
+    subtitle: "Entreprises, projets, agents et resultats dans une vue claire, sans ancien panneau d'approbation.",
   },
   companies: {
     eyebrow: "Entreprises",
     title: "Les entreprises que vous construisez",
-    subtitle: "Chaque entreprise regroupe ses projets, ses resultats et ses prochaines decisions.",
+    subtitle: "Chaque entreprise regroupe ses projets et ses resultats utiles.",
   },
   projects: {
     eyebrow: "Projets",
@@ -147,7 +146,7 @@ const PAGE_COPY: Record<PageVariant, { eyebrow: string; title: string; subtitle:
   agents: {
     eyebrow: "Equipe AI",
     title: "Agents au travail",
-    subtitle: "Une equipe lisible: qui travaille, qui a livre, et qui attend votre decision.",
+    subtitle: "Une equipe lisible: qui travaille, qui a livre, et comment chaque agent contribue.",
   },
   outputs: {
     eyebrow: "Resultats",
@@ -188,7 +187,7 @@ const OUTPUT_STATUS_LABELS: Record<string, string> = {
 
 function simpleStatus(project: CeoProject, session?: AutopilotSession, approval?: SimpleApproval | null) {
   if (approval || session?.status === "waiting_approval" || project.status === "review") {
-    return { label: "Resultat pret - approbation requise", badge: "Action requise", className: "ready", progress: 100 };
+    return { label: "Resultat prêt dans le chat CEO", badge: "Action requise", className: "ready", progress: 100 };
   }
   if (project.status === "approved") return { label: "Approuve", badge: "Approuve", className: "approved", progress: 100 };
   if (project.status === "changes_requested" || project.status === "rejected") {
@@ -358,8 +357,8 @@ function ProjectCard({ project, view }: { project: CeoProject; view: SimpleAgenc
         <span>{output?.title ?? "Resultat en preparation"}</span>
       </div>
       <div className="os-card-actions">
-        {project.sessionId && <Link className="os-button subtle" href={`/mission/${project.sessionId}`}>Voir mission</Link>}
-        <Link className="os-button subtle" href="/ceo">CEO</Link>
+        <Link className="os-button subtle" href="/ceo">Continuer</Link>
+        <Link className="os-button subtle" href="/outputs">Voir outputs</Link>
       </div>
     </article>
   );
@@ -410,7 +409,7 @@ function ResultCard({ output }: { output: VisibleOutput }) {
       <p>{output.summary || output.preview}</p>
       <div className="os-card-actions">
         <Link className="os-button subtle" href={`/outputs/${output.id}`}>Voir</Link>
-        {output.status === "review" && <Link className="os-button ghost" href="/approvals">Decider</Link>}
+        {output.status === "review" && <Link className="os-button ghost" href="/ceo">Continuer</Link>}
       </div>
     </article>
   );
@@ -523,16 +522,14 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
   }, [load]);
 
   const agents = useMemo(() => agentsFromView(view), [view]);
-  const activeProject = view.projects.find((project) => approvalForProject(project, view.approvals)) ?? view.projects[0];
+  const activeProject = view.projects[0];
   const activeSession = activeProject ? sessionForProject(activeProject, view.sessions) : undefined;
-  const activeState = activeProject ? simpleStatus(activeProject, activeSession, approvalForProject(activeProject, view.approvals)) : null;
-  const pendingApprovals = view.approvals.filter((approval) => approval.item.status === "pending");
+  const activeState = activeProject ? simpleStatus(activeProject, activeSession, null) : null;
 
   const metrics = [
     { label: "Entreprises", value: view.companies.length, icon: <Building2 size={16} /> },
     { label: "Projets actifs", value: view.projects.length + view.generatedProjects.length, icon: <FolderKanban size={16} /> },
     { label: "Agents visibles", value: agents.length, icon: <Bot size={16} /> },
-    { label: "A approuver", value: pendingApprovals.length, icon: <CheckCircle2 size={16} /> },
   ];
 
   return (
@@ -581,8 +578,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
                   <p>{activeState.label}</p>
                   <div className="os-progress large"><span style={{ width: `${activeState.progress}%` }} /></div>
                   <div className="os-card-actions">
-                    {activeProject.sessionId && <Link className="os-button subtle" href={`/mission/${activeProject.sessionId}`}>Voir mission</Link>}
-                    <Link className="os-button primary" href="/approvals">Voir decisions</Link>
+                    <Link className="os-button primary" href="/ceo">Continuer</Link>
                   </div>
                 </>
               ) : (
@@ -591,10 +587,10 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             </div>
             <div className="os-card os-next-action">
               <span className="os-eyebrow">Prochaine action</span>
-              <h2>{pendingApprovals[0] ? "Un resultat attend votre decision" : "Parlez au CEO pour lancer la suite"}</h2>
-              <p>{pendingApprovals[0] ? "Les agents ont prepare un premier resultat. Approuvez-le ou demandez des changements." : "Le CEO peut creer l'entreprise, le projet et demarrer la mission automatiquement."}</p>
-              <Link className="os-button primary" href={pendingApprovals[0] ? "/approvals" : "/ceo"}>
-                {pendingApprovals[0] ? "Voir la decision" : "Demarrer"}
+              <h2>Parlez au CEO pour lancer la suite</h2>
+              <p>Créez un logo, une bannière, une charte ou une nouvelle version d’un artefact existant.</p>
+              <Link className="os-button primary" href="/ceo">
+                Démarrer
               </Link>
             </div>
           </section>
@@ -660,7 +656,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
         <section className="os-section">
           <div className="os-section-title">
             <div><span className="os-eyebrow">Resultats</span><h2>Resultats recents</h2></div>
-            <Link href="/approvals">Voir les decisions</Link>
+            <Link href="/ceo">Créer un nouvel artefact</Link>
           </div>
           {view.outputs.length === 0 ? (
             <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici avec une preview des que les agents preparent une livraison." />
@@ -670,17 +666,9 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
         </section>
       )}
 
-      {(variant === "dashboard" || variant === "approvals") && (
+      {variant === "approvals" && (
         <section className="os-section">
-          <div className="os-section-title">
-            <div><span className="os-eyebrow">Decisions</span><h2>{pendingApprovals.length > 0 ? "A approuver maintenant" : "Aucune decision en attente"}</h2></div>
-            <Link href="/approvals">Ouvrir</Link>
-          </div>
-          {pendingApprovals.length === 0 ? (
-            <EmptyState title="Aucune decision en attente" description="Quand une mission arrive au stade d'approbation, la preview apparait ici." />
-          ) : (
-            <div className="os-grid approvals">{pendingApprovals.map((approval) => <ApprovalCard key={approval.item.id} approval={approval} onDone={load} />)}</div>
-          )}
+          <EmptyState title="Panneau d’approbation masqué" description="Le workspace simple affiche maintenant le rendu final et les options de continuation directement dans le chat CEO." />
         </section>
       )}
     </main>

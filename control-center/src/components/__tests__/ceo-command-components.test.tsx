@@ -241,8 +241,8 @@ describe("CEO command components", () => {
     expect(screen.queryByText("product-spec.json")).not.toBeInTheDocument();
     expect(screen.queryByText("88/100")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Voir détails/ })).not.toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByRole("button", { name: /Voir travail de l’équipe/ })).not.toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.getByText("product-spec.json")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-saas");
@@ -342,7 +342,7 @@ describe("CEO command components", () => {
 
     expect(screen.getAllByText(/Je n’ai pas encore produit un résultat exploitable/i).length).toBeGreaterThan(0);
     expect(screen.queryByRole("button", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("Aucun artifact réel créé")).toBeInTheDocument();
   });
 
@@ -448,7 +448,7 @@ describe("CEO command components", () => {
     }));
 
     expect(screen.queryByText(/Mode expert/)).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("Mode expert")).toBeInTheDocument();
   });
 
@@ -489,8 +489,8 @@ describe("CEO command components", () => {
     expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    expect(screen.getByRole("button", { name: /Voir travail de l’équipe/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/logo-ekida");
   });
@@ -588,7 +588,7 @@ describe("CEO command components", () => {
     expect(screen.getByText("Je veux une page web bien simple avec le logo ekida")).toBeInTheDocument();
     expect(screen.getByLabelText("Prototype de logo EKIDA")).toBeInTheDocument();
     expect(screen.getByLabelText("Preview EKIDA website")).toBeInTheDocument();
-    const detailsButtons = screen.getAllByRole("button", { name: /Voir détails/ });
+    const detailsButtons = screen.getAllByRole("button", { name: /Voir travail de l’équipe/ });
     fireEvent.click(detailsButtons[1]);
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText("final-logo.svg")).not.toBeInTheDocument();
@@ -626,7 +626,7 @@ describe("CEO command components", () => {
 
     expect(screen.queryByText("website.preview")).not.toBeInTheDocument();
     expect(screen.queryByText("render_website_preview")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("website.preview")).toBeInTheDocument();
     expect(screen.getByText("render_website_preview")).toBeInTheDocument();
     expect(screen.getByText(/Checkpoints: 1/)).toBeInTheDocument();
@@ -658,7 +658,7 @@ describe("CEO command components", () => {
 
     expect(screen.queryByText("Coaching agents")).not.toBeInTheDocument();
     expect(screen.queryByText("unrelated_initial_symbol")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByText("Coaching agents")).toBeInTheDocument();
     expect(screen.getByText(/Lessons appliquées: 1/)).toBeInTheDocument();
     expect(screen.getByText("unrelated_initial_symbol")).toBeInTheDocument();

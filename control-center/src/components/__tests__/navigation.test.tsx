@@ -5,19 +5,21 @@ import AppShell from "@/components/AppShell";
 import CommandDock from "@/components/os/CommandDock";
 
 const primaryLinks = [
+  "Accueil",
   "CEO Chat",
-  "Missions",
+  "Projets",
   "Agents",
+  "Outputs",
+  "Expert Mode",
 ];
 
 const expertLinks = [
+  "Accueil",
   "CEO Chat",
-  "Missions",
+  "Projets",
   "Agents",
-  "Companies",
-  "Projects",
   "Outputs",
-  "Approvals",
+  "Companies",
   "Workspaces",
   "Artifacts",
   "Skills",
@@ -25,7 +27,7 @@ const expertLinks = [
   "Settings",
   "Logs",
   "Runtime",
-  "Expert",
+  "Expert Mode",
 ];
 
 describe("CommandDock", () => {
@@ -46,9 +48,9 @@ describe("CommandDock", () => {
   });
 
   it("marks the active route", () => {
-    render(React.createElement(CommandDock, { mode: "simple", pathname: "/missions" }));
+    render(React.createElement(CommandDock, { mode: "simple", pathname: "/projects" }));
 
-    expect(screen.getByRole("link", { name: "Missions" })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: "Projets" })).toHaveClass("active");
     expect(screen.getByRole("link", { name: "CEO Chat" })).not.toHaveClass("active");
   });
 });

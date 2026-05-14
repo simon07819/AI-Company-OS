@@ -1,3 +1,54 @@
 {
-  "workspaces": []
+  "workspaces": [
+    {
+      "id": "workspace-default",
+      "name": "AI Company OS",
+      "slug": "ai-company-os",
+      "description": "Default workspace for unassigned missions and operations.",
+      "industry": "AI operations",
+      "primaryMissionTypes": [
+        "saas_project",
+        "website",
+        "social_campaign",
+        "automation_workflow"
+      ],
+      "activeMissionIds": [
+        "ap-mp2iuneb-v208",
+        "ap-mp20c75e-t0th",
+        "ap-mp1zfk4i-cbu4",
+        "ap-mp1zeswn-2too",
+        "ap-mp1zc257-nart",
+        "ap-mp1zbrvl-4l3n",
+        "ap-mp1zayxc-9rqj",
+        "ap-mp1yj69b-3h4f"
+      ],
+      "revenue": 0,
+      "branding": {
+        "primaryColor": "#6366f1",
+        "secondaryColor": "#22c55e",
+        "tone": "pragmatic",
+        "logoUrl": null
+      },
+      "automationLevel": "assisted",
+      "settings": {
+        "defaultChannels": [
+          "internal_feed"
+        ],
+        "preferredCurrency": "USD",
+        "timezone": "America/Toronto"
+      },
+      "metrics": {
+        "activeMissions": 0,
+        "totalMissions": 0,
+        "revenue": 0,
+        "proposalValue": 0,
+        "activeCampaigns": 0,
+        "publishedAssets": 0,
+        "crmClients": 0,
+        "crmLeads": 0
+      },
+      "createdAt": "2026-05-14T10:54:12.842Z",
+      "updatedAt": "2026-05-14T10:54:12.844Z"
+    }
+  ]
 }

@@ -61,7 +61,7 @@ describe("CEO command surface flow", () => {
     expect(screen.queryByText("README.md")).not.toBeInTheDocument();
     expect(screen.queryByText("91/100")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/clinic-appointments-saas");
     expect(screen.getByText("README.md")).toBeInTheDocument();
     expect(screen.queryByText(/Mission Room/i)).not.toBeInTheDocument();

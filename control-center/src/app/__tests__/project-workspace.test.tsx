@@ -142,7 +142,8 @@ describe("generated project workspaces", () => {
     const dockScope = within(dock);
 
     expect(dockScope.getByRole("link", { name: "CEO Chat" })).toBeInTheDocument();
-    expect(dockScope.getByRole("link", { name: "Missions" })).toBeInTheDocument();
+    expect(dockScope.getByRole("link", { name: "Projets" })).toBeInTheDocument();
+    expect(dockScope.getByRole("link", { name: "Outputs" })).toBeInTheDocument();
     const workspaceSurface = container.querySelector(".project-workspace") as HTMLElement;
     expect(workspaceSurface.textContent ?? "").not.toMatch(/runtime events|sessionId|workspaceId|logs/i);
   });

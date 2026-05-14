@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Bot, Home, Moon, Send, Settings, Sun, Users, FolderKanban } from "lucide-react";
+import { Bot, Send } from "lucide-react";
 
 type Role = "user" | "assistant";
 
@@ -31,13 +30,6 @@ interface CommandPayload {
   error?: string;
 }
 
-const navItems = [
-  { href: "/", label: "Accueil", icon: Home },
-  { href: "/agents", label: "Agents", icon: Users },
-  { href: "/projects", label: "Projets", icon: FolderKanban },
-  { href: "/settings", label: "Settings", icon: Settings },
-];
-
 function uid(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -62,18 +54,12 @@ function resultFromPayload(payload: CommandPayload): ChatMessage {
 }
 
 export default function HomePage() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [conversationId] = useState(() => uid("home"));
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const initial = document.documentElement.dataset.theme === "light" ? "light" : "dark";
-    setTheme(initial);
-  }, []);
 
   useEffect(() => {
     const target = scrollRef.current;
@@ -84,13 +70,6 @@ export default function HomePage() {
     }
     target.scrollTop = target.scrollHeight;
   }, [messages, loading]);
-
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    document.documentElement.dataset.theme = next;
-    localStorage.setItem("ai-company-os-theme", next);
-  };
 
   const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
 
@@ -144,41 +123,14 @@ export default function HomePage() {
   };
 
   return (
-    <main className="home-ai-workspace">
-      <aside className="home-ai-sidebar" aria-label="Navigation principale">
-        <Link className="home-ai-brand" href="/" aria-label="AI Company OS">
-          <span>AI</span>
-        </Link>
-        <nav className="home-ai-nav">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link key={item.href} className="home-ai-nav-item" href={item.href} aria-label={item.label}>
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
-
+    <main className="home-ai-workspace embedded">
       <section className="home-ai-main" aria-label="Workspace AI">
-        <header className="home-ai-topbar">
-          <Link className="home-ai-logo" href="/">
-            <span>AI Company OS</span>
-          </Link>
-          <button type="button" className="home-ai-theme-toggle" onClick={toggleTheme} aria-label="Changer le thème">
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            <span>{theme === "dark" ? "Light" : "Dark"}</span>
-          </button>
-        </header>
-
         <div ref={scrollRef} className="home-ai-conversation" aria-live="polite">
           {messages.length === 0 && (
             <section className="home-ai-empty">
               <div className="home-ai-empty-icon"><Bot size={24} /></div>
               <h1>Que voulez-vous créer aujourd’hui?</h1>
-              <p>Demandez un logo, un site, un module, une image ou un texte. Le workspace affiche seulement le résultat final.</p>
+              <p>Demandez un logo, un site, une image ou un contenu. Le workspace affiche le rendu final et l’équipe qui a contribué.</p>
             </section>
           )}
 

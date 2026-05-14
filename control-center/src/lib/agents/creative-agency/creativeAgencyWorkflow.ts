@@ -300,7 +300,7 @@ export function createImageGenerationPlan(input: {
     `Composition: ${input.selected.compositionGuidelines}.`,
     `Concept narrative: ${input.concept.conceptNarrative}.`,
     referenceArtifacts.length ? `Preserve approved reference direction: ${referenceArtifacts.join(" | ")}` : "",
-    "Final image only. Premium brand design. No mockup. No watermark. No placeholder text. Avoid generic clipart.",
+    "Final image only. Premium brand design. No mockup. No watermark. No placeholder text. Avoid generic clipart, washed-out milky haze, low contrast, blurry marks, and pale unusable logos.",
   ].filter(Boolean).join("\n");
   return {
     selectedDirection: input.selected.directionName,
@@ -344,7 +344,7 @@ export function createCritiqueReport(input: {
     weaknesses: hasImage ? [] : ["aucune image exploitable retournée par le provider"],
     revisionSuggestions: decision === "approve"
       ? []
-      : ["relancer avec une composition plus simple", "renforcer le contraste", "réduire les détails décoratifs"],
+      : ["relancer avec une composition plus simple", "renforcer le contraste", "éviter tout rendu laiteux ou délavé", "réduire les détails décoratifs"],
     decision,
   };
 }

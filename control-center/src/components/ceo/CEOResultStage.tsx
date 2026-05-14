@@ -8,6 +8,36 @@ import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
 
+type TeamContribution = {
+  agent?: string;
+  agentId?: string;
+  name?: string;
+  role?: string;
+  status?: string;
+  summary?: string;
+  durationMs?: number;
+  providerUsed?: string;
+};
+
+type RuntimeWithTeam = {
+  creativeAgency?: {
+    agentOutputs?: TeamContribution[];
+    imageGenerationPlan?: {
+      selectedDirection?: string;
+      visualGoals?: string[];
+      expectedOutputType?: string;
+    };
+    critiqueReport?: {
+      decision?: string;
+      brandAlignmentScore?: number;
+      clarityScore?: number;
+      marketingEffectivenessScore?: number;
+      visualCohesionScore?: number;
+    };
+  };
+  timeline?: TeamContribution[];
+};
+
 function responseIntro(result: CEOCurrentResult) {
   if (result.shortMessage) return result.shortMessage;
   if (!result.artifactPaths.length) return "Je n’ai pas encore produit un résultat exploitable.";
@@ -101,6 +131,66 @@ function SummaryText({ value }: { value: string }) {
   );
 }
 
+function runtimeTeam(result: CEOCurrentResult): { team: TeamContribution[]; selectedDirection?: string; score?: string } {
+  const runtime = result.expert?.runtime as RuntimeWithTeam | undefined;
+  const agency = runtime?.creativeAgency;
+  const team = agency?.agentOutputs?.length
+    ? agency.agentOutputs
+    : runtime?.timeline?.filter((item) => (item.agent ?? item.agentId ?? item.name) && (item.agent ?? item.agentId) !== "ceo") ?? [];
+  const critique = agency?.critiqueReport;
+  const scores = critique
+    ? [critique.brandAlignmentScore, critique.clarityScore, critique.marketingEffectivenessScore, critique.visualCohesionScore]
+      .filter((value): value is number => typeof value === "number")
+    : [];
+  const score = scores.length ? `${Math.round(scores.reduce((sum, value) => sum + value, 0) / scores.length)}/100` : undefined;
+  return {
+    team: team.slice(0, 9),
+    selectedDirection: agency?.imageGenerationPlan?.selectedDirection,
+    score,
+  };
+}
+
+function labelForAgent(agent?: string) {
+  const labels: Record<string, string> = {
+    creative_project_manager: "Chef de projet créatif",
+    brand_strategist: "Stratégie de marque",
+    marketing_strategist: "Stratégie marketing",
+    art_director: "Direction artistique",
+    copy_concept_agent: "Concept & wording",
+    image_designer: "Designer image",
+    creative_critic: "Critique créative",
+    ceo_synthesis: "Synthèse CEO",
+    artifact_manager: "Artifacts",
+  };
+  return labels[agent ?? ""] ?? agent?.replace(/_/g, " ") ?? "Agent";
+}
+
+function agentLabel(item: TeamContribution) {
+  return item.name ?? labelForAgent(item.agent ?? item.agentId);
+}
+
+function TeamContributionTable({ result }: { result: CEOCurrentResult }) {
+  const { team, selectedDirection, score } = runtimeTeam(result);
+  if (!team.length) return null;
+  return (
+    <section className="ceo-team-summary" aria-label="Travail de l’équipe">
+      <div className="ceo-team-summary-head">
+        <strong>Travail de l’équipe</strong>
+        <span>{selectedDirection ? `Direction: ${selectedDirection}` : "Workflow validé"}{score ? ` · QA ${score}` : ""}</span>
+      </div>
+      <div className="ceo-team-summary-grid" role="table" aria-label="Participants et contributions">
+        {team.map((item, index) => (
+          <div role="row" className="ceo-team-summary-row" key={`${item.agent ?? item.role ?? "agent"}-${index}`}>
+            <span role="cell">{agentLabel(item)}</span>
+            <span role="cell">{item.role ?? "Contribution"}</span>
+            <p role="cell">{item.summary ?? item.status ?? "Contribution validée."}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function CEOResultMessage({
   result,
   mission,
@@ -108,6 +198,7 @@ function CEOResultMessage({
   onModify,
   onLogoAction,
   onMemoryAction,
+  onQuickPrompt,
 }: {
   result: CEOCurrentResult;
   mission: CEOCurrentMission | null;
@@ -115,6 +206,7 @@ function CEOResultMessage({
   onModify: () => void;
   onLogoAction: (action: CEOMissionAction, promptOverride?: string) => void;
   onMemoryAction: (action: CEOMemoryAction, result: CEOCurrentResult) => void;
+  onQuickPrompt: (prompt: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
@@ -138,6 +230,8 @@ function CEOResultMessage({
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
   const badge = sourceBadge(result);
   const shortTeamStatus = teamStatus(result);
+  const isCreativeImage = result.status === "completed" && (isGeneratedProviderImage || result.deliverableType === "graphic_image");
+  const continuationSubject = brandName && brandName !== result.title ? brandName : result.title;
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
@@ -181,6 +275,7 @@ function CEOResultMessage({
           <p>{result.summary}</p>
         </div>
       )}
+      {isRenderable && <TeamContributionTable result={result} />}
       <div className="ceo-chat-actions">
         {isNoProviderLogoResult(result) ? (
           <>
@@ -203,10 +298,22 @@ function CEOResultMessage({
             {modifyLabel}
           </button>
         )}
-        <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
-          <Info size={15} />
-          Voir détails
-        </button>
+        {isCreativeImage && (
+          <>
+            <button type="button" onClick={() => onQuickPrompt(`Régénère une nouvelle version de ${continuationSubject} dans la même direction, plus premium et plus mémorable.`)}>
+              <Wand2 size={15} />
+              Régénérer
+            </button>
+            <button type="button" onClick={() => onQuickPrompt(`Crée une bannière marketing cohérente avec la direction de ${continuationSubject}.`)}>
+              <Wand2 size={15} />
+              Créer bannière
+            </button>
+            <button type="button" onClick={() => onQuickPrompt(`Crée une charte graphique complète cohérente avec la direction de ${continuationSubject}.`)}>
+              <Wand2 size={15} />
+              Créer charte
+            </button>
+          </>
+        )}
         <button type="button" onClick={() => setDetailsOpen((open) => !open)}>
           <Info size={15} />
           Voir travail de l’équipe
@@ -240,6 +347,7 @@ export default function CEOResultStage({
   onModify,
   onLogoAction = () => {},
   onMemoryAction = () => {},
+  onQuickPrompt = () => {},
 }: {
   result: CEOCurrentResult | null;
   mission: CEOCurrentMission | null;
@@ -251,6 +359,7 @@ export default function CEOResultStage({
   onModify: () => void;
   onLogoAction?: (action: CEOMissionAction, promptOverride?: string) => void;
   onMemoryAction?: (action: CEOMemoryAction, result: CEOCurrentResult) => void;
+  onQuickPrompt?: (prompt: string) => void;
   onContinue: () => void;
 }) {
   if (loading || mission?.status === "production" || mission?.status === "preparing") {
@@ -317,6 +426,7 @@ export default function CEOResultStage({
               onModify={onModify}
               onLogoAction={(action) => onLogoAction(action, turn.mission.prompt)}
               onMemoryAction={onMemoryAction}
+              onQuickPrompt={onQuickPrompt}
             />
           </div>
         ))}
@@ -333,7 +443,7 @@ export default function CEOResultStage({
         </article>
       )}
 
-      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} onMemoryAction={onMemoryAction} />
+      <CEOResultMessage result={result} mission={mission} expertMode={expertMode} onModify={onModify} onLogoAction={onLogoAction} onMemoryAction={onMemoryAction} onQuickPrompt={onQuickPrompt} />
     </section>
   );
 }

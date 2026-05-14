@@ -64,9 +64,19 @@
   overflow: hidden;
 }
 
+.home-ai-workspace.embedded {
+  min-height: calc(100dvh - 72px);
+  grid-template-columns: minmax(0, 1fr);
+  background: transparent;
+}
+
 html[data-theme="dark"] .home-ai-workspace {
   background: #08090b;
   color: #f4f4f5;
+}
+
+html[data-theme="dark"] .home-ai-workspace.embedded {
+  background: transparent;
 }
 
 .home-ai-sidebar {
@@ -154,6 +164,11 @@ html[data-theme="dark"] .home-ai-nav-item:first-child {
   height: 100dvh;
   display: grid;
   grid-template-rows: 64px minmax(0, 1fr) auto;
+}
+
+.home-ai-workspace.embedded .home-ai-main {
+  height: calc(100dvh - 96px);
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .home-ai-topbar {
@@ -6216,6 +6231,70 @@ html[data-theme="dark"] .ceo-os-result-details {
   color: #f59e0b !important;
 }
 
+.ceo-team-summary {
+  width: min(100%, 660px);
+  display: grid;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: rgba(15, 15, 15, 0.86);
+  padding: 12px;
+}
+
+.ceo-team-summary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ceo-team-summary-head strong {
+  color: #fafafa;
+  font-size: 13px;
+}
+
+.ceo-team-summary-head span {
+  color: #a1a1aa;
+  font-size: 11px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.ceo-team-summary-grid {
+  display: grid;
+  gap: 6px;
+}
+
+.ceo-team-summary-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(120px, 0.85fr) minmax(130px, 1fr) minmax(0, 1.45fr);
+  gap: 10px;
+  align-items: start;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 7px;
+}
+
+.ceo-team-summary-row span {
+  min-width: 0;
+  color: #f4f4f5;
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.35;
+}
+
+.ceo-team-summary-row span:nth-child(2),
+.ceo-team-summary-row p {
+  color: #a1a1aa;
+  font-weight: 700;
+}
+
+.ceo-team-summary-row p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.42;
+}
+
 .ceo-memory-notice {
   margin: 0 18px 6px;
   color: #a1a1aa;
@@ -6655,6 +6734,19 @@ html[data-theme="dark"] .ceo-os-result-details {
   .ceo-chat-visual-reply.brand {
     max-width: 100%;
     width: 100%;
+  }
+
+  .ceo-team-summary-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ceo-team-summary-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ceo-team-summary-head span {
+    text-align: left;
   }
 
   .ceo-chat-header {

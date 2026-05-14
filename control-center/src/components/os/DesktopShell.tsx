@@ -15,8 +15,6 @@ function DesktopShellInner({ children }: { children: ReactNode }) {
   const effectiveMode = isAdvancedPath(pathname) ? "expert" : "simple";
   const navItems = useMemo(() => navigationForMode(effectiveMode), [effectiveMode]);
   const activeLabel = pageLabel(pathname, navItems);
-  if (pathname === "/") return <>{children}</>;
-
   return (
     <div className="platform-shell desktop-os-shell" data-mode={effectiveMode}>
       <CommandDock mode={effectiveMode} pathname={pathname} mobileOpen={mobileNavOpen} onNavigate={() => setMobileNavOpen(false)} />

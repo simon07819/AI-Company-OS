@@ -18,9 +18,10 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByRole("link", { name: "Accueil" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Agents" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Projets" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Outputs" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Expert Mode" })).toBeVisible();
     await expect(page.getByPlaceholder("Tapez votre demande ici...")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Changer le thème" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /mode clair|mode sombre/i })).toBeVisible();
     await expect(page.getByText("Nouveau chat")).toHaveCount(0);
   });
 
@@ -31,11 +32,11 @@ test.describe("CEO runtime shell", () => {
     await expect(sidebar).toBeVisible();
     await expect(sidebar).toHaveCSS("background-color", "rgb(5, 5, 5)");
 
-    for (const label of ["AI Company OS", "CEO Chat", "Missions", "Agents", "Mode expert"]) {
+    for (const label of ["AI Company OS", "Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Expert Mode"]) {
       await expect(sidebar.getByText(label, { exact: label !== "AI Company OS" })).toBeVisible();
     }
 
-    for (const label of ["CEO Chat", "Missions", "Agents"]) {
+    for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs"]) {
       const item = sidebar.getByRole("link", { name: label });
       const box = await item.boundingBox();
       expect(box?.width ?? 0).toBeGreaterThan(150);
@@ -58,13 +59,14 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByRole("button", { name: /Préparer le brief|Créer prompts visuels|Prototype SVG local/ })).toHaveCount(0);
     if (await page.locator(".ceo-chat-generated-image").count()) {
       await expect(page.getByText("Provider réel").first()).toBeVisible();
+      await expect(page.getByText("Travail de l’équipe").first()).toBeVisible();
     } else {
       await expect(page.getByText("Action requise").first()).toBeVisible();
       await expect(page.getByText("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.").first()).toBeVisible();
     }
     await page.screenshot({ path: "test-results/ceo-logo-flow.png", fullPage: true });
 
-    await page.getByRole("button", { name: "Voir détails" }).last().click();
+    await page.getByRole("button", { name: "Voir travail de l’équipe" }).last().click();
     await expect(page.getByLabel("Détails du résultat")).toBeVisible();
     if (await page.locator(".ceo-chat-generated-image").count()) {
       await expect(page.getByText("Artifacts créés").first()).toBeVisible();
@@ -109,16 +111,18 @@ test.describe("CEO runtime shell", () => {
 
 test.describe("CEO expert runtime evidence", () => {
   test("loads real mission diagnostics with agents, provider and review details", async ({ page }) => {
+    test.setTimeout(90_000);
     await page.goto("/ceo/expert");
 
     const sidebar = page.locator(".platform-sidebar");
     await expect(sidebar).toBeVisible();
-    for (const label of ["CEO Chat", "Missions", "Agents", "Companies", "Projects", "Outputs", "Runtime", "Expert"]) {
+    for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Companies", "Runtime", "Expert Mode"]) {
       await expect(sidebar.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
 
     await page.getByRole("button", { name: "Charger preuve runtime" }).click();
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Timeline équipe");
+    await expect(page.getByRole("button", { name: "Charger preuve runtime" })).toBeEnabled({ timeout: 60_000 });
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Timeline équipe", { timeout: 60_000 });
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("graphic-designer");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("providerUsed");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("sourceType");

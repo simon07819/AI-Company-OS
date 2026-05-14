@@ -15,10 +15,10 @@ describe("active AI Company OS platform shell", () => {
     expect(sidebar).toBeInTheDocument();
     expect(sidebar).toHaveAttribute("data-collapsed", "false");
     const scope = within(sidebar as HTMLElement);
-    for (const label of ["CEO Chat", "Missions", "Agents"]) {
+    for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Expert Mode"]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
     }
-    for (const hiddenLabel of ["Companies", "Projects", "Outputs", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert"]) {
+    for (const hiddenLabel of ["Companies", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime"]) {
       expect(scope.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
     expect(scope.queryByText("Nouveau chat")).not.toBeInTheDocument();
@@ -39,12 +39,10 @@ describe("active AI Company OS platform shell", () => {
 
     for (const label of [
       "CEO Chat",
-      "Missions",
+      "Projets",
       "Agents",
-      "Companies",
-      "Projects",
       "Outputs",
-      "Approvals",
+      "Companies",
       "Workspaces",
       "Artifacts",
       "Skills",
@@ -52,7 +50,7 @@ describe("active AI Company OS platform shell", () => {
       "Settings",
       "Logs",
       "Runtime",
-      "Expert",
+      "Expert Mode",
     ]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
     }
@@ -64,7 +62,7 @@ describe("active AI Company OS platform shell", () => {
     const sidebar = container.querySelector(".platform-sidebar");
     const scope = within(sidebar as HTMLElement);
 
-    for (const label of ["CEO Chat", "Missions", "Agents", "Companies", "Projects", "Outputs", "Approvals", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert"]) {
+    for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Companies", "Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Logs", "Runtime", "Expert Mode"]) {
       expect(scope.getByRole("link", { name: label })).toBeInTheDocument();
     }
   });

@@ -143,7 +143,7 @@ describe("CEO logo request execution flow", () => {
     expect(view.companies.some((company) => company.name === "Studio Lumiere" && company.projectIds.includes(project!.id))).toBe(true);
     expect(view.projects.some((item) => item.id === project!.id)).toBe(true);
     expect(view.outputs.some((output) => output.id === outputs[0].id && output.visualPreview)).toBe(true);
-    expect(view.approvals.some((approval) => approval.canApprove && approval.visualPreview)).toBe(true);
+    expect(view.approvals).toHaveLength(0);
     expect(view.logs.length).toBeGreaterThan(0);
 
     const postResponse = await ceoChatPost(new NextRequest("http://test.local/api/ceo/chat", {

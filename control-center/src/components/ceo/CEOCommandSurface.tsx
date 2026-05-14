@@ -247,9 +247,10 @@ export default function CEOCommandSurface() {
             loading={loading}
             error={error}
             pendingAttachments={pendingAttachments}
-            onModify={() => submitCommand(mission?.prompt || result?.brandName || "Modifier le livrable", mission?.attachments ?? [], "modify_current_deliverable")}
+            onModify={() => submitCommand(`Améliore le rendu actuel en gardant la même direction: ${mission?.prompt || result?.brandName || result?.title || "artefact"}`, mission?.attachments ?? [])}
             onLogoAction={(nextAction, promptOverride) => submitCommand(promptOverride || mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
             onMemoryAction={writeMemoryAction}
+            onQuickPrompt={(nextPrompt) => submitCommand(nextPrompt, mission?.attachments ?? [])}
             onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
           />
           {memoryNotice && <p className="ceo-memory-notice">{memoryNotice}</p>}

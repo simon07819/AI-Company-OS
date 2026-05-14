@@ -11,7 +11,7 @@ import { assertNoCompletedStepWithoutArtifacts } from "@/lib/product-builder/exe
 import { validateGeneratedProduct } from "@/lib/product-builder/qualityGate";
 import { RESET_CONFIRMATION, resetCompanyOs } from "@/lib/resetCompanyOs";
 
-const platformNav = ["CEO Chat", "Missions", "Agents"];
+const platformNav = ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Expert Mode"];
 
 let tempRoot = "";
 
@@ -128,10 +128,10 @@ describe("AI Company OS new version regression suite", () => {
     expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Modifier/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Voir détails/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Voir travail de l’équipe/ })).toBeInTheDocument();
     expect(screen.queryByText("brand-brief.json")).not.toBeInTheDocument();
     expect(screen.queryByText("90/100")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });

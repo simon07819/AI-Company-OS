@@ -32,9 +32,8 @@ describe("critical Control Center pages", () => {
     render(React.createElement(DashboardPage));
 
     expect(await screen.findByRole("heading", { name: "Que voulez-vous créer aujourd’hui?" })).toBeInTheDocument();
-    expect(screen.getByText("AI Company OS")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Tapez votre demande ici...")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Agents" })).toBeInTheDocument();
+    expect(screen.getByText(/rendu final et l’équipe/)).toBeInTheDocument();
   });
 
   it("renders Settings without crashing", () => {
@@ -68,16 +67,18 @@ describe("critical Control Center pages", () => {
     unmount();
     render(React.createElement(ProjectsPage));
     expect((await screen.findAllByRole("heading", { name: "Projets actifs" })).length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Resultat pret - approbation requise").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Resultat prêt dans le chat CEO").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Resultat pret - approbation requise")).not.toBeInTheDocument();
   });
 
-  it("renders approval inbox with visual approval card", async () => {
+  it("keeps approval inbox masked in the simple workspace", async () => {
     render(React.createElement(ApprovalsPage));
 
     expect(await screen.findByRole("heading", { name: "Decisions a prendre" })).toBeInTheDocument();
-    expect(screen.getAllByText("Pret a approuver").length).toBeGreaterThan(0);
-    expect(screen.getByText("Approuver")).toBeInTheDocument();
-    expect(screen.getByText("Demander des changements")).toBeInTheDocument();
+    expect(screen.getByText("Panneau d’approbation masqué")).toBeInTheDocument();
+    expect(screen.queryByText("Pret a approuver")).not.toBeInTheDocument();
+    expect(screen.queryByText("Approuver")).not.toBeInTheDocument();
+    expect(screen.queryByText("Demander des changements")).not.toBeInTheDocument();
   });
 
   it("renders outputs and workspaces in the simple OS style", async () => {
@@ -92,10 +93,10 @@ describe("critical Control Center pages", () => {
   });
 
   it("keeps simple mode free of raw technical identifiers", async () => {
-    const pages = [DashboardPage, CompaniesPage, ProjectsPage, AgentsPage, OutputsPage, ApprovalsPage, WorkspacesPage];
+    const pages = [DashboardPage, CompaniesPage, ProjectsPage, AgentsPage, OutputsPage, WorkspacesPage];
     for (const Page of pages) {
       const { unmount, container } = render(React.createElement(Page));
-      await screen.findByText(Page === DashboardPage ? "AI Company OS" : "Parler au CEO");
+      await screen.findByText(Page === DashboardPage ? "Que voulez-vous créer aujourd’hui?" : "Parler au CEO");
       expect(container.textContent ?? "").not.toMatch(/sessionId|projectId|workspaceId|\{|\}/);
       unmount();
     }
@@ -145,10 +146,10 @@ describe("critical Control Center pages", () => {
     expect(container.querySelector(".desktop-os-shell")).toBeInTheDocument();
     expect(container.querySelector(".os-dock")).toBeInTheDocument();
     expect(container.querySelector(".platform-sidebar")).toBeInTheDocument();
-    for (const label of ["CEO Chat", "Missions", "Agents"]) {
+    for (const label of ["Accueil", "CEO Chat", "Projets", "Agents", "Outputs", "Expert Mode"]) {
       expect(screen.getByRole("link", { name: label })).toBeInTheDocument();
     }
-    for (const hiddenLabel of ["Workspaces", "Artifacts", "Skills", "Evals", "Settings"]) {
+    for (const hiddenLabel of ["Workspaces", "Artifacts", "Skills", "Evals", "Settings", "Approvals"]) {
       expect(screen.queryByRole("link", { name: hiddenLabel })).not.toBeInTheDocument();
     }
     expect(container.querySelector(".right-rail")).not.toBeInTheDocument();
@@ -234,7 +235,7 @@ describe("critical Control Center pages", () => {
     expect(screen.queryByText(/^LOGO$/i)).not.toBeInTheDocument();
     expect(screen.queryByText("logo-concept-a.svg")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Ouvrir workspace/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: /Voir détails/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Voir travail de l’équipe/ }));
     expect(screen.getByRole("link", { name: /Ouvrir workspace/ })).toHaveAttribute("href", "/projects/elevio-brand-system");
     expect(screen.getByText("logo-concept-a.svg")).toBeInTheDocument();
   });

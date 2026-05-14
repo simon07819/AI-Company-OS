@@ -1,7 +1,7 @@
 import { getMessages, type CeoMessage } from "./ceoCommand";
 import { listSessions, type AutopilotLog, type AutopilotSession } from "./autopilotStore";
 import { listCeoProjects, type CeoProject } from "./ceoProjectStore";
-import { collectPendingApprovals, getApprovalPreview, type ApprovalItem, type ApprovalPreview } from "./approvalPreview";
+import { getApprovalPreview, type ApprovalItem, type ApprovalPreview } from "./approvalPreview";
 import { listWorkspaces, type CompanyWorkspace } from "./companyWorkspace";
 import { listGeneratedProjects, type GeneratedProjectSummary } from "./product-builder/workspace";
 import { getAllOutputs, type OutputVisualPreview, type VisibleOutput } from "./visibleOutputs";
@@ -67,14 +67,23 @@ function visualFromPreview(preview: ApprovalPreview | null): OutputVisualPreview
   return preview?.outputs?.find((output) => output.visualPreview)?.visualPreview ?? null;
 }
 
+const LEGACY_VISIBLE_PATTERN = /Brand system|Marque à nommer|Approval Preview|Prototype visuel|legacy|fallback|mock|fake|test-results|old generic/i;
+
+function isCurrentVisibleRecord(...values: Array<unknown>) {
+  return !LEGACY_VISIBLE_PATTERN.test(values.filter((value): value is string => typeof value === "string").join("\n"));
+}
+
 export function getSimpleAgencyViewModel(): SimpleAgencyViewModel {
   const messages = getMessages(80);
-  const projects = listCeoProjects({ includeArchived: false });
+  const projects = listCeoProjects({ includeArchived: false })
+    .filter((project) => isCurrentVisibleRecord(project.name, project.missionType, project.lastActivity));
   const sessions = listSessions();
-  const outputs = getAllOutputs();
+  const outputs = getAllOutputs()
+    .filter((output) => isCurrentVisibleRecord(output.title, output.summary, output.preview, output.type));
   const workspaces = listWorkspaces();
-  const pendingApprovals = collectPendingApprovals();
-  const generatedProjects = listGeneratedProjects();
+  const pendingApprovals: ApprovalItem[] = [];
+  const generatedProjects = listGeneratedProjects()
+    .filter((project) => isCurrentVisibleRecord(project.title, project.summary, project.requestType));
 
   const approvals = pendingApprovals
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
