@@ -134,6 +134,20 @@ describe("CEO command API", () => {
     }));
     expect(payload.expert.diagnostic.agent).toBe("graphic-designer");
     expect(payload.expert.diagnostic.model).toBe("black-forest-labs/FLUX-2-klein-9b");
+    expect(payload.expert.runtime.creativeAgency.mode).toBe("agency");
+    expect(payload.expert.runtime.creativeAgency.artisticDirections.length).toBeGreaterThanOrEqual(2);
+    expect(payload.expert.runtime.creativeAgency.critiqueReport.decision).toBe("approve");
+    expect(payload.expert.runtime.timeline.map((step: { agent: string }) => step.agent)).toEqual(expect.arrayContaining([
+      "creative_project_manager",
+      "brand_strategist",
+      "marketing_strategist",
+      "art_director",
+      "copy_concept_agent",
+      "image_designer",
+      "creative_critic",
+      "ceo_synthesis",
+      "artifact_manager",
+    ]));
     expect(JSON.stringify(payload)).not.toMatch(/local_svg|Brand system|Marque à nommer|<svg|premium professional graphic design|Objectif:/i);
     expect(JSON.stringify(payload)).not.toContain("deepinfra-test-secret-value");
   });

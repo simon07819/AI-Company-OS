@@ -31,6 +31,7 @@ describe("Agent Graphiste IA", () => {
 
     expect(isGraphicDesignerRequest("Crée un logo professionnel premium pour une compagnie de construction.")).toBe(true);
     expect(isGraphicDesignerRequest("Prépare une bannière LinkedIn")).toBe(true);
+    expect(isGraphicDesignerRequest("Refais une nouvelle version dans le même esprit, plus premium et plus mémorable")).toBe(true);
     expect(isGraphicDesignerRequest("Rédige un court email")).toBe(false);
   });
 
@@ -82,6 +83,21 @@ describe("Agent Graphiste IA", () => {
     expect(result.providerUsed).toBe("deepinfra");
     expect(result.sourceType).toBe("deepinfra_image");
     expect(result.artifactId).toMatch(/^artifact-/);
+    expect(result.expert.agency?.mode).toBe("agency");
+    expect(result.expert.agency?.creativeBrief.brandName).toBe("Marque");
+    expect(result.expert.agency?.artisticDirections.length).toBeGreaterThanOrEqual(2);
+    expect(result.expert.agency?.imageGenerationPlan.selectedDirection).toBeTruthy();
+    expect(result.expert.agency?.critiqueReport?.decision).toBe("approve");
+    expect(result.expert.agency?.agentOutputs.map((item) => item.agent)).toEqual(expect.arrayContaining([
+      "creative_project_manager",
+      "brand_strategist",
+      "marketing_strategist",
+      "art_director",
+      "copy_concept_agent",
+      "image_designer",
+      "creative_critic",
+      "ceo_synthesis",
+    ]));
     expect(result.artifactPath).toMatch(/^public\/generated-artifacts\/ceo-images\//);
     expect(result.artifactUrl).toMatch(/^\/generated-artifacts\/ceo-images\//);
     expect(fs.existsSync(path.resolve(process.cwd(), result.artifactPath ?? ""))).toBe(true);
@@ -96,7 +112,11 @@ describe("Agent Graphiste IA", () => {
       content: result.outputData,
       path: result.artifactPath,
       url: result.artifactUrl,
-      promptUsed: expect.stringContaining("Premium professional graphic design"),
+      promptUsed: expect.stringContaining("Agency direction"),
+      metadata: expect.objectContaining({
+        selectedDirection: result.expert.agency?.imageGenerationPlan.selectedDirection,
+        creativeAgency: expect.objectContaining({ mode: "agency" }),
+      }),
     }));
   });
 });

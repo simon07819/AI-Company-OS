@@ -187,7 +187,21 @@ export function recordUserMemoryAction(input: {
   const text = safeText(input.text) || safeText(input.brandName) || input.action;
   const artifact = input.artifactId ? listTraceableArtifacts().find((item) => item.artifactId === input.artifactId) : undefined;
   const artifactPrompt = safeText(artifact?.promptUsed ?? "", "");
-  const artifactStyle = safeText((artifact?.metadata as { styleReference?: string } | undefined)?.styleReference ?? "", "");
+  const metadata = artifact?.metadata as {
+    styleReference?: string;
+    selectedDirection?: string;
+    creativeAgency?: {
+      recommendedDirection?: { directionName?: string; creativeRationale?: string };
+      finalCEOCard?: { chosenDirection?: string; whyItWorks?: string };
+    };
+  } | undefined;
+  const creativeDirection = [
+    metadata?.selectedDirection,
+    metadata?.creativeAgency?.finalCEOCard?.chosenDirection,
+    metadata?.creativeAgency?.finalCEOCard?.whyItWorks,
+    metadata?.creativeAgency?.recommendedDirection?.creativeRationale,
+  ].filter(Boolean).join(" | ");
+  const artifactStyle = safeText(creativeDirection || metadata?.styleReference || "", "");
   const artifactDecision = safeText([
     input.brandName ? `Marque: ${input.brandName}` : "",
     text,

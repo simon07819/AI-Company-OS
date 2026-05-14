@@ -40,6 +40,7 @@ describe("CEO multi-agent workflow router", () => {
     const { detectCeoWorkflowType } = await loadRouter();
 
     expect(detectCeoWorkflowType("Crée un logo premium pour une compagnie de construction")).toBe("graphic");
+    expect(detectCeoWorkflowType("Refais une nouvelle version dans le même esprit, plus premium et plus mémorable")).toBe("graphic");
     expect(detectCeoWorkflowType("Crée une image site pour la page accueil")).toBe("assets");
     expect(detectCeoWorkflowType("Crée un module React de facturation")).toBe("code");
     expect(detectCeoWorkflowType("Rédige un email de vente")).toBe("copywriting");
@@ -86,14 +87,19 @@ describe("CEO multi-agent workflow router", () => {
     expect(result?.artifactId).toMatch(/^artifact-/);
     expect(result?.artifactPath).toMatch(/^public\/generated-artifacts\/ceo-images\//);
     expect(fs.existsSync(path.resolve(process.cwd(), result?.artifactPath ?? ""))).toBe(true);
+    expect(result?.runtime.creativeAgency?.mode).toBe("agency");
+    expect(result?.runtime.creativeAgency?.artisticDirections.length).toBeGreaterThanOrEqual(2);
+    expect(result?.runtime.creativeAgency?.critiqueReport?.decision).toBe("approve");
     expect(result?.runtime.timeline.map((step) => step.agent)).toEqual([
       "ceo",
-      "product_owner",
-      "ux_designer",
-      "graphic-designer",
-      "qa",
-      "critic",
-      "reviewer",
+      "creative_project_manager",
+      "brand_strategist",
+      "marketing_strategist",
+      "art_director",
+      "copy_concept_agent",
+      "image_designer",
+      "creative_critic",
+      "ceo_synthesis",
       "artifact_manager",
     ]);
     expect(readArtifacts()[0]).toEqual(expect.objectContaining({

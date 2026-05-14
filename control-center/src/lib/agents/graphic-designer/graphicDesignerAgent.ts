@@ -6,6 +6,13 @@ import {
   generateDeepInfraImage,
   getDeepInfraImageStatus,
 } from "@/lib/providers/deepinfraImageProvider";
+import {
+  buildCreativeAgencyWorkflow,
+  createCritiqueReport,
+  createFinalCEOCard,
+  sanitizeCreativeAgencyForClient,
+  type CreativeAgencyWorkflow,
+} from "@/lib/agents/creative-agency/creativeAgencyWorkflow";
 
 export interface GraphicDesignerResult {
   ok: boolean;
@@ -30,10 +37,11 @@ export interface GraphicDesignerResult {
     durationMs: number;
     retries: number;
     error?: string;
+    agency?: ReturnType<typeof sanitizeCreativeAgencyForClient>;
   };
 }
 
-const GRAPHIC_KEYWORDS = /\b(logo|design|visuel|banni[eè]re|image|branding|affiche|illustration)\b/i;
+const GRAPHIC_KEYWORDS = /\b(logo|design|visuel|banni[eè]re|image|branding|affiche|illustration|variante|version|regenerer|regeneration|direction)\b|meme esprit/i;
 
 function normalize(input: string) {
   return input.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -47,25 +55,13 @@ function id(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function createInternalBrief(command: string) {
-  return [
-    "Objectif: produire un visuel final prêt à présenter.",
-    "Style: premium, professionnel, lisible, sans mockup, sans watermark.",
-    "Contraintes: respecter exactement la demande utilisateur, éviter les placeholders et le texte illisible.",
-    `Demande: ${command}`,
-  ].join("\n");
-}
-
-function createDeepInfraPrompt(command: string, retry = false) {
+function createDeepInfraPrompt(planPrompt: string, retry = false) {
   const retryInstruction = retry
     ? "Regenerate with stronger composition, cleaner edges, sharper contrast, and fewer decorative distractions."
     : "";
   return [
-    "Premium professional graphic design, final image only, no mockup, no watermark.",
-    "Clean composition, strong hierarchy, production-ready visual, high quality.",
-    "If text is included, keep it minimal, readable, and exactly aligned with the requested brand.",
+    planPrompt,
     retryInstruction,
-    `User request: ${command}`,
   ].filter(Boolean).join("\n");
 }
 
@@ -83,13 +79,59 @@ function imageQualityOk(imageDataUrl?: string) {
   return Buffer.byteLength(base64, "base64") > 1024;
 }
 
-export async function runGraphicDesignerAgent(command: string, missionId = id("graphic-mission")): Promise<GraphicDesignerResult> {
+function appendImageAgentRun(workflow: CreativeAgencyWorkflow, status: "completed" | "needs_action", summary: string, durationMs: number, providerUsed: string) {
+  workflow.agentOutputs.push({
+    agent: "image_designer",
+    role: "Image Designer / Logo Design Agent",
+    status,
+    summary,
+    durationMs,
+    providerUsed,
+  });
+}
+
+function appendCriticAndCeo(workflow: CreativeAgencyWorkflow, status: "completed" | "needs_action", durationMs: number) {
+  workflow.agentOutputs.push({
+    agent: "creative_critic",
+    role: "Creative Critic / Brand QA",
+    status,
+    summary: workflow.critiqueReport
+      ? `${workflow.critiqueReport.decision}: alignement ${workflow.critiqueReport.brandAlignmentScore}, clarté ${workflow.critiqueReport.clarityScore}.`
+      : "Critique non disponible.",
+    durationMs,
+    providerUsed: "local_quality",
+  });
+  workflow.agentOutputs.push({
+    agent: "ceo_synthesis",
+    role: "CEO Synthesis Agent",
+    status,
+    summary: workflow.finalCEOCard?.whyItWorks ?? "Synthèse préparée.",
+    durationMs: 0,
+    providerUsed: "local_strategy",
+  });
+}
+
+export async function runGraphicDesignerAgent(command: string, missionId = id("graphic-mission"), memorySummary = ""): Promise<GraphicDesignerResult> {
   const status = getDeepInfraImageStatus();
   const started = Date.now();
-  const internalBrief = createInternalBrief(command);
-  const visualReference = styleReferenceFromCommand(command);
+  const visualReference = [styleReferenceFromCommand(command), styleReferenceFromCommand(memorySummary)].filter(Boolean).join(" ");
+  const agencyWorkflow = buildCreativeAgencyWorkflow(command, memorySummary);
+  const selectedDirection = agencyWorkflow.recommendedDirection;
 
   if (!status.available) {
+    agencyWorkflow.critiqueReport = createCritiqueReport({
+      imageDataUrl: null,
+      plan: agencyWorkflow.imageGenerationPlan,
+      brief: agencyWorkflow.creativeBrief,
+      retries: 0,
+    });
+    agencyWorkflow.finalCEOCard = createFinalCEOCard({
+      artifactId: null,
+      selected: selectedDirection,
+      critique: agencyWorkflow.critiqueReport,
+    });
+    appendImageAgentRun(agencyWorkflow, "needs_action", "DeepInfra non configuré; aucune image générée.", Date.now() - started, "deepinfra_unavailable");
+    appendCriticAndCeo(agencyWorkflow, "needs_action", 0);
     return {
       ok: true,
       missionId,
@@ -112,21 +154,35 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
         durationMs: Date.now() - started,
         retries: 0,
         error: status.missing.join(", "),
+        agency: sanitizeCreativeAgencyForClient(agencyWorkflow),
       },
     };
   }
 
   let retries = 0;
-  const referenceInstruction = visualReference ? `Reference direction to preserve: ${visualReference}\n` : "";
-  let finalPrompt = createDeepInfraPrompt(`${internalBrief}\n${referenceInstruction}${command}`);
+  const referenceInstruction = visualReference ? `\nReference direction to preserve: ${visualReference}` : "";
+  let finalPrompt = createDeepInfraPrompt(`${agencyWorkflow.imageGenerationPlan.finalCreativePrompt}${referenceInstruction}`);
   let image = await generateDeepInfraImage({ prompt: finalPrompt });
   if (!imageQualityOk(image.imageDataUrl)) {
     retries = 1;
-    finalPrompt = createDeepInfraPrompt(`${internalBrief}\n${referenceInstruction}${command}`, true);
+    finalPrompt = createDeepInfraPrompt(`${agencyWorkflow.imageGenerationPlan.finalCreativePrompt}${referenceInstruction}`, true);
     image = await generateDeepInfraImage({ prompt: finalPrompt });
   }
 
   if (!image.success || !imageQualityOk(image.imageDataUrl)) {
+    agencyWorkflow.critiqueReport = createCritiqueReport({
+      imageDataUrl: image.imageDataUrl,
+      plan: agencyWorkflow.imageGenerationPlan,
+      brief: agencyWorkflow.creativeBrief,
+      retries,
+    });
+    agencyWorkflow.finalCEOCard = createFinalCEOCard({
+      artifactId: null,
+      selected: selectedDirection,
+      critique: agencyWorkflow.critiqueReport,
+    });
+    appendImageAgentRun(agencyWorkflow, "needs_action", "DeepInfra n’a pas retourné d’image exploitable.", Date.now() - started, image.providerUsed);
+    appendCriticAndCeo(agencyWorkflow, "needs_action", 0);
     return {
       ok: true,
       missionId,
@@ -149,6 +205,7 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
         durationMs: Date.now() - started,
         retries,
         error: image.error,
+        agency: sanitizeCreativeAgencyForClient(agencyWorkflow),
       },
     };
   }
@@ -171,9 +228,25 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
       agent: "graphic-designer",
       model: image.model,
       styleReference: visualReference,
+      creativeAgency: sanitizeCreativeAgencyForClient(agencyWorkflow),
+      selectedDirection: agencyWorkflow.imageGenerationPlan.selectedDirection,
+      reuseReferenceArtifacts: agencyWorkflow.imageGenerationPlan.reuseReferenceArtifacts,
       qualityCheck: "image_data_url_gt_1kb",
     },
   });
+  agencyWorkflow.critiqueReport = createCritiqueReport({
+    imageDataUrl,
+    plan: agencyWorkflow.imageGenerationPlan,
+    brief: agencyWorkflow.creativeBrief,
+    retries,
+  });
+  agencyWorkflow.finalCEOCard = createFinalCEOCard({
+    artifactId: artifact.artifactId,
+    selected: selectedDirection,
+    critique: agencyWorkflow.critiqueReport,
+  });
+  appendImageAgentRun(agencyWorkflow, "completed", `Image générée selon ${agencyWorkflow.imageGenerationPlan.selectedDirection}.`, Date.now() - started, "deepinfra");
+  appendCriticAndCeo(agencyWorkflow, agencyWorkflow.critiqueReport.decision === "approve" ? "completed" : "needs_action", 0);
 
   return {
     ok: true,
@@ -197,6 +270,7 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
       artifactId: artifact.artifactId,
       durationMs: Date.now() - started,
       retries,
+      agency: sanitizeCreativeAgencyForClient(agencyWorkflow),
     },
   };
 }

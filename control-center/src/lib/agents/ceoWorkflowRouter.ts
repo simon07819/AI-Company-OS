@@ -22,7 +22,19 @@ function missionId() {
   return `mission-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function timeline(agent: string, providerUsed: string, sourceType: string, durationMs: number, artifactId: string | null, retries = 0) {
+function timeline(agent: string, providerUsed: string, sourceType: string, durationMs: number, artifactId: string | null, retries = 0, agencyOutputs?: Array<{ agent: string; role: string; status: string; summary: string; durationMs: number; providerUsed: string }>) {
+  if (agencyOutputs?.length) {
+    return [
+      { agent: "ceo", role: "Central router", status: "completed", providerUsed: "local_rules", durationMs: 0, summary: "Mission créative détectée; agency mode activé." },
+      ...agencyOutputs.map((output) => ({
+        ...output,
+        sourceType,
+        artifactId: output.agent === "image_designer" || output.agent === "artifact_manager" ? artifactId : undefined,
+        retries: output.agent === "image_designer" ? retries : undefined,
+      })),
+      { agent: "artifact_manager", role: "Artifact Manager", status: artifactId ? "completed" : "needs_action", providerUsed: "local_storage", sourceType, durationMs: 0, artifactId, summary: artifactId ? "Artifact image réel stocké et relié à la mission." : "Aucun artifact stocké sans sortie provider." },
+    ];
+  }
   return [
     { agent: "ceo", role: "Central router", status: "completed", providerUsed: "local_rules", durationMs: 0, summary: "Mission classified and playbook selected." },
     { agent: "product_owner", role: "Prioritisation", status: "completed", providerUsed: "local_rules", durationMs: 0, summary: "Output final first; internal process hidden in simple mode." },
@@ -42,10 +54,11 @@ export async function runCeoWorkflow(command: string, inputMissionId?: string) {
   const memory = buildCompanyMemoryContext({ missionType: type, command });
   const enrichedCommand = [memory.summary, command].filter(Boolean).join("\n");
   const result = type === "graphic"
-    ? await runGraphicDesignerAgent(enrichedCommand, id)
+    ? await runGraphicDesignerAgent(command, id, memory.summary)
     : type === "assets"
       ? await runAssetsAgent(enrichedCommand, id)
       : await runCoderAgent(enrichedCommand, id);
+  const agency = "agency" in result.expert ? result.expert.agency : undefined;
   const runtime = {
     missionId: result.missionId,
     playbookType: type,
@@ -63,9 +76,14 @@ export async function runCeoWorkflow(command: string, inputMissionId?: string) {
       effectivePrompts: memory.effectivePrompts,
       acceptedArtifacts: memory.acceptedArtifacts,
     },
-    timeline: timeline(result.agent, result.providerUsed, result.sourceType, result.durationMs, result.artifactId, result.expert.retries),
-    critic: result.artifactId ? { passed: true, issues: [] } : { passed: false, issues: ["provider_not_configured_or_no_output"] },
-    reviewer: result.artifactId ? { passed: true, decision: "approved" } : { passed: false, decision: "needs_action" },
+    timeline: timeline(result.agent, result.providerUsed, result.sourceType, result.durationMs, result.artifactId, result.expert.retries, agency?.agentOutputs),
+    creativeAgency: agency,
+    critic: agency?.critiqueReport
+      ? { passed: agency.critiqueReport.decision === "approve", issues: agency.critiqueReport.weaknesses }
+      : result.artifactId ? { passed: true, issues: [] } : { passed: false, issues: ["provider_not_configured_or_no_output"] },
+    reviewer: agency?.critiqueReport
+      ? { passed: agency.critiqueReport.decision === "approve", decision: agency.critiqueReport.decision === "approve" ? "approved" : result.artifactId ? "needs_revision" : "needs_action" }
+      : result.artifactId ? { passed: true, decision: "approved" } : { passed: false, decision: "needs_action" },
   };
   return { ...result, workflowType: type, runtime };
 }
