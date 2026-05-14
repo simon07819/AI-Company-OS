@@ -6,13 +6,14 @@ import { usePathname } from "next/navigation";
 import { isAdvancedPath, navigationForMode, pageLabel } from "@/lib/navigation";
 import AppTopBar from "./AppTopBar";
 import CommandDock from "./CommandDock";
-import { ViewModeProvider } from "./ViewModeProvider";
+import { useViewMode, ViewModeProvider } from "./ViewModeProvider";
 import WorkspaceSurface from "./WorkspaceSurface";
 
 function DesktopShellInner({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const { mode } = useViewMode();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const effectiveMode = isAdvancedPath(pathname) ? "expert" : "simple";
+  const effectiveMode = mode === "expert" || isAdvancedPath(pathname) ? "expert" : "simple";
   const navItems = useMemo(() => navigationForMode(effectiveMode), [effectiveMode]);
   const activeLabel = pageLabel(pathname, navItems);
   return (

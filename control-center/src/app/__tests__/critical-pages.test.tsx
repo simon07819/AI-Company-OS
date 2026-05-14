@@ -31,9 +31,10 @@ describe("critical Control Center pages", () => {
   it("renders the simple OS dashboard", async () => {
     render(React.createElement(DashboardPage));
 
-    expect(await screen.findByRole("heading", { name: "Que voulez-vous créer aujourd’hui?" })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Tapez votre demande ici...")).toBeInTheDocument();
-    expect(screen.getByText(/rendu final et l’équipe/)).toBeInTheDocument();
+    expect(await screen.findByLabelText("Chat CEO")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Message")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ajouter des fichiers" })).toBeInTheDocument();
+    expect(screen.queryByText("CEO en ligne")).not.toBeInTheDocument();
   });
 
   it("renders Settings without crashing", () => {
@@ -96,7 +97,7 @@ describe("critical Control Center pages", () => {
     const pages = [DashboardPage, CompaniesPage, ProjectsPage, AgentsPage, OutputsPage, WorkspacesPage];
     for (const Page of pages) {
       const { unmount, container } = render(React.createElement(Page));
-      await screen.findByText(Page === DashboardPage ? "Que voulez-vous créer aujourd’hui?" : "Parler au CEO");
+      await screen.findByText(Page === DashboardPage ? "Qu’est-ce qu’on construit?" : "Parler au CEO");
       expect(container.textContent ?? "").not.toMatch(/sessionId|projectId|workspaceId|\{|\}/);
       unmount();
     }

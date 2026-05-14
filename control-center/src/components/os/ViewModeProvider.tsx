@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { isAdvancedPath } from "@/lib/navigation";
 import { persistViewMode, resolveInitialViewMode, type ViewMode } from "@/lib/viewMode";
 
 type ViewModeContextValue = {
@@ -19,7 +20,11 @@ export function ViewModeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ViewMode>("simple");
 
   useEffect(() => {
-    setModeState(resolveInitialViewMode(pathname, window.localStorage));
+    const nextMode = resolveInitialViewMode(pathname, window.localStorage);
+    setModeState(nextMode);
+    if (nextMode === "expert" || isAdvancedPath(pathname)) {
+      persistViewMode("expert", window.localStorage);
+    }
   }, [pathname]);
 
   const setMode = (nextMode: ViewMode) => {

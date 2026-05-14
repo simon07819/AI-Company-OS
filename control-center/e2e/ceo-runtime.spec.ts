@@ -14,14 +14,16 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
 test.describe("CEO runtime shell", () => {
   test("opens the product home and starts a new CEO chat", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "Que voulez-vous créer aujourd’hui?" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Accueil" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Agents" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Projets" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Outputs" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Expert Mode" })).toBeVisible();
-    await expect(page.getByPlaceholder("Tapez votre demande ici...")).toBeVisible();
+    await expect(page.getByLabel("Chat CEO")).toBeVisible();
+    await expect(page.getByPlaceholder("Message")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ajouter des fichiers" })).toBeVisible();
     await expect(page.getByRole("button", { name: /mode clair|mode sombre/i })).toBeVisible();
+    await expect(page.getByText("CEO en ligne")).toHaveCount(0);
     await expect(page.getByText("Nouveau chat")).toHaveCount(0);
   });
 
@@ -49,6 +51,7 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByPlaceholder("Message")).toBeVisible();
     await expect(page.getByRole("button", { name: "Ajouter des fichiers" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Envoyer" })).toBeVisible();
+    await expect(page.getByText("CEO en ligne")).toHaveCount(0);
   });
 
   test("routes logo flow to Agent Graphiste with real artifacts or clear provider error", async ({ page }) => {
@@ -138,7 +141,8 @@ test.describe("CEO expert runtime evidence", () => {
 
     await page.getByRole("link", { name: "CEO Chat", exact: true }).click();
     await expect(page).toHaveURL(/\/ceo$/);
-    await expect(page.getByRole("link", { name: "Companies", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Companies", exact: true })).toBeVisible();
+    await expect(page.locator(".platform-shell")).toHaveAttribute("data-mode", "expert");
   });
 
   test("loads website team diagnostics with the full website team", async ({ page }) => {

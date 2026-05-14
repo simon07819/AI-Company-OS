@@ -238,7 +238,6 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
               <div className="ceo-chat-avatar" aria-label="Avatar CEO">C</div>
               <div>
                 <strong>CEO</strong>
-                <span>En ligne</span>
               </div>
             </div>
           </header>
