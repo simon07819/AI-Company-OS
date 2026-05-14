@@ -13,6 +13,9 @@ beforeEach(() => {
   vi.stubEnv("AI_COMPANY_PRODUCTS_DIR", productsRoot);
   vi.stubEnv("AI_COMPANY_RUNTIME_DIR", runtimeRoot);
   vi.stubEnv("IMAGE_PROVIDER", "");
+  vi.stubEnv("DEEPINFRA_API_KEY", "");
+  vi.stubEnv("DEEPINFRA_BASE_URL", "");
+  vi.stubEnv("DEEPINFRA_IMAGE_MODEL", "");
   vi.stubEnv("NVIDIA_API_KEY", "");
   vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "");
   vi.stubEnv("NVIDIA_IMAGE_MODEL", "");
@@ -79,7 +82,7 @@ describe("CEO command API", () => {
     expect(payload.deliverableType).toBe("graphic_image");
     expect(payload.brandName).toBe("ELEVIO");
     expect(payload.title).toBe("Agent Graphiste prêt");
-    expect(payload.summary).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
+    expect(payload.summary).toBe("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.");
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.sourceType).toBe("provider_unavailable");
@@ -92,15 +95,20 @@ describe("CEO command API", () => {
 
   it("routes visual requests to Agent Graphiste and returns a traceable DeepInfra image", async () => {
     const imageBase64 = Buffer.from("fake-image-content-over-one-kilobyte".repeat(80)).toString("base64");
+    vi.stubEnv("IMAGE_PROVIDER", "deepinfra");
     vi.stubEnv("DEEPINFRA_API_KEY", "deepinfra-test-secret-value");
-    vi.stubGlobal("fetch", vi.fn(() => {
-      return Promise.resolve({
+    vi.stubEnv("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai");
+    vi.stubEnv("DEEPINFRA_IMAGE_MODEL", "black-forest-labs/FLUX-2-klein-9b");
+    const fetchMock = vi.fn(() => {
+      return Promise.resolve(new Response(JSON.stringify({
+        data: [{ b64_json: imageBase64, mime_type: "image/png" }],
+      }), {
         ok: true,
-        text: () => Promise.resolve(JSON.stringify({
-          data: [{ b64_json: imageBase64, mime_type: "image/png" }],
-        })),
-      });
-    }));
+        headers: { "Content-Type": "application/json" },
+      }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
 
     const response = await postCommand("Crée un logo professionnel premium pour une compagnie de construction.");
     const payload = await response.json();
@@ -136,7 +144,7 @@ describe("CEO command API", () => {
     expect(payload.deliverableType).toBe("graphic_image");
     expect(payload.brandName).toBe("EKIDA");
     expect(payload.title).toBe("Agent Graphiste prêt");
-    expect(payload.shortMessage).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
+    expect(payload.shortMessage).toBe("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.");
     expect(payload.primaryVisualPath).toBeNull();
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();

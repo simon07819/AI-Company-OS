@@ -9,8 +9,10 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:evals": "vitest run src/agents/evals/agent-evals.test.ts",
-    "diagnose:nvidia-image": "npx tsx scripts/diagnose-nvidia-image.ts",
-    "test:nvidia-image:real": "npx tsx scripts/test-nvidia-image-real.ts",
+    "diagnose:nvidia-image": "tsx scripts/diagnose-nvidia-image.ts",
+    "test:nvidia-image:real": "tsx scripts/test-nvidia-image-real.ts",
+    "diagnose:deepinfra-image": "tsx scripts/diagnose-deepinfra-image.ts",
+    "test:deepinfra-image:real": "tsx scripts/test-deepinfra-image-real.ts",
     "lint": "next lint",
     "reset:company-os": "node scripts/reset-ai-company-os.mjs"
   },
@@ -19,6 +21,7 @@
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "next": "14.2.29",
+    "openai": "^6.37.0",
     "react": "^18",
     "react-dom": "^18"
   },
@@ -32,6 +35,7 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.29",
     "jsdom": "^29.1.1",
+    "tsx": "^4.21.0",
     "typescript": "^5",
     "vitest": "^4.1.5"
   }

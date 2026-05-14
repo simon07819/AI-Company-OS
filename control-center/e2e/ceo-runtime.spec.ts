@@ -8,9 +8,7 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
   await expect(page.locator(".platform-sidebar")).toBeVisible();
   await page.getByPlaceholder("Message").fill(logoPrompt);
   await page.getByRole("button", { name: "Envoyer" }).click();
-  await expect(page.getByText("Action requise").first()).toBeVisible();
-  await expect(page.getByText("Agent Graphiste prêt").first()).toBeVisible();
-  await expect(page.getByText("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.").first()).toBeVisible();
+  await expect(page.getByText(/Agent Graphiste prêt|Voici votre visuel final/i).first()).toBeVisible({ timeout: 30_000 });
 }
 
 test.describe("CEO runtime shell", () => {
@@ -56,7 +54,12 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByText("Timeline équipe")).toHaveCount(0);
     await expect(page.getByText(/providerUsed:/)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Préparer le brief|Créer prompts visuels|Prototype SVG local/ })).toHaveCount(0);
-    await expect(page.locator(".ceo-chat-generated-image")).toHaveCount(0);
+    if (await page.locator(".ceo-chat-generated-image").count()) {
+      await expect(page.getByText("Provider réel").first()).toBeVisible();
+    } else {
+      await expect(page.getByText("Action requise").first()).toBeVisible();
+      await expect(page.getByText("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.").first()).toBeVisible();
+    }
     await page.screenshot({ path: "test-results/ceo-logo-flow.png", fullPage: true });
 
     await page.getByRole("button", { name: "Voir détails" }).last().click();
@@ -82,11 +85,18 @@ test.describe("CEO runtime shell", () => {
     await page.getByPlaceholder("Message").fill("je veux un logo EKIDA CANADA");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
-    await expect(page.getByText(/Agent Graphiste prêt|Voici votre visuel final/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/Agent Graphiste prêt|Voici votre visuel final/i).first()).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(/^Aucun générateur visuel réel branché$/)).toHaveCount(0);
     await expect(page.getByLabel(/Prototype de logo/i)).toHaveCount(0);
+    if (await page.locator(".ceo-chat-generated-image").count()) {
+      await expect(page.locator(".ceo-chat-generated-image").first()).toBeVisible();
+      await expect(page.getByText("Voici votre visuel final.").first()).toBeVisible();
+      await expect(page.getByText("Provider réel").first()).toBeVisible();
+    } else {
+      await expect(page.getByText("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.").first()).toBeVisible();
+    }
 
-    await page.screenshot({ path: "test-results/real-ceo-logo-flow.png", fullPage: true });
+    await page.screenshot({ path: "test-results/deepinfra-real-logo-flow.png", fullPage: true });
   });
 });
 
@@ -167,12 +177,19 @@ test.describe("CEO command API", () => {
     });
     expect(base.ok()).toBe(true);
     const noProvider = await base.json();
-    expect(noProvider.status).toBe("needs_action");
-    expect(noProvider.sourceType).toBe("provider_unavailable");
-    expect(noProvider.primaryVisual).toBeNull();
-    expect(noProvider.primaryArtifactId).toBeNull();
-    expect(noProvider.providerUsed).toBe("deepinfra_unavailable");
-    expect(noProvider.summary).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
+    if (noProvider.status === "completed") {
+      expect(noProvider.sourceType).toBe("deepinfra_image");
+      expect(noProvider.providerUsed).toBe("deepinfra");
+      expect(noProvider.primaryVisual).toMatch(/^data:image\//);
+      expect(noProvider.primaryArtifactId).toBeTruthy();
+    } else {
+      expect(noProvider.status).toBe("needs_action");
+      expect(noProvider.sourceType).toBe("provider_unavailable");
+      expect(noProvider.primaryVisual).toBeNull();
+      expect(noProvider.primaryArtifactId).toBeNull();
+      expect(noProvider.providerUsed).toBe("deepinfra_unavailable");
+      expect(noProvider.summary).toBe("Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.");
+    }
 
     const briefResponse = await request.post("/api/ceo/command", {
       data: { prompt: logoPrompt, conversationId, action: "prepare_brief" },

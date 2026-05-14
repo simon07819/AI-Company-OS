@@ -1,13 +1,18 @@
+import OpenAI from "openai";
+
 export const DEEPINFRA_IMAGE_PROVIDER = "deepinfra";
 export const DEEPINFRA_IMAGE_SOURCE = "deepinfra_image";
 export const DEEPINFRA_IMAGE_MODEL = "black-forest-labs/FLUX-2-klein-9b";
-export const DEEPINFRA_IMAGE_ENDPOINT = "https://api.deepinfra.com/v1/openai/images/generations";
+export const DEEPINFRA_BASE_URL = "https://api.deepinfra.com/v1/openai";
+export const DEEPINFRA_IMAGE_ENDPOINT = `${DEEPINFRA_BASE_URL}/images/generations`;
 
 export interface DeepInfraImageResult {
   success: boolean;
   providerUsed: "deepinfra" | "deepinfra_unavailable";
   sourceType: "deepinfra_image" | "provider_unavailable";
   model: string;
+  baseURL: string;
+  endpoint: string;
   endpointHost: string;
   imageDataUrl?: string;
   mimeType?: string;
@@ -22,18 +27,63 @@ function sanitizeProviderError(value: string) {
     .slice(0, 1400);
 }
 
+function configuredBaseURL() {
+  return process.env.DEEPINFRA_BASE_URL || "";
+}
+
+function configuredModel() {
+  return process.env.DEEPINFRA_IMAGE_MODEL || "";
+}
+
+function configuredEndpoint(baseURL = configuredBaseURL()) {
+  return baseURL ? `${baseURL.replace(/\/$/, "")}/images/generations` : "";
+}
+
+function endpointHost(value: string) {
+  try {
+    return value ? new URL(value).host : "(missing)";
+  } catch {
+    return "(invalid)";
+  }
+}
+
+export function getDeepInfraMissingConfig() {
+  const missing: string[] = [];
+  if (process.env.IMAGE_PROVIDER !== "deepinfra") missing.push("IMAGE_PROVIDER=deepinfra");
+  if (!process.env.DEEPINFRA_API_KEY || process.env.DEEPINFRA_API_KEY.length < 8) missing.push("DEEPINFRA_API_KEY");
+  if (!configuredBaseURL()) missing.push("DEEPINFRA_BASE_URL");
+  if (!configuredModel()) missing.push("DEEPINFRA_IMAGE_MODEL");
+  return missing;
+}
+
 export function hasDeepInfraImageProvider() {
-  return Boolean(process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.length >= 8);
+  return getDeepInfraMissingConfig().length === 0;
 }
 
 export function getDeepInfraImageStatus() {
+  const baseURL = configuredBaseURL();
+  const model = configuredModel();
+  const endpoint = configuredEndpoint(baseURL);
+  const missing = getDeepInfraMissingConfig();
   return {
     providerUsed: DEEPINFRA_IMAGE_PROVIDER,
-    available: hasDeepInfraImageProvider(),
-    model: DEEPINFRA_IMAGE_MODEL,
-    endpoint: DEEPINFRA_IMAGE_ENDPOINT,
-    endpointHost: new URL(DEEPINFRA_IMAGE_ENDPOINT).host,
-    missing: hasDeepInfraImageProvider() ? [] : ["DEEPINFRA_API_KEY"],
+    available: missing.length === 0,
+    imageProviderEnv: process.env.IMAGE_PROVIDER || "",
+    apiKeyPresent: Boolean(process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.length >= 8),
+    baseURL,
+    baseURLPresent: Boolean(baseURL),
+    model,
+    modelPresent: Boolean(model),
+    endpoint,
+    endpointHost: endpointHost(endpoint || DEEPINFRA_IMAGE_ENDPOINT),
+    authHeaderPresent: Boolean(process.env.DEEPINFRA_API_KEY && process.env.DEEPINFRA_API_KEY.length >= 8),
+    missing,
+    suggestedFix: [
+      "IMAGE_PROVIDER=deepinfra",
+      "DEEPINFRA_BASE_URL=https://api.deepinfra.com/v1/openai",
+      "DEEPINFRA_IMAGE_MODEL=black-forest-labs/FLUX-2-klein-9b",
+      "DEEPINFRA_API_KEY=<your DeepInfra key>",
+    ],
   };
 }
 
@@ -70,50 +120,38 @@ export async function generateDeepInfraImage(input: { prompt: string; size?: str
       success: false,
       providerUsed: "deepinfra_unavailable",
       sourceType: "provider_unavailable",
-      model: status.model,
+      model: status.model || DEEPINFRA_IMAGE_MODEL,
+      baseURL: status.baseURL || DEEPINFRA_BASE_URL,
+      endpoint: status.endpoint || DEEPINFRA_IMAGE_ENDPOINT,
       endpointHost: status.endpointHost,
-      error: "Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.",
+      error: "Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.",
       durationMs: Date.now() - started,
     };
   }
 
   try {
-    const response = await fetch(DEEPINFRA_IMAGE_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.DEEPINFRA_API_KEY}`,
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-      },
-      body: JSON.stringify({
-        model: DEEPINFRA_IMAGE_MODEL,
-        prompt: input.prompt,
-        size: input.size ?? "1024x1024",
-        n: 1,
-        response_format: "b64_json",
-      }),
+    const openai = new OpenAI({
+      apiKey: process.env.DEEPINFRA_API_KEY,
+      baseURL: status.baseURL,
+      fetch: globalThis.fetch,
+      dangerouslyAllowBrowser: true,
     });
 
-    const text = await response.text();
-    if (!response.ok) {
-      return {
-        success: false,
-        providerUsed: "deepinfra_unavailable",
-        sourceType: "provider_unavailable",
-        model: status.model,
-        endpointHost: status.endpointHost,
-        error: sanitizeProviderError(`DeepInfra image failed with status ${response.status}. ${text}`),
-        durationMs: Date.now() - started,
-      };
-    }
-
-    const image = extractImage(JSON.parse(text) as unknown);
+    const response = await openai.images.generate({
+      model: status.model,
+      prompt: input.prompt,
+      size: "1024x1024",
+      n: 1,
+    });
+    const image = extractImage(response as unknown);
     if (!image.dataUrl) {
       return {
         success: false,
         providerUsed: "deepinfra_unavailable",
         sourceType: "provider_unavailable",
         model: status.model,
+        baseURL: status.baseURL,
+        endpoint: status.endpoint,
         endpointHost: status.endpointHost,
         error: "DeepInfra image response did not contain an image artifact.",
         durationMs: Date.now() - started,
@@ -125,6 +163,8 @@ export async function generateDeepInfraImage(input: { prompt: string; size?: str
       providerUsed: "deepinfra",
       sourceType: "deepinfra_image",
       model: status.model,
+      baseURL: status.baseURL,
+      endpoint: status.endpoint,
       endpointHost: status.endpointHost,
       imageDataUrl: image.dataUrl,
       mimeType: image.mimeType,
@@ -135,7 +175,9 @@ export async function generateDeepInfraImage(input: { prompt: string; size?: str
       success: false,
       providerUsed: "deepinfra_unavailable",
       sourceType: "provider_unavailable",
-      model: status.model,
+      model: status.model || DEEPINFRA_IMAGE_MODEL,
+      baseURL: status.baseURL || DEEPINFRA_BASE_URL,
+      endpoint: status.endpoint || DEEPINFRA_IMAGE_ENDPOINT,
       endpointHost: status.endpointHost,
       error: sanitizeProviderError(error instanceof Error ? error.message : "DeepInfra image generation failed."),
       durationMs: Date.now() - started,

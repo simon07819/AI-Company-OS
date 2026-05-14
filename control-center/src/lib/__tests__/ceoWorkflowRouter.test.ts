@@ -19,8 +19,10 @@ describe("CEO multi-agent workflow router", () => {
   beforeEach(() => {
     runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ai-company-ceo-workflow-"));
     vi.stubEnv("AI_COMPANY_RUNTIME_DIR", runtimeRoot);
-    vi.stubEnv("DEEPINFRA_API_KEY", "");
     vi.stubEnv("IMAGE_PROVIDER", "");
+    vi.stubEnv("DEEPINFRA_API_KEY", "");
+    vi.stubEnv("DEEPINFRA_BASE_URL", "");
+    vi.stubEnv("DEEPINFRA_IMAGE_MODEL", "");
     vi.stubEnv("NVIDIA_API_KEY", "");
     vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "");
     vi.stubEnv("NVIDIA_IMAGE_MODEL", "");
@@ -61,12 +63,18 @@ describe("CEO multi-agent workflow router", () => {
 
   it("calls DeepInfra only when configured and stores a traceable image artifact", async () => {
     const imageBase64 = Buffer.from("deepinfra-router-image".repeat(90)).toString("base64");
+    vi.stubEnv("IMAGE_PROVIDER", "deepinfra");
     vi.stubEnv("DEEPINFRA_API_KEY", "deepinfra-test-secret-value");
-    const fetchMock = vi.fn(() => Promise.resolve({
+    vi.stubEnv("DEEPINFRA_BASE_URL", "https://api.deepinfra.com/v1/openai");
+    vi.stubEnv("DEEPINFRA_IMAGE_MODEL", "black-forest-labs/FLUX-2-klein-9b");
+    const fetchMock = vi.fn(() => Promise.resolve(new Response(JSON.stringify({
+      data: [{ b64_json: imageBase64, mime_type: "image/png" }],
+    }), {
       ok: true,
-      text: () => Promise.resolve(JSON.stringify({ data: [{ b64_json: imageBase64, mime_type: "image/png" }] })),
-    }));
+      headers: { "Content-Type": "application/json" },
+    })));
     vi.stubGlobal("fetch", fetchMock);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     const { runCeoWorkflow } = await loadRouter();
 
     const result = await runCeoWorkflow("Crée un logo premium pour une compagnie de construction");

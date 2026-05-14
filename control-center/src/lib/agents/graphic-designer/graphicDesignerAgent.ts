@@ -85,20 +85,20 @@ export async function runGraphicDesignerAgent(command: string, missionId = id("g
       agent: "graphic-designer",
       status: "needs_action",
       title: "Agent Graphiste prêt",
-      shortMessage: "Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.",
+      shortMessage: "Agent Graphiste prêt, mais aucun moteur DeepInfra n’est configuré.",
       providerUsed: "deepinfra_unavailable",
       sourceType: "provider_unavailable",
       artifactId: null,
       outputData: null,
       durationMs: Date.now() - started,
       expert: {
-        model: DEEPINFRA_IMAGE_MODEL,
+        model: status.model || DEEPINFRA_IMAGE_MODEL,
         providerUsed: "deepinfra_unavailable",
         sourceType: "provider_unavailable",
         artifactId: null,
         durationMs: Date.now() - started,
         retries: 0,
-        error: "DEEPINFRA_API_KEY missing.",
+        error: status.missing.join(", "),
       },
     };
   }
