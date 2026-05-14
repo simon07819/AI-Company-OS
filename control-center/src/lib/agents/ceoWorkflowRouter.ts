@@ -47,14 +47,15 @@ function timeline(agent: string, providerUsed: string, sourceType: string, durat
   ];
 }
 
-export async function runCeoWorkflow(command: string, inputMissionId?: string) {
+export async function runCeoWorkflow(command: string, inputMissionId?: string, conversationContext = "") {
   const type = detectCeoWorkflowType(command);
   if (type === "none" || type === "copywriting") return null;
   const id = inputMissionId ?? missionId();
   const memory = buildCompanyMemoryContext({ missionType: type, command });
-  const enrichedCommand = [memory.summary, command].filter(Boolean).join("\n");
+  const combinedMemory = [conversationContext, memory.summary].filter(Boolean).join("\n");
+  const enrichedCommand = [combinedMemory, command].filter(Boolean).join("\n");
   const result = type === "graphic"
-    ? await runGraphicDesignerAgent(command, id, memory.summary)
+    ? await runGraphicDesignerAgent(command, id, combinedMemory)
     : type === "assets"
       ? await runAssetsAgent(enrichedCommand, id)
       : await runCoderAgent(enrichedCommand, id);

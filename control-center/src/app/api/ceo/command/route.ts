@@ -123,6 +123,21 @@ export async function POST(req: NextRequest) {
     const conversationId = typeof body.conversationId === "string" && body.conversationId.trim()
       ? body.conversationId.trim()
       : `ceo-standalone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const rawHistory = Array.isArray(body.conversationHistory) ? body.conversationHistory : [];
+    const conversationHistory = rawHistory.slice(-12).flatMap((m: unknown) => {
+      if (!m || typeof m !== "object") return [];
+      const record = m as Record<string, unknown>;
+      const role = record.role === "user" || record.role === "assistant" ? record.role : null;
+      const content = typeof record.content === "string" && record.content.trim() ? record.content.trim().slice(0, 600) : null;
+      if (!role || !content) return [];
+      return [{ role, content }];
+    }) as Array<{ role: "user" | "assistant"; content: string }>;
+
+    const conversationContext = conversationHistory.length
+      ? `HISTORIQUE:\n${conversationHistory.map((m) => (m.role === "user" ? `User: ${m.content}` : `CEO: ${m.content}`)).join("\n")}\n\n`
+      : "";
+
     if (!prompt) {
       return NextResponse.json({
         ok: false,
@@ -159,7 +174,7 @@ export async function POST(req: NextRequest) {
         : null;
 
     const ceoWorkflow = preliminaryWorkOrder.requestType !== "website" && !missionAction
-      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId)
+      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId, conversationContext)
       : null;
 
     if (ceoWorkflow) {

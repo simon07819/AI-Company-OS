@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
+import CEOProjectPanel from "./CEOProjectPanel";
 import CEOResultStage from "./CEOResultStage";
 import { attachmentPayload } from "./attachments";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
@@ -120,6 +121,10 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
     const runtimePrompt = prompt || "Analyse les pièces jointes.";
     const requestType = detectRequestType(prompt);
     const isLogoAction = Boolean(action);
+    const conversationHistory = turns.flatMap(({ mission, result }) => [
+      { role: "user" as const, content: mission.prompt },
+      { role: "assistant" as const, content: result.shortMessage || result.summary || result.title || "" },
+    ]);
     const actionPrompt =
       action === "prepare_brief"
         ? "Préparer le brief"
@@ -157,6 +162,7 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           conversationId,
           action,
           attachments: attachments.map(attachmentPayload),
+          conversationHistory,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -261,6 +267,16 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
         </section>
       </AttachmentDropzone>
+
+      {(mission || turns.length > 0) && (
+        <CEOProjectPanel
+          mission={mission}
+          result={result}
+          turns={turns}
+          loading={loading}
+          onAddRequest={(req) => submitCommand(req)}
+        />
+      )}
     </main>
   );
 }
