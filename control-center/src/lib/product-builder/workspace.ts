@@ -185,3 +185,12 @@ export function listGeneratedProjects(): GeneratedProjectSummary[] {
       artifactCount: project.artifactCount,
     }));
 }
+
+export function deleteGeneratedProject(slug: string): boolean {
+  const root = generatedProductsRoot();
+  const target = path.resolve(root, slug);
+  if (!target.startsWith(root + path.sep) && target !== root) return false;
+  if (!fs.existsSync(target)) return false;
+  fs.rmSync(target, { recursive: true, force: true });
+  return true;
+}

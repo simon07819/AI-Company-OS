@@ -5909,7 +5909,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   place-items: stretch center;
   background: #000000;
   color: #f4f4f5;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 /* ── Project Panel ─────────────────────────────────────────── */
@@ -7293,7 +7293,7 @@ html[data-theme="dark"] .ceo-os-result-details {
   height: 100vh;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   background: #000000;
   overflow: hidden;
 }
@@ -7393,7 +7393,8 @@ html[data-theme="dark"] .ceo-os-result-details {
 .platform-main .workspace-surface {
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
+  height: 100%;
+  overflow-y: auto;
   background: transparent;
 }
 

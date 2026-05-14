@@ -397,8 +397,22 @@ function ProjectCard({ project, view, onDelete }: { project: CeoProject; view: S
   );
 }
 
-function GeneratedProjectCard({ project }: { project: GeneratedProjectSummary }) {
+function GeneratedProjectCard({ project, onDelete }: { project: GeneratedProjectSummary; onDelete: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const stateLabel = project.status === "ready" ? "Pret" : project.status === "needs_review" ? "A ameliorer" : "Projet cree";
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await fetch(`/api/projects/${project.slug}`, { method: "DELETE" });
+      onDelete(project.id);
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
+  }
+
   return (
     <article className="os-card os-project-card generated">
       <div className="os-card-top">
@@ -410,10 +424,19 @@ function GeneratedProjectCard({ project }: { project: GeneratedProjectSummary })
       <div className="os-meta-line">
         <span>{project.summary}</span>
       </div>
-      <div className="os-card-actions">
-        <Link className="os-button primary" href={`/projects/${project.slug}`}>Ouvrir le workspace</Link>
-        <Link className="os-button subtle" href="/ceo">Continuer</Link>
-      </div>
+      {confirming ? (
+        <div className="os-card-confirm-delete">
+          <span>Supprimer ce projet ?</span>
+          <button className="os-button danger-sm" onClick={handleDelete} disabled={deleting}>{deleting ? "…" : "Supprimer"}</button>
+          <button className="os-button subtle-sm" onClick={() => setConfirming(false)} disabled={deleting}>Annuler</button>
+        </div>
+      ) : (
+        <div className="os-card-actions">
+          <Link className="os-button primary" href={`/projects/${project.slug}`}>Ouvrir le workspace</Link>
+          <Link className="os-button subtle" href="/ceo">Continuer</Link>
+          <button className="os-button icon-sm" onClick={() => setConfirming(true)} aria-label="Supprimer le projet" title="Supprimer">🗑</button>
+        </div>
+      )}
     </article>
   );
 }
@@ -558,6 +581,10 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
     setView((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
   }, []);
 
+  const deleteGeneratedProject = useCallback((id: string) => {
+    setView((prev) => ({ ...prev, generatedProjects: prev.generatedProjects.filter((p) => p.id !== id) }));
+  }, []);
+
   const agents = useMemo(() => agentsFromView(view), [view]);
   const activeProject = view.projects[0];
   const activeSession = activeProject ? sessionForProject(activeProject, view.sessions) : undefined;
@@ -658,7 +685,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
             <EmptyState title="Aucun projet actif" description="Ecrivez au CEO: Je veux un logo pour une compagnie de photo." />
           ) : (
             <div className="os-grid cards">
-              {view.generatedProjects.map((project) => <GeneratedProjectCard key={project.id} project={project} />)}
+              {view.generatedProjects.map((project) => <GeneratedProjectCard key={project.id} project={project} onDelete={deleteGeneratedProject} />)}
               {view.projects.map((project) => <ProjectCard key={project.id} project={project} view={view} onDelete={deleteProject} />)}
             </div>
           )}
