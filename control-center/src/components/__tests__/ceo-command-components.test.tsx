@@ -351,14 +351,14 @@ describe("CEO command components", () => {
     render(React.createElement(CEOResultStage, {
       result: {
         ...result,
-        title: "Aucun générateur visuel réel branché",
+        title: "Configuration NVIDIA image incomplète",
         requestType: "branding",
         brandName: "EKIDA",
         deliverableType: "logo",
         sourceType: "none",
         primaryVisual: null,
         primaryArtifactId: null,
-        summary: "Aucun générateur visuel réel branché. Je peux préparer le brief, les prompts et les directions créatives.",
+        summary: "Configuration NVIDIA image incomplète. Variables manquantes: IMAGE_PROVIDER, NVIDIA_IMAGE_ENDPOINT.",
         artifactPaths: [],
         status: "needs_action",
       },
@@ -371,7 +371,7 @@ describe("CEO command components", () => {
       onContinue: vi.fn(),
     }));
 
-    expect(screen.getByText("Aucun générateur visuel réel branché")).toBeInTheDocument();
+    expect(screen.getByText("Configuration NVIDIA image incomplète")).toBeInTheDocument();
     expect(screen.queryByLabelText(/Prototype de logo/i)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Préparer le brief/ }));
     fireEvent.click(screen.getByRole("button", { name: /Créer prompts visuels/ }));

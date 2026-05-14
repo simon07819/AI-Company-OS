@@ -510,13 +510,13 @@ export async function POST(req: NextRequest) {
         ? `Variables manquantes: ${nvidiaImageDiagnostic.missing.join(", ")}.`
         : nvidiaImageDiagnostic.reasons.join(" ");
       const noProviderSummary = nvidiaImageDiagnostic.providerSelected
-        ? `NVIDIA image est sélectionné, mais indisponible. ${missingImageConfig} Modèle: ${nvidiaImageDiagnostic.model}. Endpoint: ${nvidiaImageDiagnostic.endpointHost ?? "manquant"}.`
-        : `Aucun générateur visuel réel branché. ${missingImageConfig} Pour NVIDIA image: IMAGE_PROVIDER=nvidia, NVIDIA_IMAGE_ENDPOINT et NVIDIA_API_KEY doivent être configurés. Modèle: ${nvidiaImageDiagnostic.model}.`;
+        ? `Configuration NVIDIA image incomplète. NVIDIA image est sélectionné, mais indisponible. ${missingImageConfig} Modèle: ${nvidiaImageDiagnostic.model}. Endpoint: ${nvidiaImageDiagnostic.endpointHost ?? "manquant"}.`
+        : `Configuration NVIDIA image incomplète. ${missingImageConfig} Ajoute IMAGE_PROVIDER=nvidia, NVIDIA_IMAGE_ENDPOINT=<endpoint NVIDIA image réel depuis build.nvidia.com> et NVIDIA_IMAGE_MODEL=${nvidiaImageDiagnostic.model} dans .env.local. NVIDIA_API_KEY est requise mais sa valeur ne doit jamais être affichée.`;
       return NextResponse.json({
         ok: true,
         missionId: preliminaryWorkOrder.missionId,
         projectId: null,
-        title: nvidiaImageDiagnostic.providerSelected ? "Provider image NVIDIA indisponible" : "Aucun générateur visuel réel branché",
+        title: "Configuration NVIDIA image incomplète",
         requestType: preliminaryWorkOrder.requestType,
         brandName: preliminaryWorkOrder.brandName ?? null,
         deliverableType: "logo",

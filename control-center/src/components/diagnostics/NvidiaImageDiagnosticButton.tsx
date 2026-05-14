@@ -21,6 +21,7 @@ interface TestResult {
 export default function NvidiaImageDiagnosticButton() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const runTest = async () => {
     setLoading(true);
@@ -36,11 +37,38 @@ export default function NvidiaImageDiagnosticButton() {
     }
   };
 
+  const copyRequiredConfig = async () => {
+    const value = [
+      "IMAGE_PROVIDER=nvidia",
+      "NVIDIA_IMAGE_ENDPOINT=<endpoint NVIDIA image réel depuis build.nvidia.com>",
+      "NVIDIA_IMAGE_MODEL=black-forest-labs/flux.1-dev",
+      "NVIDIA_API_KEY=<déjà configurée si présente, ne jamais coller ici publiquement>",
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
   return (
     <div className="ceo-nvidia-diagnostic-test">
-      <button className="os-button" type="button" onClick={runTest} disabled={loading}>
-        {loading ? "Test NVIDIA en cours..." : "Tester NVIDIA Image"}
-      </button>
+      <div className="ceo-nvidia-diagnostic-actions">
+        <button className="os-button" type="button" onClick={runTest} disabled={loading}>
+          {loading ? "Test NVIDIA en cours..." : "Tester NVIDIA Image"}
+        </button>
+        <button className="os-button subtle" type="button" onClick={copyRequiredConfig}>
+          Copier config requise
+        </button>
+        {copied && <span>Config requise copiée sans secret.</span>}
+      </div>
+      <pre className="ceo-nvidia-config-template" aria-label="Configuration NVIDIA image requise">{[
+        "IMAGE_PROVIDER=nvidia",
+        "NVIDIA_IMAGE_ENDPOINT=<endpoint NVIDIA image réel depuis build.nvidia.com>",
+        "NVIDIA_IMAGE_MODEL=black-forest-labs/flux.1-dev",
+        "NVIDIA_API_KEY=<secret déjà présent ou à configurer sans jamais l’afficher>",
+      ].join("\n")}</pre>
       {result && (
         <div className={`ceo-diagnostics-check ${result.ok ? "ok" : "warn"}`}>
           <strong>{result.ok ? "Succès NVIDIA Image" : "Échec NVIDIA Image"}</strong>

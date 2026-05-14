@@ -79,8 +79,8 @@ describe("CEO command API", () => {
     expect(payload.mission.status).toBe("needs_action");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("ELEVIO");
-    expect(payload.title).toBe("Aucun générateur visuel réel branché");
-    expect(payload.summary).toContain("Aucun générateur visuel réel branché.");
+    expect(payload.title).toBe("Configuration NVIDIA image incomplète");
+    expect(payload.summary).toContain("Configuration NVIDIA image incomplète");
     expect(payload.summary).toContain("Variables manquantes");
     expect(payload.summary).toContain("NVIDIA_IMAGE_ENDPOINT");
     expect(payload.primaryVisual).toBeNull();
@@ -187,7 +187,7 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_action");
     expect(payload.deliverableType).toBe("logo");
     expect(payload.brandName).toBe("EKIDA");
-    expect(payload.title).toBe("Aucun générateur visuel réel branché");
+    expect(payload.title).toBe("Configuration NVIDIA image incomplète");
     expect(payload.shortMessage).toBeUndefined();
     expect(payload.primaryVisualPath).toBeNull();
     expect(payload.primaryVisual).toBeNull();

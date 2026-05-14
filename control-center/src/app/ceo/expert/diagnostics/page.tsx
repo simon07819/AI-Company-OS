@@ -123,6 +123,13 @@ export default function CeoDiagnosticsPage() {
 
       <section className="ceo-diagnostics-section os-card">
         <h2>NVIDIA Image réel</h2>
+        {!nvidiaImage.providerAvailable && (
+          <p>
+            Configuration NVIDIA image incomplète: ajoute IMAGE_PROVIDER=nvidia,
+            NVIDIA_IMAGE_ENDPOINT=&lt;endpoint NVIDIA image réel depuis build.nvidia.com&gt; et
+            NVIDIA_IMAGE_MODEL=black-forest-labs/flux.1-dev dans .env.local. Ne colle jamais la valeur de NVIDIA_API_KEY dans l’UI.
+          </p>
+        )}
         <div className="ceo-diagnostics-checks">
           <div className={`ceo-diagnostics-check ${statusPill(nvidiaImage.providerAvailable)}`}>
             <strong>Provider disponible</strong>

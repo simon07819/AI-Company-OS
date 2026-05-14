@@ -9,7 +9,8 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
   await page.getByPlaceholder("Message").fill(logoPrompt);
   await page.getByRole("button", { name: "Envoyer" }).click();
   await expect(page.getByText("Action requise").first()).toBeVisible();
-  await expect(page.getByText(/Aucun generateur visuel reel branche|Aucun générateur visuel réel branché/).first()).toBeVisible();
+  await expect(page.getByText("Configuration NVIDIA image incomplète").first()).toBeVisible();
+  await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT/).first()).toBeVisible();
 }
 
 test.describe("CEO runtime shell", () => {
@@ -104,7 +105,11 @@ test.describe("CEO runtime shell", () => {
         await expect(page.getByText(/NVIDIA image provider failed|Expected:|Received:|status/i).first()).toBeVisible();
       }
     } else {
-      await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT|NVIDIA_API_KEY|Variables manquantes/i).first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText("Configuration NVIDIA image incomplète").first()).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT|Variables manquantes/i).first()).toBeVisible();
+      await expect(page.getByText(/^Aucun générateur visuel réel branché$/)).toHaveCount(0);
+      await expect(page.getByLabel(/Prototype de logo/i)).toHaveCount(0);
+      await expect(page.locator(".ceo-chat-generated-image")).toHaveCount(0);
     }
 
     await page.screenshot({ path: "test-results/real-ceo-logo-flow.png", fullPage: true });
@@ -170,9 +175,16 @@ test.describe("CEO expert runtime evidence", () => {
     await expect(page.getByText("Git SHA")).toBeVisible();
     await expect(page.getByText("Provider image réel")).toBeVisible();
     await expect(page.getByText("aucun configuré")).toBeVisible();
-    await expect(page.getByText("NVIDIA_API_KEY")).toBeVisible();
+    await expect(page.getByText("NVIDIA_API_KEY", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Copier config requise" })).toBeVisible();
+    await expect(page.getByLabel("Configuration NVIDIA image requise")).toContainText("IMAGE_PROVIDER=nvidia");
+    await expect(page.getByLabel("Configuration NVIDIA image requise")).toContainText("NVIDIA_IMAGE_ENDPOINT=<endpoint NVIDIA image réel depuis build.nvidia.com>");
+    await page.getByRole("button", { name: "Tester NVIDIA Image" }).click();
+    await expect(page.getByText(/Échec NVIDIA Image|Succès NVIDIA Image/)).toBeVisible();
+    await expect(page.getByText(/variables manquantes|artifact test créé/i).first()).toBeVisible();
     await expect(page.getByText(/npm run test:e2e/)).toBeVisible();
     await expect(page.getByText(/nvapi-|PRIVATE KEY|BEGIN PRIVATE/i)).toHaveCount(0);
+    await page.screenshot({ path: "test-results/real-nvidia-diagnostics.png", fullPage: true });
   });
 });
 

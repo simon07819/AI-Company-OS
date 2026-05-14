@@ -5557,6 +5557,36 @@ html[data-theme="dark"] .ceo-os-result-details {
   cursor: not-allowed;
 }
 
+.ceo-nvidia-diagnostic-test {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.ceo-nvidia-diagnostic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ceo-nvidia-diagnostic-actions span {
+  color: #a1a1aa;
+  font-size: 12px;
+}
+
+.ceo-nvidia-config-template {
+  overflow-x: auto;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.32);
+  color: #d4d4d8;
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 .ceo-chat-messages {
   min-width: 0;
   min-height: 0;
