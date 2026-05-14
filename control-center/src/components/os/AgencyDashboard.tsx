@@ -343,12 +343,26 @@ function CompanyCard({ company, projects }: { company: SimpleCompany; projects: 
   );
 }
 
-function ProjectCard({ project, view }: { project: CeoProject; view: SimpleAgencyView }) {
+function ProjectCard({ project, view, onDelete }: { project: CeoProject; view: SimpleAgencyView; onDelete: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const company = companyForProject(project, view.companies);
   const session = sessionForProject(project, view.sessions);
   const output = outputForProject(project, view.outputs);
   const approval = approvalForProject(project, view.approvals);
   const state = simpleStatus(project, session, approval);
+
+  async function handleDelete() {
+    setDeleting(true);
+    try {
+      await fetch(`/api/ceo-projects/${project.id}`, { method: "DELETE" });
+      onDelete(project.id);
+    } finally {
+      setDeleting(false);
+      setConfirming(false);
+    }
+  }
+
   return (
     <article className={`os-card os-project-card ${state.className}`}>
       <div className="os-card-top">
@@ -364,10 +378,21 @@ function ProjectCard({ project, view }: { project: CeoProject; view: SimpleAgenc
         <span>{state.label}</span>
         <span>{output?.title ?? "Resultat en preparation"}</span>
       </div>
-      <div className="os-card-actions">
-        <Link className="os-button subtle" href="/ceo">Continuer</Link>
-        <Link className="os-button subtle" href="/outputs">Voir outputs</Link>
-      </div>
+      {confirming ? (
+        <div className="os-card-confirm-delete">
+          <span>Supprimer ce projet ?</span>
+          <button className="os-button danger-sm" onClick={handleDelete} disabled={deleting}>
+            {deleting ? "…" : "Supprimer"}
+          </button>
+          <button className="os-button subtle-sm" onClick={() => setConfirming(false)} disabled={deleting}>Annuler</button>
+        </div>
+      ) : (
+        <div className="os-card-actions">
+          <Link className="os-button subtle" href="/ceo">Continuer</Link>
+          <Link className="os-button subtle" href="/outputs">Voir outputs</Link>
+          <button className="os-button icon-sm" onClick={() => setConfirming(true)} aria-label="Supprimer le projet" title="Supprimer">🗑</button>
+        </div>
+      )}
     </article>
   );
 }
@@ -529,6 +554,10 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
     return () => window.clearInterval(timer);
   }, [load]);
 
+  const deleteProject = useCallback((id: string) => {
+    setView((prev) => ({ ...prev, projects: prev.projects.filter((p) => p.id !== id) }));
+  }, []);
+
   const agents = useMemo(() => agentsFromView(view), [view]);
   const activeProject = view.projects[0];
   const activeSession = activeProject ? sessionForProject(activeProject, view.sessions) : undefined;
@@ -630,7 +659,7 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
           ) : (
             <div className="os-grid cards">
               {view.generatedProjects.map((project) => <GeneratedProjectCard key={project.id} project={project} />)}
-              {view.projects.map((project) => <ProjectCard key={project.id} project={project} view={view} />)}
+              {view.projects.map((project) => <ProjectCard key={project.id} project={project} view={view} onDelete={deleteProject} />)}
             </div>
           )}
         </section>
