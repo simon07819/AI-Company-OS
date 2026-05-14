@@ -1088,6 +1088,7 @@ interface RuntimeProofPayload {
       sourceType?: string;
     };
     runtime?: {
+      agent?: string;
       providerUsed?: string;
       sourceType?: string;
       playbook?: { id?: string; name?: string };
@@ -1359,6 +1360,7 @@ function ExpertRuntimeProofPanel() {
             <p style={{ margin: 0 }}>providerUsed: {runtime?.providerUsed ?? proof.providerUsed ?? diagnostic?.providerUsed ?? "unknown"}</p>
             <p style={{ margin: 0 }}>sourceType: {runtime?.sourceType ?? proof.sourceType ?? diagnostic?.sourceType ?? "unknown"}</p>
             <p style={{ margin: 0 }}>artifactId: {artifactId}</p>
+            <p style={{ margin: 0 }}>agent: {runtime?.agent ?? "runtime-team"}</p>
             <p style={{ margin: 0 }}>playbook: {runtime?.playbook?.id ?? "unknown"}</p>
             <p style={{ margin: 0 }}>duree: {diagnostic?.durationMs ?? 0}ms</p>
             <strong style={{ display: "block", color: "var(--text)", marginTop: 8, marginBottom: 4 }}>Mémoire</strong>

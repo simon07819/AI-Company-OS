@@ -12,6 +12,7 @@ import { createWorkOrderFromPrompt } from "@/agents/runtime/work-order";
 import { summarizeMissionMemory } from "@/agents/memory/memory-summary";
 import { runDesignTeamWorkflow } from "@/lib/design-team/logoWorkflow";
 import { requireUser } from "@/lib/auth/serverAuth";
+import { isGraphicDesignerRequest, runGraphicDesignerAgent } from "@/lib/agents/graphic-designer/graphicDesignerAgent";
 import {
   addDeliverable,
   addMissionEvent,
@@ -154,6 +155,86 @@ export async function POST(req: NextRequest) {
           brandName: latest.brandName,
         }
         : null;
+
+    if (isGraphicDesignerRequest(prompt) && preliminaryWorkOrder.requestType !== "website" && !missionAction) {
+      await holdVisibleProductionState();
+      const graphic = await runGraphicDesignerAgent(prompt, preliminaryWorkOrder.missionId);
+      const primaryArtifactFingerprint = graphic.outputData ? createArtifactFingerprint(graphic.outputData) : null;
+      const durationMs = Date.now() - startedAt;
+
+      if (graphic.artifactId && graphic.outputData) {
+        memoryStore.addTurn({
+          id: preliminaryWorkOrder.turnId,
+          userPrompt: prompt,
+          workOrderId: preliminaryWorkOrder.id,
+          missionId: graphic.missionId,
+          deliverableType: "graphic_image",
+          brandName: preliminaryWorkOrder.brandName,
+          visibleOutputKind: "image",
+          primaryArtifactId: graphic.artifactId,
+          primaryArtifactFingerprint: primaryArtifactFingerprint ?? undefined,
+          status: "approved",
+        });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        missionId: graphic.missionId,
+        projectId: null,
+        title: graphic.title,
+        requestType: preliminaryWorkOrder.requestType,
+        brandName: preliminaryWorkOrder.brandName ?? null,
+        deliverableType: "graphic_image",
+        status: graphic.status,
+        artifactId: graphic.artifactId,
+        summary: graphic.shortMessage,
+        shortMessage: graphic.shortMessage,
+        primaryVisualPath: null,
+        primaryVisual: graphic.outputData,
+        primaryArtifactId: graphic.artifactId,
+        primaryArtifactFingerprint,
+        sourceType: graphic.sourceType,
+        providerUsed: graphic.providerUsed,
+        artifactPaths: [],
+        artifacts: graphic.artifactId ? [{
+          artifactId: graphic.artifactId,
+          title: "Visuel final Agent Graphiste",
+          exists: true,
+          sourceType: graphic.sourceType,
+          providerUsed: graphic.providerUsed,
+        }] : [],
+        missingArtifacts: [],
+        workspaceHref: null,
+        limitations: graphic.outputData ? [] : ["Aucun fallback SVG ou local n'est généré sans provider DeepInfra."],
+        launchInstructions: [],
+        expert: {
+          productionStatus: graphic.status === "completed" ? "graphic_designer_image_created" : "graphic_designer_provider_unavailable",
+          provider: graphic.providerUsed,
+          diagnostic: {
+            providerUsed: graphic.providerUsed,
+            sourceType: graphic.sourceType,
+            artifactId: graphic.artifactId,
+            route: "POST /api/ceo/command",
+            durationMs,
+            model: graphic.expert.model,
+            providerDurationMs: graphic.expert.durationMs,
+            artifactsCreated: Boolean(graphic.artifactId),
+            agent: "graphic-designer",
+          },
+          runtime: {
+            missionId: graphic.missionId,
+            agent: "graphic-designer",
+            providerUsed: graphic.providerUsed,
+            sourceType: graphic.sourceType,
+            artifactId: graphic.artifactId,
+            durationMs: graphic.expert.durationMs,
+            model: graphic.expert.model,
+            retries: graphic.expert.retries,
+          },
+          inputAttachments: attachments,
+        },
+      });
+    }
 
     if (preliminaryWorkOrder.deliverableType === "logo" && hasRealLogoVisualProvider() && !missionAction) {
       await holdVisibleProductionState();

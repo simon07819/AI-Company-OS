@@ -76,106 +76,54 @@ describe("CEO command API", () => {
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe("needs_action");
-    expect(payload.mission.status).toBe("needs_action");
-    expect(payload.deliverableType).toBe("logo");
+    expect(payload.deliverableType).toBe("graphic_image");
     expect(payload.brandName).toBe("ELEVIO");
-    expect(payload.title).toBe("Configuration NVIDIA image incomplète");
-    expect(payload.summary).toContain("Configuration NVIDIA image incomplète");
-    expect(payload.summary).toContain("Variables manquantes");
-    expect(payload.summary).toContain("NVIDIA_IMAGE_ENDPOINT");
+    expect(payload.title).toBe("Agent Graphiste prêt");
+    expect(payload.summary).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
-    expect(payload.sourceType).toBe("none");
-    expect(payload.mission.sourceType).toBe("none");
-    expect(payload.mission.providerResults).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ capability: "image", success: false, sourceType: "provider_unavailable" }),
-      ]),
-    );
-    expect(payload.mission.agentRuns.map((run: { agentId: string }) => run.agentId)).toEqual(
-      expect.arrayContaining(["planner", "brand_strategist", "creative_director", "visual_prompt_engineer", "critic", "reviewer"]),
-    );
-    expect(payload.mission.criticResult.passed).toBe(true);
-    expect(payload.mission.reviewerResult.passed).toBe(true);
-    expect(payload.deliverables.map((deliverable: { title: string }) => deliverable.title)).toEqual(
-      expect.arrayContaining(["Brief disponible", "Directions disponibles", "Prompts disponibles"]),
-    );
+    expect(payload.sourceType).toBe("provider_unavailable");
+    expect(payload.providerUsed).toBe("deepinfra_unavailable");
     expect(payload.artifactPaths).toEqual([]);
-    expect(payload.expert.diagnostic.localRendererFile).toBe("src/lib/design-team/logoWorkflow.ts");
-    expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
+    expect(payload.expert.diagnostic.agent).toBe("graphic-designer");
     expect(payload.expert.diagnostic.artifactsCreated).toBe(false);
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*B\s*</);
   });
 
-  it("returns a traceable NVIDIA image artifact when the NVIDIA image provider is configured", async () => {
-    vi.stubEnv("IMAGE_PROVIDER", "nvidia");
-    vi.stubEnv("NVIDIA_API_KEY", "nvapi-test-secret-value");
-    vi.stubEnv("NVIDIA_IMAGE_ENDPOINT", "https://mock.nvidia.test/v1/images/generations");
-    vi.stubEnv("NVIDIA_IMAGE_MODEL", "qwen-image");
-    let fetchCount = 0;
+  it("routes visual requests to Agent Graphiste and returns a traceable DeepInfra image", async () => {
+    const imageBase64 = Buffer.from("fake-image-content-over-one-kilobyte".repeat(80)).toString("base64");
+    vi.stubEnv("DEEPINFRA_API_KEY", "deepinfra-test-secret-value");
     vi.stubGlobal("fetch", vi.fn(() => {
-      fetchCount += 1;
-      if (fetchCount === 1) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({
-            choices: [{ message: { content: "Analyse NVIDIA texte." } }],
-            usage: { total_tokens: 8 },
-          }),
-        });
-      }
       return Promise.resolve({
         ok: true,
-        json: () => Promise.resolve({
-          data: [{ b64_json: "ZmFrZS1pbWFnZQ==", mime_type: "image/png" }],
-        }),
+        text: () => Promise.resolve(JSON.stringify({
+          data: [{ b64_json: imageBase64, mime_type: "image/png" }],
+        })),
       });
     }));
 
-    const response = await postCommand("logo EKIDA sur fond noir");
+    const response = await postCommand("Crée un logo professionnel premium pour une compagnie de construction.");
     const payload = await response.json();
 
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe("completed");
-    expect(payload.deliverableType).toBe("logo");
-    expect(payload.brandName).toBe("EKIDA");
-    expect(payload.providerUsed).toBe("nvidia");
-    expect(payload.sourceType).toBe("nvidia_image");
+    expect(payload.deliverableType).toBe("graphic_image");
+    expect(payload.summary).toBe("Voici votre visuel final.");
+    expect(payload.providerUsed).toBe("deepinfra");
+    expect(payload.sourceType).toBe("deepinfra_image");
     expect(payload.primaryArtifactId).toMatch(/^artifact-/);
     expect(payload.artifactId).toBe(payload.primaryArtifactId);
-    expect(payload.primaryVisual).toBe("data:image/png;base64,ZmFrZS1pbWFnZQ==");
+    expect(payload.primaryVisual).toBe(`data:image/png;base64,${imageBase64}`);
     expect(payload.artifacts[0]).toEqual(expect.objectContaining({
       artifactId: payload.primaryArtifactId,
-      sourceType: "nvidia_image",
-      providerUsed: "nvidia",
+      sourceType: "deepinfra_image",
+      providerUsed: "deepinfra",
     }));
-    expect(payload.mission.providerResults).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ capability: "image", providerUsed: "nvidia", sourceType: "nvidia_image", artifactId: payload.primaryArtifactId, model: "qwen-image", agentId: "nvidia_image_agent" }),
-      ]),
-    );
-    expect(payload.mission.playbook.id).toBe("logo-branding-team-playbook");
-    expect(payload.mission.agentRuns.map((run: { agentId: string }) => run.agentId)).toEqual([
-      "ceo",
-      "planner",
-      "brand_strategist",
-      "creative_director",
-      "visual_prompt_engineer",
-      "nvidia_image_agent",
-      "critic",
-      "reviewer",
-      "artifact_manager",
-    ]);
-    expect(payload.mission.events).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ type: "nvidia_image_generation_started", metadata: expect.objectContaining({ agentId: "nvidia_image_agent" }) }),
-      ]),
-    );
-    expect(payload.expert.diagnostic.imageGeneratedByNvidia).toBe(true);
-    expect(payload.expert.diagnostic.model).toBe("qwen-image");
-    expect(JSON.stringify(payload)).not.toMatch(/local_svg|Brand system|Marque à nommer|<svg/);
-    expect(JSON.stringify(payload)).not.toContain("nvapi-test-secret-value");
+    expect(payload.expert.diagnostic.agent).toBe("graphic-designer");
+    expect(payload.expert.diagnostic.model).toBe("black-forest-labs/FLUX-2-klein-9b");
+    expect(JSON.stringify(payload)).not.toMatch(/local_svg|Brand system|Marque à nommer|<svg|premium professional graphic design|Objectif:/i);
+    expect(JSON.stringify(payload)).not.toContain("deepinfra-test-secret-value");
   });
 
   it("traces and blocks the EKIDA local SVG renderer path", async () => {
@@ -185,24 +133,18 @@ describe("CEO command API", () => {
     expect(response.status).toBe(200);
     expect(payload.ok).toBe(true);
     expect(payload.status).toBe("needs_action");
-    expect(payload.deliverableType).toBe("logo");
+    expect(payload.deliverableType).toBe("graphic_image");
     expect(payload.brandName).toBe("EKIDA");
-    expect(payload.title).toBe("Configuration NVIDIA image incomplète");
-    expect(payload.shortMessage).toBeUndefined();
+    expect(payload.title).toBe("Agent Graphiste prêt");
+    expect(payload.shortMessage).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
     expect(payload.primaryVisualPath).toBeNull();
     expect(payload.primaryVisual).toBeNull();
     expect(payload.primaryArtifactId).toBeNull();
     expect(payload.artifactPaths).toEqual([]);
-    expect(payload.expert.productionStatus).toBe("blocked_no_real_visual_provider");
-    expect(payload.expert.runtime.status).toBe("needs_action");
-    expect(payload.expert.runtime.steps.map((step: { label: string }) => step.label)).toEqual(
-      expect.arrayContaining(["analyse demande", "brief", "directions créatives", "prompts visuels", "validation provider", "livrable ou action requise"]),
-    );
-    expect(payload.expert.runtime.providerUsed).toBe("none");
-    expect(payload.expert.diagnostic.sourceType).toBe("none");
-    expect(payload.expert.diagnostic.disabledSource).toBe("local_svg_renderer");
-    expect(payload.expert.diagnostic.nvidiaCalled).toBe(false);
-    expect(payload.expert.companyWorkflow.hiddenDetails.decisions).toContain("Source locale du faux SVG identifiée: src/lib/design-team/logoWorkflow.ts.");
+    expect(payload.expert.productionStatus).toBe("graphic_designer_provider_unavailable");
+    expect(payload.expert.runtime.agent).toBe("graphic-designer");
+    expect(payload.expert.runtime.providerUsed).toBe("deepinfra_unavailable");
+    expect(payload.expert.diagnostic.sourceType).toBe("provider_unavailable");
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|final-logo\.svg|<svg|>\s*[AB]\s*</);
   });
 
@@ -283,7 +225,7 @@ describe("CEO command API", () => {
     expect(payload.status).toBe("needs_action");
     expect(payload.brandName).toBe("PROSHOTS");
     expect(payload.primaryVisual).toBeNull();
-    expect(payload.expert.diagnostic.providerUsed).toBe("none");
+    expect(payload.expert.diagnostic.providerUsed).toBe("deepinfra_unavailable");
     expect(payload.artifactPaths).toEqual([]);
     expect(JSON.stringify(payload)).not.toMatch(/Brand system|Marque à nommer|<svg/);
   });

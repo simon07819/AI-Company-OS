@@ -9,8 +9,8 @@ async function submitLogoRequest(page: import("@playwright/test").Page) {
   await page.getByPlaceholder("Message").fill(logoPrompt);
   await page.getByRole("button", { name: "Envoyer" }).click();
   await expect(page.getByText("Action requise").first()).toBeVisible();
-  await expect(page.getByText("Configuration NVIDIA image incomplète").first()).toBeVisible();
-  await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT/).first()).toBeVisible();
+  await expect(page.getByText("Agent Graphiste prêt").first()).toBeVisible();
+  await expect(page.getByText("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.").first()).toBeVisible();
 }
 
 test.describe("CEO runtime shell", () => {
@@ -47,7 +47,7 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByRole("button", { name: "Envoyer" })).toBeVisible();
   });
 
-  test("runs the logo flow without automatic image and only renders local SVG after explicit action", async ({ page }) => {
+  test("routes logo flow to Agent Graphiste without fake SVG when DeepInfra is missing", async ({ page }) => {
     await submitLogoRequest(page);
     await page.screenshot({ path: "test-results/ceo-shell.png", fullPage: true });
 
@@ -55,24 +55,13 @@ test.describe("CEO runtime shell", () => {
     await expect(page.locator(".ceo-chat-visual-reply.brand")).toHaveCount(0);
     await expect(page.getByText("Timeline équipe")).toHaveCount(0);
     await expect(page.getByText(/providerUsed:/)).toHaveCount(0);
-
-    await page.getByRole("button", { name: /Preparer le brief|Préparer le brief/ }).click();
-    await expect(page.getByText(/Brief logo EKIDA/i)).toBeVisible();
-    await expect(page.getByText(/Brief disponible|analyse demande|directions/i).first()).toBeVisible();
-
-    await page.getByRole("button", { name: /Créer prompts visuels|Creer prompts visuels/ }).last().click();
-    await expect(page.getByText(/Prompts visuels EKIDA/i)).toBeVisible();
-    await expect(page.getByText(/NVIDIA qwen-image|NVIDIA FLUX|NVIDIA visual-genai NIM/i).first()).toBeVisible();
-
-    await expect(page.getByLabel(/Prototype de logo EKIDA/i)).toHaveCount(0);
-    await page.getByRole("button", { name: "Prototype SVG local" }).last().click();
-    await expect(page.getByText("Prototype local").last()).toBeVisible();
-    await expect(page.getByLabel("Prototype de logo EKIDA")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Préparer le brief|Créer prompts visuels|Prototype SVG local/ })).toHaveCount(0);
+    await expect(page.locator(".ceo-chat-generated-image")).toHaveCount(0);
     await page.screenshot({ path: "test-results/ceo-logo-flow.png", fullPage: true });
 
     await page.getByRole("button", { name: "Voir détails" }).last().click();
     await expect(page.getByLabel("Détails du résultat")).toBeVisible();
-    await expect(page.getByText(/Prototype SVG local|Prototype vectoriel local/i).first()).toBeVisible();
+    await expect(page.getByText("Aucun artifact réel créé")).toBeVisible();
 
     await expect(page.getByRole("link", { name: "Ouvrir le mode expert" })).toHaveAttribute("href", "/ceo/expert");
   });
@@ -88,29 +77,14 @@ test.describe("CEO runtime shell", () => {
     await expect(page.getByText(/Brand system|Marque à nommer|Prototype visuel/i)).toHaveCount(0);
   });
 
-  test("real CEO logo flow uses NVIDIA image when configured or shows exact config error", async ({ page, request }) => {
-    const diagnosticResponse = await request.get("/api/diagnostics/nvidia-image");
-    const diagnostic = await diagnosticResponse.json();
-
+  test("real CEO logo flow uses Agent Graphiste and never shows fake SVG without DeepInfra", async ({ page }) => {
     await page.goto("/ceo");
     await page.getByPlaceholder("Message").fill("je veux un logo EKIDA CANADA");
     await page.getByRole("button", { name: "Envoyer" }).click();
 
-    if (diagnostic.canAttemptGeneration) {
-      await expect(
-        page.locator(".ceo-chat-generated-image, .ceo-chat-visual-reply.failed").first(),
-      ).toBeVisible({ timeout: 30_000 });
-      const imageCount = await page.locator(".ceo-chat-generated-image").count();
-      if (imageCount === 0) {
-        await expect(page.getByText(/NVIDIA image provider failed|Expected:|Received:|status/i).first()).toBeVisible();
-      }
-    } else {
-      await expect(page.getByText("Configuration NVIDIA image incomplète").first()).toBeVisible({ timeout: 20_000 });
-      await expect(page.getByText(/IMAGE_PROVIDER|NVIDIA_IMAGE_ENDPOINT|Variables manquantes/i).first()).toBeVisible();
-      await expect(page.getByText(/^Aucun générateur visuel réel branché$/)).toHaveCount(0);
-      await expect(page.getByLabel(/Prototype de logo/i)).toHaveCount(0);
-      await expect(page.locator(".ceo-chat-generated-image")).toHaveCount(0);
-    }
+    await expect(page.getByText(/Agent Graphiste prêt|Voici votre visuel final/i).first()).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText(/^Aucun générateur visuel réel branché$/)).toHaveCount(0);
+    await expect(page.getByLabel(/Prototype de logo/i)).toHaveCount(0);
 
     await page.screenshot({ path: "test-results/real-ceo-logo-flow.png", fullPage: true });
   });
@@ -128,11 +102,7 @@ test.describe("CEO expert runtime evidence", () => {
 
     await page.getByRole("button", { name: "Charger preuve runtime" }).click();
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Timeline équipe");
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("CEO");
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Mission Planner");
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Brand Strategist");
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("NVIDIA Image Agent");
-    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("Artifact Manager");
+    await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("graphic-designer");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("providerUsed");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("sourceType");
     await expect(page.getByTestId("ceo-expert-runtime-proof")).toContainText("critic");
@@ -198,10 +168,11 @@ test.describe("CEO command API", () => {
     expect(base.ok()).toBe(true);
     const noProvider = await base.json();
     expect(noProvider.status).toBe("needs_action");
-    expect(noProvider.sourceType).toBe("none");
+    expect(noProvider.sourceType).toBe("provider_unavailable");
     expect(noProvider.primaryVisual).toBeNull();
     expect(noProvider.primaryArtifactId).toBeNull();
-    expect(noProvider.providerUsed).toBe("none");
+    expect(noProvider.providerUsed).toBe("deepinfra_unavailable");
+    expect(noProvider.summary).toBe("Agent Graphiste prêt, mais aucun moteur de rendu image n’est configuré.");
 
     const briefResponse = await request.post("/api/ceo/command", {
       data: { prompt: logoPrompt, conversationId, action: "prepare_brief" },

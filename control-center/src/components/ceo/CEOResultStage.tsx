@@ -41,7 +41,13 @@ function hasValidatedPrimaryVisual(result: CEOCurrentResult) {
   if (/mock|local|fallback/i.test(String(result.sourceType ?? "")) && !result.allowLocalPrototype) return false;
   if ((result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") && !result.primaryArtifactId && result.artifactPaths.length === 0) return false;
   if (/Brand system|Marque à nommer|Prototype visuel|legacy|fallback/i.test(visual)) return false;
-  if (/^data:image\//i.test(visual) && result.sourceType === "nvidia_image" && result.providerUsed === "nvidia") return true;
+  if (
+    /^data:image\//i.test(visual)
+    && (
+      (result.sourceType === "nvidia_image" && result.providerUsed === "nvidia")
+      || (result.sourceType === "deepinfra_image" && result.providerUsed === "deepinfra")
+    )
+  ) return true;
   if (result.deliverableType === "logo" || result.requestType === "branding" || result.requestType === "logo") {
     return /<svg[\s>]/i.test(visual) && /\bviewBox=/i.test(visual);
   }
@@ -66,7 +72,7 @@ function sourceBadge(result: CEOCurrentResult) {
   if (result.status === "needs_action" || result.sourceType === "none" || result.sourceType === "provider_unavailable") {
     return "Action requise";
   }
-  if (result.sourceType === "code_artifact" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text" || result.sourceType === "nvidia_image") {
+  if (result.sourceType === "code_artifact" || result.sourceType === "real-image-provider" || result.sourceType === "nvidia_text" || result.sourceType === "nvidia_image" || result.sourceType === "deepinfra_image") {
     return "Provider réel";
   }
   if (result.sourceType === "local_storage" || result.sourceType === "local_preview") return "Prototype local";
@@ -118,12 +124,19 @@ function CEOResultMessage({
   const requiresVisual = isLogoDeliverable;
   const isTextRenderable = isLogoSupportResult(result);
   const isNoProviderLogo = isNoProviderLogoResult(result);
-  const isRenderable = isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
+  const isGeneratedProviderImage = Boolean(
+    result.primaryVisual
+    && /^data:image\//i.test(result.primaryVisual)
+    && (
+      (result.sourceType === "nvidia_image" && result.providerUsed === "nvidia")
+      || (result.sourceType === "deepinfra_image" && result.providerUsed === "deepinfra")
+    ),
+  );
+  const isRenderable = isGeneratedProviderImage || isTextRenderable || isNoProviderLogo || (requiresVisual ? hasValidPrimaryVisual : hasArtifacts && hasValidatedPrimaryVisual(result));
   const brandName = brandNameFromResult(result);
   const modifyLabel = isLogoDeliverable && !hasValidPrimaryVisual ? "Générer brief complet" : "Modifier";
   const badge = sourceBadge(result);
   const shortTeamStatus = teamStatus(result);
-  const isNvidiaImage = Boolean(result.primaryVisual && /^data:image\//i.test(result.primaryVisual) && result.sourceType === "nvidia_image");
 
   return (
     <article className={`ceo-chat-message ceo ${isRenderable ? "ready" : "failed"}`}>
@@ -132,10 +145,10 @@ function CEOResultMessage({
       {!isLogoDeliverable && !isWebsite && !isTextRenderable && !isNoProviderLogo && <p>{responseIntro(result)}</p>}
       {isRenderable ? (
         <div className={isLogoDeliverable && hasValidPrimaryVisual ? "ceo-chat-visual-reply brand" : "ceo-chat-visual-reply product"}>
-          {isWebsite && hasValidPrimaryVisual ? (
+          {isGeneratedProviderImage ? (
+            <img className="ceo-chat-generated-image" src={result.primaryVisual ?? ""} alt={brandName ? `Visuel ${brandName}` : result.title} />
+          ) : isWebsite && hasValidPrimaryVisual ? (
             <WebsitePreviewReply title={result.title} svg={result.primaryVisual} />
-          ) : isLogoDeliverable && isNvidiaImage ? (
-            <img className="ceo-chat-generated-image" src={result.primaryVisual ?? ""} alt={brandName ? `Logo ${brandName}` : result.title} />
           ) : isLogoDeliverable && hasValidPrimaryVisual ? (
             <LogoFinalAnswer
               brandName={brandName}
