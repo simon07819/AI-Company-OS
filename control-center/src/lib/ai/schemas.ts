@@ -13,7 +13,7 @@ export interface CeoIntentResult {
   confidence: number;
   missingQuestions: string[];
   coreFeatures: string[];
-  mode: "nvidia" | "prototype";
+  mode: "nvidia" | "deepinfra" | "prototype";
   prototypeNotice?: string;
 }
 
@@ -37,7 +37,7 @@ export interface CeoExecutionPlan {
   expectedArtifacts: ExecutionArtifact[];
   agents: string[];
   simpleStatus: string;
-  mode: "nvidia" | "prototype";
+  mode: "nvidia" | "deepinfra" | "prototype";
   prototypeNotice?: string;
 }
 

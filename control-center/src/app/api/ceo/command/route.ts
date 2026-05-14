@@ -3,6 +3,8 @@ import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { executeProductionMission } from "@/lib/orchestrator/missionExecutor";
 import { buildMissionLifecycleTrace } from "@/lib/orchestrator/missionLifecycle";
+import { runDirectorWorkflow } from "@/lib/agents/director/directorWorkflow";
+import { persistCommandConversation } from "@/lib/ceoChatPersist";
 import { readGeneratedProject } from "@/lib/product-builder/workspace";
 import { runCompanyWorkflow } from "@/agents/workflows/company-workflow";
 import { createArtifactFingerprint } from "@/agents/artifacts/artifact-fingerprint";
@@ -709,6 +711,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const missionStartedAt = new Date();
     const run = executeProductionMission(prompt);
     const companyWorkflow = runCompanyWorkflow(prompt, { previousDeliverable, contextSelection });
     const workOrder = companyWorkflow.workOrder;
@@ -927,7 +930,35 @@ export async function POST(req: NextRequest) {
       memoryStore.addApprovedMission(memory);
     }
 
-    return NextResponse.json(responsePayload);
+    // ── Director validation + CEO synthesis ──────────────────────────────
+    const director = await runDirectorWorkflow(prompt, run, missionStartedAt).catch(() => null);
+
+    // ── Persist conversation to ceo-chat.json ────────────────────────────
+    const ceoResponseText = director?.ceoFacingMessage ?? responsePayload.summary ?? run.manifest.title;
+    persistCommandConversation(prompt, ceoResponseText, {
+      requestType: workOrder.requestType,
+      directorApproved: director?.directorApproved,
+      qualityScore: run.manifest.qualityScore,
+      intent: workOrder.requestType,
+    });
+
+    return NextResponse.json({
+      ...responsePayload,
+      ...(director ? {
+        director: {
+          approved: director.directorApproved,
+          message: director.directorMessage,
+          ceoSummary: director.validation.ceoSummary,
+          strengths: director.validation.strengths,
+          improvements: director.validation.improvements,
+          revisionNeeded: director.validation.revisionNeeded,
+          nextSteps: director.synthesis.nextSteps,
+          kpi: director.kpi,
+          mode: director.mode,
+        },
+        summary: director.ceoFacingMessage || responsePayload.summary,
+      } : {}),
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Erreur inconnue.";
     return NextResponse.json({

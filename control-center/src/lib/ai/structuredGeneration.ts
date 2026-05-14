@@ -30,7 +30,7 @@ export async function generateStructuredObject<T>(
   request: LlmRequest,
   fallback: T,
   validate: (value: unknown, fallback: T) => T,
-): Promise<{ value: T; mode: "nvidia" | "prototype"; warnings: string[] }> {
+): Promise<{ value: T; mode: "nvidia" | "deepinfra" | "prototype"; warnings: string[] }> {
   const response = await generateWithLlm(request);
   if (!response.ok) return { value: fallback, mode: response.mode, warnings: response.warnings };
 
