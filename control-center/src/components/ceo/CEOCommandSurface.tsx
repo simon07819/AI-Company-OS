@@ -213,7 +213,6 @@ export default function CEOCommandSurface() {
     setLoading(true);
     setError(null);
     setMission(pendingMission);
-    setResult(null);
 
     // Open SSE before POST so we catch all stage events
     sseRef.current?.close();
@@ -430,6 +429,18 @@ export default function CEOCommandSurface() {
             onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
           />
           {memoryNotice && <p className="ceo-memory-notice" style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 0" }}>{memoryNotice}</p>}
+
+          {/* Thinking indicator — shows while CEO is processing, never clears history */}
+          {loading && (
+            <div className="ceo-thinking-bubble" aria-live="polite" aria-label="CEO en train de répondre">
+              <span className="ceo-thinking-avatar">CEO</span>
+              <div className="ceo-thinking-dots">
+                <span className="ceo-thinking-dot" />
+                <span className="ceo-thinking-dot" />
+                <span className="ceo-thinking-dot" />
+              </div>
+            </div>
+          )}
         </div>
       </AttachmentDropzone>
 
