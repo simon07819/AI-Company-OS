@@ -8152,6 +8152,105 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   }
 }
 
+/* ─── Project Panel Preview Modal ────────────────────────────────────── */
+
+.ceo-preview-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  padding: 16px;
+}
+
+.ceo-preview-modal {
+  background: #18181b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+}
+
+.ceo-preview-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.ceo-preview-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ceo-preview-modal-title strong {
+  font-size: 14px;
+  color: #f4f4f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ceo-preview-modal-version {
+  font-size: 11px;
+  color: #71717a;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.ceo-preview-modal-download {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #60a5fa;
+  text-decoration: none;
+  padding: 5px 10px;
+  border-radius: 7px;
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.ceo-preview-modal-download:hover { background: rgba(96, 165, 250, 0.2); }
+
+.ceo-preview-modal-close {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+.ceo-preview-modal-close:hover { color: #f4f4f5; }
+
+.ceo-preview-modal-body {
+  flex: 1;
+  overflow: auto;
+  min-height: 320px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ─── Audit Panel ─────────────────────────────────────────────────────── */
 
 .audit-panel-overlay {
