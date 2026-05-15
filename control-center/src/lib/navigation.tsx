@@ -1,16 +1,10 @@
 import {
   Activity,
-  Bot,
-  Building2,
+  Archive,
   Crown,
-  Eye,
   FileStack,
   FolderOpen,
-  FolderKanban,
-  LayoutDashboard,
   Settings,
-  SlidersHorizontal,
-  Sparkles,
   TerminalSquare,
 } from "lucide-react";
 import { createElement } from "react";
@@ -22,47 +16,26 @@ export type DesktopNavItem = {
   label: string;
   icon: ReactNode;
   exact?: boolean;
-  advanced?: boolean;
 };
 
-export const SIMPLE_NAV: DesktopNavItem[] = [
-  { href: "/", label: "Accueil", icon: createElement(LayoutDashboard, { size: 18 }), exact: true },
-  { href: "/ceo", label: "CEO Chat", icon: createElement(Crown, { size: 18 }), exact: true },
-  { href: "/projects", label: "Projets", icon: createElement(FolderOpen, { size: 18 }) },
-  { href: "/agents", label: "Agents", icon: createElement(Bot, { size: 18 }) },
-  { href: "/outputs", label: "Outputs", icon: createElement(FileStack, { size: 18 }) },
-  { href: "/ceo/expert", label: "Expert Mode", icon: createElement(SlidersHorizontal, { size: 18 }), exact: true },
+const MAIN_NAV: DesktopNavItem[] = [
+  { href: "/ceo",      label: "Chat CEO",   icon: createElement(Crown,          { size: 18 }), exact: true },
+  { href: "/projects", label: "Projets",    icon: createElement(FolderOpen,     { size: 18 }) },
+  { href: "/outputs",  label: "Livrables",  icon: createElement(FileStack,      { size: 18 }) },
+  { href: "/archive",  label: "Archives",   icon: createElement(Archive,        { size: 18 }) },
+  { href: "/logs",     label: "Logs",       icon: createElement(TerminalSquare, { size: 18 }) },
+  { href: "/runtime",  label: "Runtime",    icon: createElement(Activity,       { size: 18 }) },
+  { href: "/settings", label: "Paramètres", icon: createElement(Settings,       { size: 18 }) },
 ];
 
-export const EXPERT_NAV: DesktopNavItem[] = [
-  { href: "/", label: "Accueil", icon: createElement(LayoutDashboard, { size: 18 }), exact: true },
-  { href: "/ceo", label: "CEO Chat", icon: createElement(Crown, { size: 18 }), exact: true },
-  { href: "/projects", label: "Projets", icon: createElement(FolderOpen, { size: 18 }) },
-  { href: "/agents", label: "Agents", icon: createElement(Bot, { size: 18 }) },
-  { href: "/outputs", label: "Outputs", icon: createElement(FileStack, { size: 18 }) },
-  { href: "/companies", label: "Companies", icon: createElement(Building2, { size: 18 }), advanced: true },
-  { href: "/workspaces", label: "Workspaces", icon: createElement(FolderKanban, { size: 18 }), advanced: true },
-  { href: "/artifacts", label: "Artifacts", icon: createElement(Eye, { size: 18 }), advanced: true },
-  { href: "/skills", label: "Skills", icon: createElement(Sparkles, { size: 18 }), advanced: true },
-  { href: "/evals", label: "Evals", icon: createElement(Activity, { size: 18 }), advanced: true },
-  { href: "/settings", label: "Settings", icon: createElement(Settings, { size: 18 }), advanced: true },
-  { href: "/logs", label: "Logs", icon: createElement(TerminalSquare, { size: 18 }), advanced: true },
-  { href: "/runtime", label: "Runtime", icon: createElement(LayoutDashboard, { size: 18 }), advanced: true },
-  { href: "/ceo/expert", label: "Expert Mode", icon: createElement(SlidersHorizontal, { size: 18 }), advanced: true, exact: true },
-];
+export const SIMPLE_NAV: DesktopNavItem[] = MAIN_NAV;
+export const EXPERT_NAV: DesktopNavItem[] = MAIN_NAV;
 
 export const ADVANCED_ROUTE_PREFIXES = [
-  "ceo/expert",
-  "companies",
-  "projects",
-  "outputs",
-  "evals",
-  "skills",
-  "settings",
-  "workspaces",
-  "artifacts",
+  "archive",
   "logs",
   "runtime",
+  "settings",
 ];
 
 export function isAdvancedPath(pathname: string) {
@@ -80,6 +53,6 @@ export function isActiveNavItem(item: DesktopNavItem, pathname: string) {
 export function pageLabel(pathname: string, items: DesktopNavItem[]) {
   const active = [...items].sort((a, b) => b.href.length - a.href.length).find((item) => isActiveNavItem(item, pathname));
   if (active) return active.label;
-  if (pathname === "/") return "Home";
+  if (pathname === "/") return "Accueil";
   return pathname.split("/").filter(Boolean).at(-1)?.replace(/-/g, " ") ?? "AI Company OS";
 }
