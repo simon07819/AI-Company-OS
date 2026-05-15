@@ -8,6 +8,7 @@ interface ProjectPanelProps {
   turns: Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>;
   loading: boolean;
   onAddRequest: (prompt: string) => void;
+  onCompare?: (idA: string, idB: string) => void;
 }
 
 function statusBadge(s: CEOMissionStatus | undefined, active: boolean): { label: string; cls: string } {
@@ -20,7 +21,7 @@ function statusBadge(s: CEOMissionStatus | undefined, active: boolean): { label:
   return { label: "En attente", cls: "waiting" };
 }
 
-export default function CEOProjectPanel({ mission, result, turns, loading }: ProjectPanelProps) {
+export default function CEOProjectPanel({ mission, result, turns, loading, onCompare }: ProjectPanelProps) {
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
 
   const rows: Row[] = turns.map((t, i) => ({
@@ -45,8 +46,23 @@ export default function CEOProjectPanel({ mission, result, turns, loading }: Pro
 
   if (rows.length === 0) return null;
 
+  const codeIds = turns
+    .filter((t) => t.result.deliverableType === "code" || t.result.sourceType === "nvidia_text")
+    .map((t) => t.id);
+  const canCompare = codeIds.length >= 2 && onCompare;
+
   return (
     <section className="ceo-project-zone" aria-label="Projets">
+      {canCompare && (
+        <div className="ceo-project-compare-bar">
+          <button
+            className="ceo-pr-compare-btn"
+            onClick={() => onCompare(codeIds[codeIds.length - 2], codeIds[codeIds.length - 1])}
+          >
+            Comparer v{codeIds.length - 1} ↔ v{codeIds.length}
+          </button>
+        </div>
+      )}
       {rows.map((row) => {
         const { label, cls } = statusBadge(row.status, row.active);
         return (

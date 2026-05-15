@@ -5,6 +5,7 @@ import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOProjectPanel from "./CEOProjectPanel";
 import CEOResultStage from "./CEOResultStage";
+import CodePreviewFrame from "./CodePreviewFrame";
 import { attachmentPayload } from "./attachments";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
@@ -128,6 +129,7 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
   const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const sseRef = useRef<EventSource | null>(null);
+  const [compareIds, setCompareIds] = useState<[string, string] | null>(null);
 
   useEffect(() => {
     return () => { sseRef.current?.close(); };
@@ -344,8 +346,39 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           turns={turns}
           loading={loading}
           onAddRequest={(req) => submitCommand(req)}
+          onCompare={(a, b) => setCompareIds([a, b])}
         />
       )}
+
+      {compareIds && (() => {
+        const a = turns.find((t) => t.id === compareIds[0]);
+        const b = turns.find((t) => t.id === compareIds[1]);
+        if (!a || !b) return null;
+        return (
+          <div className="ceo-compare-overlay" role="dialog" aria-label="Comparaison de versions">
+            <div className="ceo-compare-header">
+              <span>Comparaison côte à côte</span>
+              <button onClick={() => setCompareIds(null)} className="ceo-compare-close">✕</button>
+            </div>
+            <div className="ceo-compare-grid">
+              <div className="ceo-compare-pane">
+                <div className="ceo-compare-label">{a.result.title}</div>
+                {a.result.primaryArtifactId
+                  ? <CodePreviewFrame artifactId={a.result.primaryArtifactId} code={a.result.summary} title={a.result.title} />
+                  : <pre className="ceo-compare-code"><code>{a.result.summary}</code></pre>
+                }
+              </div>
+              <div className="ceo-compare-pane">
+                <div className="ceo-compare-label">{b.result.title}</div>
+                {b.result.primaryArtifactId
+                  ? <CodePreviewFrame artifactId={b.result.primaryArtifactId} code={b.result.summary} title={b.result.title} />
+                  : <pre className="ceo-compare-code"><code>{b.result.summary}</code></pre>
+                }
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </main>
   );
 }
