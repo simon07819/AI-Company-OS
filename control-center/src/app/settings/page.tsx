@@ -57,6 +57,12 @@ interface NvidiaTestResult {
   message: string;
 }
 
+interface ProviderTestResult {
+  provider: string;
+  connected: boolean;
+  message: string;
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────
 
 const TAX_REGIONS = [
@@ -115,6 +121,8 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [nvidiaResult, setNvidiaResult] = useState<NvidiaTestResult | null>(null);
+  const [providerTests, setProviderTests] = useState<Record<string, ProviderTestResult>>({});
+  const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadSettings = async () => {
@@ -163,6 +171,22 @@ export default function SettingsPage() {
       }
     } catch { /* */ }
     setTesting(false);
+  };
+
+  const handleTestProvider = async (provider: string) => {
+    setTestingProvider(provider);
+    try {
+      const res = await fetch("/api/settings/test-provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      if (res.ok) {
+        const d = await res.json() as { result: ProviderTestResult };
+        setProviderTests((prev) => ({ ...prev, [provider]: d.result }));
+      }
+    } catch { /* */ }
+    setTestingProvider(null);
   };
 
   const update = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -267,6 +291,36 @@ export default function SettingsPage() {
             {settings?.runtimeMode === "hybrid" && "NVIDIA when available, simulation as fallback."}
           </div>
         </div>
+      </Panel>
+
+      {/* ── Section: Provider Connections ── */}
+      <Panel>
+        <SectionHeader title="Provider Connections" icon={<Zap size={12} />} />
+        {(["anthropic", "replicate", "vercel"] as const).map((provider) => {
+          const res = providerTests[provider];
+          const isTesting = testingProvider === provider;
+          return (
+            <Row key={provider}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", textTransform: "capitalize" }}>{provider}</div>
+                {res && (
+                  <div style={{ fontSize: 10, color: res.connected ? "#22c55e" : "#f43f5e", marginTop: 3 }}>
+                    {res.message}
+                  </div>
+                )}
+              </div>
+              {res && (
+                <StatusBadge
+                  label={res.connected ? "Connected" : "Missing"}
+                  color={res.connected ? "#22c55e" : "#f59e0b"}
+                />
+              )}
+              <GhostButton onClick={() => void handleTestProvider(provider)} disabled={isTesting}>
+                <TestTube2 size={11} /> {isTesting ? "Testing..." : "Test"}
+              </GhostButton>
+            </Row>
+          );
+        })}
       </Panel>
 
       {/* ── Section 2: Company Identity ── */}
