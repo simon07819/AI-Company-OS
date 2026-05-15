@@ -7254,6 +7254,96 @@ html[data-theme="dark"] .ceo-os-result-details {
   background: transparent;
 }
 
+/* ── Code preview iframe ────────────────────────────────────── */
+.code-preview-frame {
+  width: 100%;
+  border: 1px solid #1e1e2e;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #0a0a0f;
+}
+
+.code-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid #1e1e2e;
+  background: #0d0d14;
+  gap: 8px;
+}
+
+.code-preview-tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.code-preview-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+}
+
+.code-preview-tab:hover { color: #a1a1aa; }
+.code-preview-tab.active { background: #1e1e2e; color: #e4e4e7; }
+
+.code-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.code-preview-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  color: #71717a;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.1s, border-color 0.1s;
+}
+
+.code-preview-action-btn:hover { color: #a1a1aa; border-color: rgba(255, 255, 255, 0.12); }
+
+.code-preview-iframe {
+  display: block;
+  width: 100%;
+  height: 360px;
+  border: none;
+  background: #09090b;
+}
+
+.code-preview-source {
+  overflow-x: auto;
+  max-height: 360px;
+}
+
+.code-preview-source pre {
+  margin: 0;
+  padding: 16px;
+  font-family: "Fira Code", "JetBrains Mono", Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #a1a1aa;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* ── Topbar action buttons ──────────────────────────────────── */
 .topbar-action-btn {
   height: 34px;

@@ -4,6 +4,7 @@ import { AlertTriangle, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
 import ChatAttachmentGrid from "./ChatAttachmentGrid";
 import CEOResultDetails from "./CEOResultDetails";
+import CodePreviewFrame from "./CodePreviewFrame";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
@@ -252,10 +253,18 @@ function CEOResultMessage({
               variants={result.prototypeVariants}
             />
           ) : isCodeDeliverable ? (
-            <div className="ceo-chat-text-deliverable">
-              <strong>{result.title}</strong>
-              <pre><code>{result.summary}</code></pre>
-            </div>
+            result.primaryArtifactId ? (
+              <CodePreviewFrame
+                artifactId={result.primaryArtifactId}
+                code={result.summary}
+                title={result.title}
+              />
+            ) : (
+              <div className="ceo-chat-text-deliverable">
+                <strong>{result.title}</strong>
+                <pre><code>{result.summary}</code></pre>
+              </div>
+            )
           ) : isTextRenderable || isNoProviderLogo ? (
             <div className="ceo-chat-text-deliverable">
               <strong>{result.title}</strong>
