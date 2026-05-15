@@ -24,7 +24,7 @@ export default function CommandDock({
         <span className="platform-sidebar-logo">AI</span>
         <span>
           <strong>AI Company OS</strong>
-          <small>{mode === "expert" ? "Mode expert" : "CEO workspace"}</small>
+          <small>CEO workspace</small>
         </span>
       </Link>
       <nav className="platform-sidebar-nav">
@@ -42,11 +42,6 @@ export default function CommandDock({
           </Link>
         ))}
       </nav>
-      <footer className="platform-sidebar-footer">
-        <Link className="platform-expert-link" href="/ceo/expert" aria-label="Ouvrir le mode expert">
-          Mode expert
-        </Link>
-      </footer>
     </aside>
   );
 }

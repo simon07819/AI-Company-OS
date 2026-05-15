@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import { useOptionalViewMode } from "./ViewModeProvider";
-import ViewModeToggle from "./ViewModeToggle";
 
 export default function AppTopBar({
   activeLabel,
@@ -15,7 +13,6 @@ export default function AppTopBar({
   onMenuClick: () => void;
 }) {
   const router = useRouter();
-  const viewMode = useOptionalViewMode();
   const [archiving, setArchiving] = useState(false);
 
   const handleArchive = () => {
@@ -55,7 +52,6 @@ export default function AppTopBar({
         >
           + Nouveau projet
         </button>
-        {viewMode && <ViewModeToggle mode={viewMode.mode} onToggle={viewMode.toggleMode} />}
         <ThemeToggle />
       </div>
     </header>

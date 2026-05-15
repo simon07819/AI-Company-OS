@@ -125,8 +125,8 @@ const STAGE_LABELS: Record<string, string> = {
   done: "Terminé",
 };
 
-export default function CEOCommandSurface({ expertMode = false }: { expertMode?: boolean }) {
-  const isExpert = expertMode;
+export default function CEOCommandSurface() {
+  const isExpert = false;
   const [mission, setMission] = useState<CEOCurrentMission | null>(null);
   const [result, setResult] = useState<CEOCurrentResult | null>(null);
   const [conversationId] = useState(() => `ceo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`);
