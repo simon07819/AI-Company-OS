@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
-import ThemeBootScript from "@/components/ThemeBootScript";
 
 export const metadata: Metadata = {
-  title: "AI Company OS — Control Center",
-  description: "Control center for AI Company OS factory",
+  title: "AI Agency OS",
+  description: "Control center for AI Agency OS",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <head>
-        <ThemeBootScript />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet" />
       </head>
       <body>
         <AppShell>{children}</AppShell>

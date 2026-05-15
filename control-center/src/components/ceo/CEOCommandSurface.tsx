@@ -103,12 +103,13 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
 }
 
 const TEMPLATES = [
-  { label: "Composant React", prompt: "Crée un composant React TypeScript moderne avec Tailwind: une carte produit avec image, titre, prix et bouton d'achat." },
-  { label: "Landing page", prompt: "Crée une landing page complète pour une startup SaaS avec hero, features, pricing et CTA." },
-  { label: "Dashboard UI", prompt: "Crée un dashboard analytics React avec métriques clés, graphiques et tableau de données." },
-  { label: "Logo brief", prompt: "Prépare un brief créatif complet pour le logo d'une agence digitale premium appelée Lumina." },
-  { label: "Image hero", prompt: "Génère un visuel hero premium pour une marque de mode minimaliste haut de gamme." },
-  { label: "Brief stratégique", prompt: "Analyse et prépare un brief stratégique complet pour lancer une app mobile de fitness." },
+  { label: "🎨 Logo & Branding",  prompt: "Crée un logo et une identité de marque complète pour une agence créative premium." },
+  { label: "🌐 Site web",          prompt: "Crée une landing page complète pour une startup SaaS avec hero, features, pricing et CTA." },
+  { label: "📱 App mobile",        prompt: "Conçois l'UI d'une app mobile de fitness avec dashboard, programme et tracking." },
+  { label: "💼 Carte d'affaire",   prompt: "Crée une carte d'affaire HTML professionnelle pour une agence de design." },
+  { label: "📦 Kit SaaS",          prompt: "Génère un dashboard SaaS complet avec sidebar, métriques, tableaux et graphiques." },
+  { label: "📣 Réseaux sociaux",   prompt: "Crée un kit de visuels pour réseaux sociaux: post Instagram, cover LinkedIn, stories." },
+  { label: "⚡ Demande libre",      prompt: "" },
 ];
 
 interface PipelineStage {
@@ -295,85 +296,120 @@ export default function CEOCommandSurface() {
     }
   };
 
+  const activeProjectName = result?.brandName || result?.title || (turns.length > 0 ? turns[turns.length - 1]?.result?.brandName || turns[turns.length - 1]?.result?.title : null);
+  const showProjects = (mission || turns.length > 0);
+
   return (
     <main className="ceo-chat-page">
-      <AttachmentDropzone disabled={loading} onFiles={(files) => files.forEach(handleFileUpload)}>
-        <section className="ceo-chat-shell" aria-label="Chat CEO">
-          <header className="ceo-chat-header">
-            <div className="ceo-chat-agent">
-              <div className="ceo-chat-avatar" aria-label="Avatar CEO">C</div>
-              <div>
-                <strong>CEO</strong>
-              </div>
-            </div>
-          </header>
+      {/* Top bar */}
+      <div className="ceo-topbar">
+        <span className="ceo-topbar-title">
+          Chat CEO{activeProjectName ? ` — ${activeProjectName}` : ""}
+        </span>
+        <div className="ceo-topbar-actions">
+          <button
+            type="button"
+            className="ceo-topbar-btn"
+            onClick={() => window.location.href = "/outputs"}
+          >
+            Archiver
+          </button>
+          <button
+            type="button"
+            className="ceo-topbar-btn"
+            onClick={() => window.location.href = `/ceo?session=${Date.now()}`}
+          >
+            + Nouveau projet
+          </button>
+        </div>
+      </div>
 
-          <div className="ceo-zone-messages">
-            {!loading && !mission && turns.length === 0 && (
-              <div className="ceo-template-grid" aria-label="Suggestions de départ">
+      {/* Zone 1: Chat messages */}
+      <AttachmentDropzone disabled={loading} onFiles={(files) => files.forEach(handleFileUpload)}>
+        <div className="ceo-zone-chat" aria-label="Messages">
+          {/* Empty state */}
+          {!loading && !mission && turns.length === 0 && (
+            <div className="ceo-empty-state">
+              <svg className="ceo-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+              <p className="ceo-empty-text">Dis au CEO ce que tu veux créer</p>
+              <div className="ceo-starter-cards" aria-label="Suggestions">
                 {TEMPLATES.map((t) => (
                   <button
                     key={t.label}
-                    className="ceo-template-card"
-                    onClick={() => submitCommand(t.prompt)}
+                    className="ceo-starter-card"
+                    onClick={() => {
+                      if (t.prompt) void submitCommand(t.prompt);
+                    }}
                     disabled={loading}
                   >
-                    <span className="ceo-template-label">{t.label}</span>
-                    <span className="ceo-template-prompt">{t.prompt}</span>
+                    {t.label}
                   </button>
                 ))}
               </div>
-            )}
-            {loading && pipelineStages.length > 0 && (
-              <div className="pipeline-progress" aria-live="polite" aria-label="Avancement pipeline">
-                {pipelineStages.filter((s) => s.stage !== "done").map((s) => (
-                  <div key={s.stage} className={`pipeline-stage pipeline-stage-${s.status}`}>
-                    <span className="pipeline-stage-icon" aria-hidden="true">
-                      {s.status === "completed" ? "✓" : s.status === "failed" ? "✗" : "◌"}
-                    </span>
-                    <span className="pipeline-stage-label">{STAGE_LABELS[s.stage] ?? s.stage}</span>
-                    {s.status === "completed" && typeof s.data?.framework === "string" && (
-                      <span className="pipeline-stage-meta">{s.data.framework}</span>
-                    )}
-                    {s.status === "completed" && typeof s.data?.score === "number" && (
-                      <span className="pipeline-stage-meta">score {s.data.score}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-            <CEOResultStage
-              result={result}
-              mission={mission}
-              turns={turns}
-              expertMode={isExpert}
-              loading={loading}
-              error={error}
-              pendingAttachments={pendingAttachments}
-              onModify={() => submitCommand(`Améliore le rendu actuel en gardant la même direction: ${mission?.prompt || result?.brandName || result?.title || "artefact"}`, mission?.attachments ?? [])}
-              onLogoAction={(nextAction, promptOverride) => submitCommand(promptOverride || mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
-              onMemoryAction={writeMemoryAction}
-              onQuickPrompt={(nextPrompt) => submitCommand(nextPrompt, mission?.attachments ?? [])}
-              onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
-            />
-            {memoryNotice && <p className="ceo-memory-notice">{memoryNotice}</p>}
-          </div>
+            </div>
+          )}
 
-          <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
-        </section>
+          {/* Pipeline stages indicator */}
+          {loading && pipelineStages.length > 0 && (
+            <div className="pipeline-progress" aria-live="polite">
+              {pipelineStages.filter((s) => s.stage !== "done").map((s) => (
+                <div key={s.stage} className={`pipeline-stage pipeline-stage-${s.status}`}>
+                  <span className="pipeline-stage-icon" aria-hidden="true">
+                    {s.status === "completed" ? "✓" : s.status === "failed" ? "✗" : "◌"}
+                  </span>
+                  <span className="pipeline-stage-label">{STAGE_LABELS[s.stage] ?? s.stage}</span>
+                  {s.status === "completed" && typeof s.data?.framework === "string" && (
+                    <span className="pipeline-stage-meta">{s.data.framework}</span>
+                  )}
+                  {s.status === "completed" && typeof s.data?.score === "number" && (
+                    <span className="pipeline-stage-meta">score {s.data.score}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Messages */}
+          <CEOResultStage
+            result={result}
+            mission={mission}
+            turns={turns}
+            expertMode={isExpert}
+            loading={loading}
+            error={error}
+            pendingAttachments={pendingAttachments}
+            onModify={() => void submitCommand(`Améliore le rendu actuel en gardant la même direction: ${mission?.prompt || result?.brandName || result?.title || "artefact"}`, mission?.attachments ?? [])}
+            onLogoAction={(nextAction, promptOverride) => void submitCommand(promptOverride || mission?.prompt || result?.brandName || "logo", mission?.attachments ?? [], nextAction)}
+            onMemoryAction={writeMemoryAction}
+            onQuickPrompt={(nextPrompt) => void submitCommand(nextPrompt, mission?.attachments ?? [])}
+            onContinue={() => document.querySelector<HTMLTextAreaElement>(".ceo-os-composer textarea")?.focus()}
+          />
+          {memoryNotice && <p className="ceo-memory-notice" style={{ fontSize: 11, color: "var(--text-muted)", padding: "4px 0" }}>{memoryNotice}</p>}
+        </div>
       </AttachmentDropzone>
 
-      {(mission || turns.length > 0) && (
-        <CEOProjectPanel
-          mission={mission}
-          result={result}
-          turns={turns}
-          loading={loading}
-          onAddRequest={(req) => submitCommand(req)}
-          onCompare={(a, b) => setCompareIds([a, b])}
-        />
+      {/* Zone 2: Input bar */}
+      <div className="ceo-zone-input">
+        <CEOCommandComposer loading={loading} onSubmit={submitCommand} droppedFiles={droppedFiles} onDroppedFilesConsumed={() => setDroppedFiles([])} />
+      </div>
+
+      {/* Zone 3: Project panel */}
+      {showProjects && (
+        <div className="ceo-zone-projects">
+          <CEOProjectPanel
+            mission={mission}
+            result={result}
+            turns={turns}
+            loading={loading}
+            onAddRequest={(req) => void submitCommand(req)}
+            onCompare={(a, b) => setCompareIds([a, b])}
+          />
+        </div>
       )}
 
+      {/* Compare overlay */}
       {compareIds && (() => {
         const a = turns.find((t) => t.id === compareIds[0]);
         const b = turns.find((t) => t.id === compareIds[1]);

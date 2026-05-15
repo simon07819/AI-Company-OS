@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 export default function WorkspaceSurface({ children }: { children: ReactNode }) {
   return (
-    <main className="workspace-surface desktop-main-surface">
+    <main className="workspace-surface">
       {children}
     </main>
   );

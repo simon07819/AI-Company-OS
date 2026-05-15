@@ -161,27 +161,32 @@ export default function CEOProjectPanel({ mission, result, turns, loading, onCom
           </div>
         )}
         {rows.map((row) => {
-          const { label, cls } = statusBadge(row.status, row.active);
+          const { label } = statusBadge(row.status, row.active);
           return (
-            <div key={row.id} className={`ceo-project-row${row.active ? " ceo-project-row-active" : ""}`}>
-              <span className="ceo-pr-name">{row.name}</span>
-              <span className="ceo-pr-version">v{row.version}</span>
-              <span className="ceo-pr-dots" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, i) => (
-                  <span key={i} className={`ceo-pr-dot${i < row.dots ? " filled" : ""}`} />
-                ))}
+            <div key={row.id} className="ceo-project-card">
+              <span className="ceo-project-card-name">{row.name}</span>
+              <span className="ceo-project-card-version">v{row.version}</span>
+              <span className="ceo-project-card-steps" aria-hidden="true">
+                {Array.from({ length: 5 }, (_, i) => {
+                  const dotCls = i < row.dots
+                    ? (row.active && i === row.dots - 1 ? "ceo-step-running" : "ceo-step-done")
+                    : "ceo-step-waiting";
+                  return <span key={i} className={`ceo-step-dot ${dotCls}`} />;
+                })}
               </span>
-              <span className={`ceo-pr-status ceo-pr-status-${cls}`}>{label}</span>
-              <button
-                className="ceo-pr-action"
-                title="Voir"
-                onClick={() => openPreview(row)}
-                disabled={row.active}
-              >
-                👁
-              </button>
-              <button className="ceo-pr-action" title="Archiver">🗄</button>
-              <button className="ceo-pr-action" title="Supprimer">🗑</button>
+              <span className="ceo-project-card-status">{label}</span>
+              <div className="ceo-project-card-actions">
+                <button
+                  className="ceo-project-card-action"
+                  title="Voir"
+                  onClick={() => openPreview(row)}
+                  disabled={row.active}
+                >
+                  👁
+                </button>
+                <button className="ceo-project-card-action" title="Archiver">🗄</button>
+                <button className="ceo-project-card-action" title="Supprimer">🗑</button>
+              </div>
             </div>
           );
         })}
