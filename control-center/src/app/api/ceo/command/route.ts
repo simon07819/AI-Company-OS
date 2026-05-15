@@ -125,11 +125,11 @@ export async function POST(req: NextRequest) {
       : `ceo-standalone-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
     const rawHistory = Array.isArray(body.conversationHistory) ? body.conversationHistory : [];
-    const conversationHistory = rawHistory.slice(-12).flatMap((m: unknown) => {
+    const conversationHistory = rawHistory.slice(-20).flatMap((m: unknown) => {
       if (!m || typeof m !== "object") return [];
       const record = m as Record<string, unknown>;
       const role = record.role === "user" || record.role === "assistant" ? record.role : null;
-      const content = typeof record.content === "string" && record.content.trim() ? record.content.trim().slice(0, 600) : null;
+      const content = typeof record.content === "string" && record.content.trim() ? record.content.trim().slice(0, 1500) : null;
       if (!role || !content) return [];
       return [{ role, content }];
     }) as Array<{ role: "user" | "assistant"; content: string }>;
@@ -946,7 +946,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ── Director validation + CEO synthesis ──────────────────────────────
-    const director = await runDirectorWorkflow(prompt, run, missionStartedAt).catch(() => null);
+    const director = await runDirectorWorkflow(prompt, run, missionStartedAt, conversationContext).catch(() => null);
 
     // ── Persist conversation to ceo-chat.json ────────────────────────────
     const ceoResponseText = director?.ceoFacingMessage ?? responsePayload.summary ?? run.manifest.title;

@@ -123,7 +123,7 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
     const isLogoAction = Boolean(action);
     const conversationHistory = turns.flatMap(({ mission, result }) => [
       { role: "user" as const, content: mission.prompt },
-      { role: "assistant" as const, content: result.shortMessage || result.summary || result.title || "" },
+      { role: "assistant" as const, content: result.summary || result.shortMessage || result.title || "" },
     ]);
     const actionPrompt =
       action === "prepare_brief"

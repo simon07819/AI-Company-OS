@@ -37,13 +37,14 @@ export async function runDirectorWorkflow(
   prompt: string,
   run: ProductionRun,
   startedAt: Date,
+  conversationContext = "",
 ): Promise<DirectorWorkflowResult> {
   const qualityScore = run.manifest.qualityScore ?? run.qualityReports.at(-1)?.score ?? 0;
   const outputsSummary = buildOutputsSummary(run);
   const agentsUsed = extractAgentsUsed(run);
 
   const brief = {
-    sourcePrompt: prompt,
+    sourcePrompt: conversationContext ? `${conversationContext}Demande actuelle: ${prompt}` : prompt,
     requestType: run.plan.requestType,
     brandName: run.plan.brandName ?? null,
     industry: run.plan.industry,
