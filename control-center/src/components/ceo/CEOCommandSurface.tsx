@@ -102,6 +102,8 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
   };
 }
 
+const STORAGE_KEY = "ceo_active_session";
+
 const TEMPLATES = [
   { label: "🎨 Logo & Branding",  prompt: "Crée un logo et une identité de marque complète pour une agence créative premium." },
   { label: "🌐 Site web",          prompt: "Crée une landing page complète pour une startup SaaS avec hero, features, pricing et CTA." },
@@ -140,6 +142,34 @@ export default function CEOCommandSurface() {
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const sseRef = useRef<EventSource | null>(null);
   const [compareIds, setCompareIds] = useState<[string, string] | null>(null);
+
+  // Restore previous session from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as {
+          turns?: Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>;
+          mission?: CEOCurrentMission;
+          result?: CEOCurrentResult;
+        };
+        if (Array.isArray(parsed.turns) && parsed.turns.length > 0) {
+          setTurns(parsed.turns);
+          if (parsed.mission) setMission(parsed.mission);
+          if (parsed.result) setResult(parsed.result);
+        }
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist session to localStorage whenever conversation changes
+  useEffect(() => {
+    if (turns.length === 0) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ turns, mission, result, savedAt: Date.now() }));
+    } catch {}
+  }, [turns, mission, result]);
 
   useEffect(() => {
     return () => { sseRef.current?.close(); };
@@ -296,6 +326,19 @@ export default function CEOCommandSurface() {
     }
   };
 
+  const handleArchive = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    setTurns([]);
+    setMission(null);
+    setResult(null);
+    window.location.href = "/outputs";
+  };
+
+  const handleNewProject = () => {
+    localStorage.removeItem(STORAGE_KEY);
+    window.location.href = `/ceo?session=${Date.now()}`;
+  };
+
   const activeProjectName = result?.brandName || result?.title || (turns.length > 0 ? turns[turns.length - 1]?.result?.brandName || turns[turns.length - 1]?.result?.title : null);
   const showProjects = (mission || turns.length > 0);
 
@@ -310,14 +353,14 @@ export default function CEOCommandSurface() {
           <button
             type="button"
             className="ceo-topbar-btn"
-            onClick={() => window.location.href = "/outputs"}
+            onClick={handleArchive}
           >
             Archiver
           </button>
           <button
             type="button"
             className="ceo-topbar-btn"
-            onClick={() => window.location.href = `/ceo?session=${Date.now()}`}
+            onClick={handleNewProject}
           >
             + Nouveau projet
           </button>
