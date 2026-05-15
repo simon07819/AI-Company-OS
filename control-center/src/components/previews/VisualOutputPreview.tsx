@@ -40,7 +40,7 @@ export function VisualOutputPreview({ visualPreview, title, summary, compact = f
           <div style={{ height: 8, width: "86%", background: "#cbd5e1", borderRadius: 4, marginBottom: 6 }} />
           <div style={{ height: 8, width: "68%", background: "#cbd5e1", borderRadius: 4, marginBottom: 14 }} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
-            {(visualPreview.mockup?.blocks ?? ["Hero", "Grid", "CTA"]).map((block) => (
+            {(visualPreview.mockup?.blocks ?? []).map((block) => (
               <div key={block} style={{ height: compact ? 34 : 58, borderRadius: 6, border: `1px solid ${colors[1]}55`, background: `${colors[1]}18`, padding: 8 }}>
                 <div style={{ height: 7, width: "70%", borderRadius: 4, background: colors[0], opacity: 0.75 }} />
               </div>
@@ -58,8 +58,8 @@ export function VisualOutputPreview({ visualPreview, title, summary, compact = f
     const surface = colors[2] ?? "#F8FAFC";
     const brandName = compact
       ? visualPreview.logoText ?? visualPreview.mockup?.title ?? title
-      : visualPreview.mockup?.title ?? visualPreview.logoText ?? title.replace(/^(Concept|Logo|Approval Preview)\s*/i, "Studio Lumiere");
-    const keywords = (visualPreview.mockup?.blocks?.length ? visualPreview.mockup.blocks : ["Premium", "Lumineux", "Moderne"]).slice(0, 3);
+      : visualPreview.mockup?.title ?? visualPreview.logoText ?? title;
+    const keywords = (visualPreview.mockup?.blocks ?? []).slice(0, 3);
     return (
       <div style={{ ...frameStyle, minHeight: height, background: surface, color: "#0f172a" }}>
         <div style={{ display: "grid", gridTemplateColumns: compact ? "1fr" : "1.08fr 0.92fr", minHeight: height }}>
