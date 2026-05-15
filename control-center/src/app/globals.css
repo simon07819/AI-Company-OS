@@ -9077,6 +9077,36 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
 .ceo-project-step-started .ceo-project-step-status { color: var(--accent); }
 .ceo-project-step-failed .ceo-project-step-status { color: #ef4444; }
 
+/* Animated progress bar under the active pipeline step */
+.ceo-project-step-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--bg-panel);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.ceo-project-step-bar-fill {
+  height: 100%;
+  width: 40%;
+  background: var(--accent);
+  border-radius: 1px;
+  animation: step-bar-slide 1.4s ease-in-out infinite;
+}
+
+@keyframes step-bar-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.ceo-project-step-started {
+  position: relative;
+  padding-bottom: 6px;
+}
+
 /* ── Other pages dark color overrides ───────────────────────────── */
 .platform-page {
   background: var(--bg-primary);

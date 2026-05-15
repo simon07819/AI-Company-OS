@@ -338,6 +338,37 @@ export default function CEOCommandSurface() {
     window.location.href = `/ceo?session=${Date.now()}`;
   };
 
+  const handlePanelArchive = (turnId: string) => {
+    const turn = turns.find((t) => t.id === turnId);
+    const name = turn?.result?.brandName || turn?.mission?.prompt?.slice(0, 40) || "ce projet";
+    if (!window.confirm(`Archiver "${name}" ?`)) return;
+    setTurns((prev) => prev.filter((t) => t.id !== turnId));
+    // Try to archive server-side if a project slug is available via workspaceHref
+    const slug = turn?.result?.workspaceHref?.split("/").pop();
+    if (slug) {
+      fetch(`/api/ceo-projects/${slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "archive" }),
+      }).catch(() => {});
+    }
+  };
+
+  const handlePanelDelete = (turnId: string) => {
+    const turn = turns.find((t) => t.id === turnId);
+    const name = turn?.result?.brandName || turn?.mission?.prompt?.slice(0, 40) || "ce projet";
+    if (!window.confirm(`Supprimer définitivement "${name}" ?`)) return;
+    setTurns((prev) => prev.filter((t) => t.id !== turnId));
+    if (mission?.id === turnId) {
+      setMission(null);
+      setResult(null);
+    }
+    const slug = turn?.result?.workspaceHref?.split("/").pop();
+    if (slug) {
+      fetch(`/api/ceo-projects/${slug}`, { method: "DELETE" }).catch(() => {});
+    }
+  };
+
   const activeProjectName = result?.brandName || result?.title || (turns.length > 0 ? turns[turns.length - 1]?.result?.brandName || turns[turns.length - 1]?.result?.title : null);
   const showProjects = (mission || turns.length > 0);
 
@@ -460,6 +491,8 @@ export default function CEOCommandSurface() {
             pipelineStages={pipelineStages}
             onAddRequest={(req) => void submitCommand(req)}
             onCompare={(a, b) => setCompareIds([a, b])}
+            onArchiveTurn={handlePanelArchive}
+            onDeleteTurn={handlePanelDelete}
           />
         </div>
       )}

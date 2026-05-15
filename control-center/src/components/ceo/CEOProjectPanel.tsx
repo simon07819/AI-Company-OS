@@ -19,6 +19,8 @@ interface ProjectPanelProps {
   pipelineStages?: PipelineStage[];
   onAddRequest: (prompt: string) => void;
   onCompare?: (idA: string, idB: string) => void;
+  onArchiveTurn?: (turnId: string) => void;
+  onDeleteTurn?: (turnId: string) => void;
 }
 
 const STAGE_LABELS: Record<string, string> = {
@@ -33,6 +35,7 @@ const STAGE_LABELS: Record<string, string> = {
   qa_reviewer: "Révision QA",
   quality_director: "Directeur QA",
   creative_director: "Directeur créatif",
+  director: "CEO Synthèse",
   done: "Terminé",
 };
 
@@ -54,9 +57,11 @@ interface PreviewTarget {
 
 function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () => void }) {
   const { result, title, version } = target;
+  const isWebsite = result.deliverableType === "website" || result.deliverableType === "landing_page";
   const isCode = result.deliverableType === "code" || result.sourceType === "codex_code" || result.sourceType === "nvidia_text";
   const isImage = Boolean(result.primaryVisual && /^data:image\//i.test(result.primaryVisual ?? ""));
   const isSvg = Boolean(result.primaryVisual && /<svg[\s>]/i.test(result.primaryVisual ?? "") && !isImage);
+  const hasArtifact = Boolean(result.primaryArtifactId);
   const downloadHref = result.primaryArtifactId ? `/api/export/${result.primaryArtifactId}` : undefined;
 
   return (
@@ -97,7 +102,19 @@ function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () 
         </div>
 
         <div className="ceo-preview-modal-body">
-          {isCode && result.primaryArtifactId ? (
+          {!hasArtifact ? (
+            <div style={{ padding: 40, textAlign: "center", color: "var(--text-muted)" }}>
+              Génération en cours...
+            </div>
+          ) : isWebsite && result.primaryArtifactId ? (
+            <iframe
+              src={`/api/preview/${result.primaryArtifactId}`}
+              title={title}
+              width="100%"
+              height="500px"
+              style={{ border: "none", borderRadius: 6 }}
+            />
+          ) : isCode && result.primaryArtifactId ? (
             <CodePreviewFrame
               artifactId={result.primaryArtifactId}
               code={result.summary}
@@ -126,7 +143,10 @@ function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () 
   );
 }
 
-export default function CEOProjectPanel({ mission, result, turns, loading, pipelineStages = [], onCompare }: ProjectPanelProps) {
+export default function CEOProjectPanel({
+  mission, result, turns, loading, pipelineStages = [],
+  onCompare, onArchiveTurn, onDeleteTurn,
+}: ProjectPanelProps) {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
 
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
@@ -187,6 +207,7 @@ export default function CEOProjectPanel({ mission, result, turns, loading, pipel
         {rows.map((row) => {
           const { label } = statusBadge(row.status, row.active);
           const isExpanded = row.active && visibleStages.length > 0;
+          const turnId = row.id.startsWith("active-") ? row.id.slice(7) : row.id;
           return (
             <div key={row.id} className={`ceo-project-card${isExpanded ? " ceo-project-card-expanded" : ""}`}>
               {/* Compact summary row — always visible */}
@@ -213,8 +234,22 @@ export default function CEOProjectPanel({ mission, result, turns, loading, pipel
                   >
                     👁
                   </button>
-                  <button className="ceo-project-card-action" title="Archiver">🗄</button>
-                  <button className="ceo-project-card-action" title="Supprimer">🗑</button>
+                  <button
+                    className="ceo-project-card-action"
+                    title="Archiver"
+                    disabled={row.active}
+                    onClick={() => onArchiveTurn?.(turnId)}
+                  >
+                    🗄
+                  </button>
+                  <button
+                    className="ceo-project-card-action"
+                    title="Supprimer"
+                    disabled={row.active}
+                    onClick={() => onDeleteTurn?.(turnId)}
+                  >
+                    🗑
+                  </button>
                 </div>
               </div>
 
@@ -232,6 +267,11 @@ export default function CEOProjectPanel({ mission, result, turns, loading, pipel
                       <span className="ceo-project-step-status">
                         {s.status === "completed" ? "Complété" : s.status === "failed" ? "Erreur" : "En cours..."}
                       </span>
+                      {s.status === "started" && (
+                        <div className="ceo-project-step-bar" aria-hidden="true">
+                          <div className="ceo-project-step-bar-fill" />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
