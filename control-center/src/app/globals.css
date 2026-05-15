@@ -6678,11 +6678,27 @@ html[data-theme="dark"] .ceo-os-result-details {
 }
 
 .ceo-chat-actions button:hover,
+.ceo-chat-actions .ceo-chat-action-link:hover,
 .ceo-chat-mode-toggle:hover,
 .ceo-chat-expert-link:hover {
   color: #f4f4f5;
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(39, 39, 42, 0.92);
+}
+
+.ceo-chat-action-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 11px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 12px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
 
 .ceo-chat-expert-link {

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Info, Wand2 } from "lucide-react";
+import { AlertTriangle, Download, ExternalLink, Info, Wand2 } from "lucide-react";
 import { useState } from "react";
 import ChatAttachmentGrid from "./ChatAttachmentGrid";
 import CEOResultDetails from "./CEOResultDetails";
@@ -286,6 +286,27 @@ function CEOResultMessage({
       )}
       {isRenderable && <TeamContributionTable result={result} />}
       <div className="ceo-chat-actions">
+        {isCodeDeliverable && result.primaryArtifactId && (
+          <>
+            <a
+              className="ceo-chat-action-link"
+              href={`/api/export/${result.primaryArtifactId}`}
+              download
+            >
+              <Download size={13} />
+              Télécharger
+            </a>
+            <a
+              className="ceo-chat-action-link"
+              href="https://vercel.com/new"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink size={13} />
+              Deploy Vercel
+            </a>
+          </>
+        )}
         {isNoProviderLogoResult(result) ? (
           <>
             <button type="button" onClick={() => onLogoAction("prepare_brief")}>
