@@ -119,6 +119,10 @@ const EMPTY_VIEW: SimpleAgencyView = {
 const AGENT_NAMES: Record<string, { name: string; role: string; avatar: string }> = {
   ceo: { name: "CEO AI", role: "Coordination", avatar: "AI" },
   cmo: { name: "Brand Strategist", role: "Direction creative", avatar: "BS" },
+  brand_strategist: { name: "Brand Strategist", role: "Stratégie de marque", avatar: "BS" },
+  art_director: { name: "Directeur artistique", role: "Direction créative", avatar: "DA" },
+  logo_designer: { name: "Logo Designer", role: "Design & génération", avatar: "LD" },
+  creative_project_manager: { name: "Chef de projet créatif", role: "Gestion de projet", avatar: "CP" },
   frontend_agent: { name: "Designer", role: "Design et rendu", avatar: "DS" },
   product_agent: { name: "Growth Agent", role: "Offre et positionnement", avatar: "GA" },
   qa_agent: { name: "Quality Agent", role: "Verification", avatar: "QA" },
@@ -290,15 +294,21 @@ function agentsFromView(view: SimpleAgencyView): AgentSummary[] {
     });
   });
 
-  if (!byAgent.has("ceo")) {
-    byAgent.set("ceo", {
-      id: "ceo",
-      name: "CEO AI",
-      role: "Coordination",
-      avatar: "AI",
-      status: view.approvals.length > 0 ? "Attend decision" : "En ligne",
-      task: view.projects.length > 0 ? "Coordonne les projets actifs" : "Pret a lancer une entreprise",
-    });
+  const CORE_AGENTS = ["ceo", "brand_strategist", "art_director", "logo_designer"];
+  for (const agentId of CORE_AGENTS) {
+    if (!byAgent.has(agentId)) {
+      const meta = AGENT_NAMES[agentId]!;
+      byAgent.set(agentId, {
+        id: agentId,
+        name: meta.name,
+        role: meta.role,
+        avatar: meta.avatar,
+        status: agentId === "ceo" && view.approvals.length > 0 ? "Attend decision" : "En ligne",
+        task: agentId === "ceo"
+          ? (view.projects.length > 0 ? "Coordonne les projets actifs" : "Pret a lancer une entreprise")
+          : "Disponible pour le prochain projet",
+      });
+    }
   }
 
   return Array.from(byAgent.values());
@@ -719,13 +729,32 @@ export function AgencyDashboard({ variant }: { variant: PageVariant }) {
       {variant === "outputs" && (
         <section className="os-section">
           <div className="os-section-title">
-            <div><span className="os-eyebrow">Resultats</span><h2>Resultats recents</h2></div>
+            <div><span className="os-eyebrow">Resultats</span><h2>Resultats produits</h2></div>
             <Link href="/ceo">Créer un nouvel artefact</Link>
           </div>
-          {view.outputs.length === 0 ? (
+          {view.outputs.length === 0 && view.generatedProjects.length === 0 ? (
             <EmptyState title="Aucun resultat visible" description="Les resultats apparaitront ici avec une preview des que les agents preparent une livraison." />
           ) : (
-            <div className="os-grid results">{view.outputs.map((output) => <ResultCard key={output.id} output={output} />)}</div>
+            <>
+              {view.generatedProjects.length > 0 && (
+                <>
+                  <p className="os-section-label">Projets générés par le CEO</p>
+                  <div className="os-grid cards">
+                    {view.generatedProjects.map((project) => (
+                      <GeneratedProjectCard key={project.id} project={project} onDelete={deleteGeneratedProject} />
+                    ))}
+                  </div>
+                </>
+              )}
+              {view.outputs.length > 0 && (
+                <>
+                  {view.generatedProjects.length > 0 && <p className="os-section-label">Livrables agents</p>}
+                  <div className="os-grid results">
+                    {view.outputs.map((output) => <ResultCard key={output.id} output={output} />)}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </section>
       )}

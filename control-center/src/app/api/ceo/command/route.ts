@@ -36,6 +36,7 @@ import {
 } from "@/lib/providers/providerRegistry";
 import { getNvidiaImageDiagnostics } from "@/lib/providers/nvidiaImageProvider";
 import { generateWithLlm } from "@/lib/ai/llmClient";
+import { saveProjectBrand, extractColors, extractTypography } from "@/lib/brand/projectBrandStore";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -196,12 +197,20 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
+    // ── Brand context confirmation prefix ─────────────────────────────────────
+    const { readProjectBrand: readProjBrand } = await import("@/lib/brand/projectBrandStore");
+    const activeBrand = readProjBrand(conversationId);
+    const brandConfirmation = activeBrand?.name
+      ? `Je réutilise la marque **${activeBrand.name}** approuvée. `
+      : "";
+
     // ── Intent detection: short-circuit pipeline for conversational messages ──
     if (!missionAction) {
       const intent = await detectIntent(prompt, conversationHistory).catch(() => "project_request" as Intent);
       if (intent === "conversation" || intent === "question") {
         const reply = await directCEOReply(prompt, conversationHistory);
-        persistCommandConversation(prompt, reply, { requestType: "conversation", intent });
+        const fullReply = brandConfirmation + reply;
+        persistCommandConversation(prompt, fullReply, { requestType: "conversation", intent });
         return NextResponse.json({
           ok: true,
           missionId: `conv-${Date.now().toString(36)}`,
@@ -210,8 +219,8 @@ export async function POST(req: NextRequest) {
           requestType: "conversation",
           deliverableType: "conversation",
           status: "completed",
-          summary: reply,
-          shortMessage: reply,
+          summary: fullReply,
+          shortMessage: fullReply,
           primaryVisual: null,
           primaryVisualPath: null,
           primaryArtifactId: null,
@@ -261,7 +270,7 @@ export async function POST(req: NextRequest) {
         : null;
 
     const ceoWorkflow = preliminaryWorkOrder.requestType !== "website" && !missionAction
-      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId, conversationContext, streamId)
+      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId, conversationContext, streamId, conversationId)
       : null;
 
     if (ceoWorkflow) {
@@ -295,6 +304,23 @@ export async function POST(req: NextRequest) {
           primaryArtifactId: ceoWorkflow.artifactId,
           primaryArtifactFingerprint: primaryArtifactFingerprint ?? undefined,
           status: "approved",
+        });
+      }
+
+      // Save brand memory after any graphic/logo deliverable
+      const isBrandingDeliverable = ceoWorkflow.workflowType === "graphic" || /logo|brand|marque|identit/i.test(prompt);
+      if (isBrandingDeliverable && ceoWorkflow.outputData) {
+        const colors = extractColors(ceoWorkflow.outputData);
+        const typography = extractTypography(ceoWorkflow.outputData);
+        saveProjectBrand(conversationId, {
+          name: preliminaryWorkOrder.brandName ?? title ?? "Marque",
+          colors,
+          typography,
+          tone: [],
+          logoArtifactId: ceoWorkflow.artifactId ?? null,
+          logoContent: isImageOutput ? null : ceoWorkflow.outputData?.slice(0, 3000) ?? null,
+          targetAudience: "",
+          positioning: "",
         });
       }
 

@@ -545,7 +545,12 @@ function MetricsBar({ nodes }: { nodes: Node<TaskNodeData>[] }) {
           <div style={{ fontSize: 13, fontWeight: 800, color: "#edf2fa", letterSpacing: "-0.3px" }}>
             AI Orchestration Graph
           </div>
-          <div style={{ fontSize: 10, color: "#46566e" }}>NVIDIA · factory_cycle · task dependencies</div>
+          <div style={{ fontSize: 10, color: "#46566e" }}>
+            NVIDIA · factory_cycle · task dependencies
+            <span style={{ marginLeft: 8, padding: "1px 7px", borderRadius: 99, background: "rgba(245,158,11,0.12)", color: "#f59e0b", fontSize: 9, fontWeight: 700, letterSpacing: "0.5px" }}>
+              SIMULATION
+            </span>
+          </div>
         </div>
       </div>
 

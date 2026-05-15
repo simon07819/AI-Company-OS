@@ -1,5 +1,6 @@
 import { buildCompanyMemoryContext } from "@/lib/memory/companyMemory";
 import { readBrandMemory } from "@/lib/brand/brandMemory";
+import { readProjectBrand, projectBrandContextBlock } from "@/lib/brand/projectBrandStore";
 import { listTraceableArtifacts } from "@/lib/providers/providerRegistry";
 import { runAssetsAgent } from "@/lib/agents/assets-agent/assetsAgent";
 import { isGraphicDesignerRequest, runGraphicDesignerAgent } from "@/lib/agents/graphic-designer/graphicDesignerAgent";
@@ -88,7 +89,7 @@ function timeline(agent: string, providerUsed: string, sourceType: string, durat
   ];
 }
 
-export async function runCeoWorkflow(command: string, inputMissionId?: string, conversationContext = "", streamId?: string) {
+export async function runCeoWorkflow(command: string, inputMissionId?: string, conversationContext = "", streamId?: string, conversationId?: string) {
   const type = detectCeoWorkflowType(command);
   if (type === "none" || type === "copywriting") return null;
   const id = inputMissionId ?? missionId();
@@ -96,8 +97,13 @@ export async function runCeoWorkflow(command: string, inputMissionId?: string, c
 
   // For code requests that reference branding/logo context, always inject the brand block
   const isBrandingFollowUp = type === "code" && /carte|logo|marque|brand|couleur|charte|visuel/i.test(command);
-  const brandBlock = isBrandingFollowUp ? buildBrandContextBlock() : "";
+  const globalBrandBlock = isBrandingFollowUp ? buildBrandContextBlock() : "";
 
+  // Inject per-project (per-conversation) brand memory if available
+  const projectBrand = conversationId ? readProjectBrand(conversationId) : null;
+  const projectBrandBlock = projectBrand ? projectBrandContextBlock(projectBrand) : "";
+
+  const brandBlock = [projectBrandBlock, globalBrandBlock].filter(Boolean).join("\n");
   const combinedMemory = [brandBlock, conversationContext, memory.summary].filter(Boolean).join("\n");
   const enrichedCommand = [combinedMemory, command].filter(Boolean).join("\n");
   const result = type === "graphic"
