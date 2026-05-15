@@ -489,6 +489,7 @@ export default function CEOCommandSurface() {
             turns={turns}
             loading={loading}
             pipelineStages={pipelineStages}
+            projectId={conversationId}
             onAddRequest={(req) => void submitCommand(req)}
             onCompare={(a, b) => setCompareIds([a, b])}
             onArchiveTurn={handlePanelArchive}

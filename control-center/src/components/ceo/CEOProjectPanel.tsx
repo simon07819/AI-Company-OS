@@ -55,14 +55,36 @@ interface PreviewTarget {
   result: CEOCurrentResult;
 }
 
-function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () => void }) {
+function PreviewModal({ target, onClose, projectId }: { target: PreviewTarget; onClose: () => void; projectId?: string }) {
   const { result, title, version } = target;
+  const [approved, setApproved] = useState(false);
+  const [approving, setApproving] = useState(false);
   const isWebsite = result.deliverableType === "website" || result.deliverableType === "landing_page";
   const isCode = result.deliverableType === "code" || result.sourceType === "codex_code" || result.sourceType === "nvidia_text";
   const isImage = Boolean(result.primaryVisual && /^data:image\//i.test(result.primaryVisual ?? ""));
   const isSvg = Boolean(result.primaryVisual && /<svg[\s>]/i.test(result.primaryVisual ?? "") && !isImage);
   const hasArtifact = Boolean(result.primaryArtifactId);
   const downloadHref = result.primaryArtifactId ? `/api/export/${result.primaryArtifactId}` : undefined;
+
+  const handleApprove = async () => {
+    if (approved || !result.primaryArtifactId) return;
+    setApproving(true);
+    try {
+      await fetch(`/api/deliverables/${result.primaryArtifactId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: projectId ?? "unknown",
+          title,
+          deliverableType: result.deliverableType ?? "unknown",
+          version,
+        }),
+      });
+      setApproved(true);
+    } finally {
+      setApproving(false);
+    }
+  };
 
   return (
     <div
@@ -79,6 +101,19 @@ function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () 
             <span className="ceo-preview-modal-version">v{version}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {approved ? (
+              <span className="ceo-approved-badge">✓ Approuvé</span>
+            ) : result.primaryArtifactId ? (
+              <button
+                type="button"
+                className="ceo-approve-btn"
+                onClick={handleApprove}
+                disabled={approving}
+                aria-label="Approuver ce livrable"
+              >
+                {approving ? "..." : "✓ Approuver"}
+              </button>
+            ) : null}
             {downloadHref && (
               <a
                 href={downloadHref}
@@ -145,9 +180,10 @@ function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () 
 
 export default function CEOProjectPanel({
   mission, result, turns, loading, pipelineStages = [],
-  onCompare, onArchiveTurn, onDeleteTurn,
-}: ProjectPanelProps) {
+  onCompare, onArchiveTurn, onDeleteTurn, projectId,
+}: ProjectPanelProps & { projectId?: string }) {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
+  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
 
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
 
@@ -192,7 +228,13 @@ export default function CEOProjectPanel({
 
   return (
     <>
-      {preview && <PreviewModal target={preview} onClose={() => setPreview(null)} />}
+      {preview && (
+        <PreviewModal
+          target={preview}
+          onClose={() => setPreview(null)}
+          projectId={projectId}
+        />
+      )}
       <section className="ceo-project-zone" aria-label="Projets">
         {canCompare && (
           <div className="ceo-project-compare-bar">
