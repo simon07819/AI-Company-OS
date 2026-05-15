@@ -126,19 +126,18 @@ function taskForAgent(agent: AgentDef, tasks: TaskWithProject[], index: number) 
 
 function initialRuntime(agent: AgentDef, index: number, tasks: TaskWithProject[]): AgentRuntime {
   const task = taskForAgent(agent, tasks, index);
-  const statuses: InferenceStatus[] = ["streaming", "inference", "queued", "idle", "retrying", "inference"];
   return {
-    status: statuses[index % statuses.length],
+    status: "idle",
     task: task.title,
     project: task.project,
     model: NVIDIA_MODELS[index % NVIDIA_MODELS.length],
-    latency: rand(580, 2100),
-    progress: rand(28, 92),
-    tokens: rand(900, 7400),
-    queue: rand(0, 5),
-    retries: index === 4 ? 1 : 0,
-    lastEvent: STREAM_LINES[index % STREAM_LINES.length],
-    elapsed: rand(7, 96),
+    latency: 0,
+    progress: 0,
+    tokens: 0,
+    queue: 0,
+    retries: 0,
+    lastEvent: "En attente d'une tâche",
+    elapsed: 0,
   };
 }
 
@@ -740,7 +739,7 @@ export default function RuntimePage() {
 
       <section className="runtime-top-grid">
         <MetricCard label="Active inferences" value={activeInferences} sub={`${runtimes.length} agents monitored`} icon={<Activity size={15} />} color="#76b900" />
-        <MetricCard label="Avg latency" value={`${avgLatency}ms`} sub="mock plus live events" icon={<Gauge size={15} />} color="#60a5fa" />
+        <MetricCard label="Avg latency" value={`${avgLatency}ms`} sub="données live" icon={<Gauge size={15} />} color="#60a5fa" />
         <MetricCard label="Requests/min" value={requestsPerMin} sub="rolling inference rate" icon={<BarChart3 size={15} />} color="#a78bfa" />
         <MetricCard label="Orchestration load" value={`${load}%`} sub={`${summary.queued} queued tasks`} icon={<Layers3 size={15} />} color="#f59e0b" />
         <MetricCard label="Active workers" value={status?.workers ?? activeInferences} sub="backend worker count" icon={<Server size={15} />} color="#34d399" />
@@ -795,12 +794,8 @@ export default function RuntimePage() {
           <div className="runtime-agent-grid-cards">
             {AGENTS.map((agent) => {
               const state = agentStates.find((s) => s.agentId === agent.id);
-              if (!state) return (
-                <div key={agent.id} className="runtime-agent-card" style={{ borderColor: `${agent.color}20`, opacity: 0.5 }}>
-                  <div className="runtime-agent-name">{agent.name}</div>
-                  <div className="runtime-agent-sub" style={{ marginTop: 6 }}>Loading...</div>
-                </div>
-              );
+              // Hide agents that are idle with no meaningful runtime data
+              if (!state || (state.status === "idle" && !state.currentTaskId)) return null;
               return (
                 <MissionControlCard
                   key={agent.id}
@@ -811,6 +806,16 @@ export default function RuntimePage() {
                 />
               );
             })}
+            {agentStates.length > 0 && agentStates.every((s) => s.status === "idle") && (
+              <div style={{ gridColumn: "1 / -1", padding: "20px 0", color: "var(--text-3)", fontSize: 12, textAlign: "center" }}>
+                Tous les agents sont en attente — aucune tâche active.
+              </div>
+            )}
+            {agentStates.length === 0 && (
+              <div style={{ gridColumn: "1 / -1", padding: "20px 0", color: "var(--text-3)", fontSize: 12, textAlign: "center" }}>
+                Aucun agent en cours — en attente de missions.
+              </div>
+            )}
           </div>
         </div>
 
@@ -873,15 +878,11 @@ export default function RuntimePage() {
                   </div>
                 </div>
               ))}
-              {tasks.length === 0 && TASK_FALLBACKS.slice(0, 5).map((task, i) => (
-                <div key={task} className="runtime-queue-item">
-                  <span>{i + 1}</span>
-                  <div>
-                    <strong>{task}</strong>
-                    <em>runtime mock · queued</em>
-                  </div>
+              {tasks.length === 0 && (
+                <div style={{ padding: "10px 0", color: "var(--text-3)", fontSize: 11, textAlign: "center" }}>
+                  Aucune tâche en queue
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </aside>

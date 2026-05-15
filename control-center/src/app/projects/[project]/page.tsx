@@ -6,6 +6,7 @@ import path from "path";
 import ProjectActions from "@/components/ProjectActions";
 import ProjectWorkspace from "@/components/projects/ProjectWorkspace";
 import { readGeneratedProject } from "@/lib/product-builder/workspace";
+import { listTraceableArtifacts } from "@/lib/providers/providerRegistry";
 
 const REPO_ROOT = path.resolve(process.cwd(), "..");
 
@@ -59,6 +60,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
       appName = pkg.name ?? null;
     } catch { /* ignore */ }
   }
+
+  // Find the latest artifact associated with this project
+  const artifacts = listTraceableArtifacts().filter((a) => a.projectId === projectName);
+  const latestArtifact = artifacts.at(-1) ?? null;
+  const versions = artifacts.filter((a) => a.type === "code" || a.sourceType === "nvidia_text");
 
   return (
     <main className="page">
@@ -154,6 +160,65 @@ export default async function ProjectPage({ params }: { params: Promise<{ projec
               </code>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Live preview + version list */}
+      {latestArtifact && (
+        <div className="section">
+          <div className="section-header">
+            <h2 style={{ margin: 0 }}>Aperçu du livrable</h2>
+            <div style={{ display: "flex", gap: 8 }}>
+              <a href={`/api/export/${latestArtifact.artifactId}`} download
+                style={{ fontSize: 12, color: "var(--accent-light)", textDecoration: "none" }}>
+                Télécharger
+              </a>
+              <a href={`/client/${latestArtifact.artifactId}`} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 12, color: "var(--accent-light)", textDecoration: "none" }}>
+                Portail client
+              </a>
+            </div>
+          </div>
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {(latestArtifact.type === "code" || latestArtifact.sourceType === "nvidia_text") ? (
+              <iframe
+                src={`/api/preview/${latestArtifact.artifactId}`}
+                style={{ width: "100%", height: 420, border: "none", background: "#09090b" }}
+                sandbox="allow-scripts"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                title={latestArtifact.title}
+              />
+            ) : latestArtifact.content?.trimStart().startsWith("<svg") ? (
+              <div
+                style={{ padding: 24, display: "flex", justifyContent: "center" }}
+                dangerouslySetInnerHTML={{ __html: latestArtifact.content }}
+              />
+            ) : (
+              <pre style={{ padding: 16, fontSize: 12, color: "var(--text-3)", overflow: "auto", margin: 0 }}>
+                {(latestArtifact.content ?? "").slice(0, 4000)}
+              </pre>
+            )}
+          </div>
+          {versions.length > 1 && (
+            <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {versions.map((v, i) => (
+                <a
+                  key={v.artifactId}
+                  href={`/api/preview/${v.artifactId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: "4px 10px", fontSize: 11, borderRadius: 6,
+                    border: "1px solid var(--border)", color: "var(--text-2)",
+                    textDecoration: "none",
+                  }}
+                >
+                  v{i + 1} — {new Date(v.createdAt).toLocaleDateString()}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
