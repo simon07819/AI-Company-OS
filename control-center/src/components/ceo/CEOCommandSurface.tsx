@@ -457,6 +457,7 @@ export default function CEOCommandSurface() {
             result={result}
             turns={turns}
             loading={loading}
+            pipelineStages={pipelineStages}
             onAddRequest={(req) => void submitCommand(req)}
             onCompare={(a, b) => setCompareIds([a, b])}
           />

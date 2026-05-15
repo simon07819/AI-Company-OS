@@ -5,19 +5,41 @@ import { Download, X } from "lucide-react";
 import type { CEOCurrentMission, CEOCurrentResult, CEOMissionStatus } from "./types";
 import CodePreviewFrame from "./CodePreviewFrame";
 
+interface PipelineStage {
+  stage: string;
+  status: "started" | "completed" | "failed";
+  data?: Record<string, unknown>;
+}
+
 interface ProjectPanelProps {
   mission: CEOCurrentMission | null;
   result: CEOCurrentResult | null;
   turns: Array<{ id: string; mission: CEOCurrentMission; result: CEOCurrentResult }>;
   loading: boolean;
+  pipelineStages?: PipelineStage[];
   onAddRequest: (prompt: string) => void;
   onCompare?: (idA: string, idB: string) => void;
 }
 
+const STAGE_LABELS: Record<string, string> = {
+  brand_strategist: "Brand Strategist",
+  art_director: "Art Director",
+  logo_designer: "Logo Designer",
+  graphic_designer: "Graphiste",
+  coder: "Développeur",
+  tech_selector: "Stack technique",
+  architect: "Architecture",
+  code_writer: "Génération code",
+  qa_reviewer: "Révision QA",
+  quality_director: "Directeur QA",
+  creative_director: "Directeur créatif",
+  done: "Terminé",
+};
+
 function statusBadge(s: CEOMissionStatus | undefined, active: boolean): { label: string; cls: string } {
   if (active) return { label: "En cours", cls: "running" };
   if (!s) return { label: "En attente", cls: "waiting" };
-  if (s === "completed" || s === "ready") return { label: "Terminé", cls: "done" };
+  if (s === "completed" || s === "ready") return { label: "Terminé ✓", cls: "done" };
   if (s === "error" || s === "failed" || s === "rejected") return { label: "Erreur", cls: "error" };
   if (s === "needs_revision" || s === "needs_action") return { label: "Révision", cls: "revision" };
   if (s === "production" || s === "running" || s === "planning" || s === "reviewing" || s === "queued") return { label: "En cours", cls: "running" };
@@ -104,7 +126,7 @@ function PreviewModal({ target, onClose }: { target: PreviewTarget; onClose: () 
   );
 }
 
-export default function CEOProjectPanel({ mission, result, turns, loading, onCompare }: ProjectPanelProps) {
+export default function CEOProjectPanel({ mission, result, turns, loading, pipelineStages = [], onCompare }: ProjectPanelProps) {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
 
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
@@ -146,6 +168,8 @@ export default function CEOProjectPanel({ mission, result, turns, loading, onCom
     });
   }
 
+  const visibleStages = pipelineStages.filter((s) => s.stage !== "done");
+
   return (
     <>
       {preview && <PreviewModal target={preview} onClose={() => setPreview(null)} />}
@@ -162,31 +186,56 @@ export default function CEOProjectPanel({ mission, result, turns, loading, onCom
         )}
         {rows.map((row) => {
           const { label } = statusBadge(row.status, row.active);
+          const isExpanded = row.active && visibleStages.length > 0;
           return (
-            <div key={row.id} className="ceo-project-card">
-              <span className="ceo-project-card-name">{row.name}</span>
-              <span className="ceo-project-card-version">v{row.version}</span>
-              <span className="ceo-project-card-steps" aria-hidden="true">
-                {Array.from({ length: 5 }, (_, i) => {
-                  const dotCls = i < row.dots
-                    ? (row.active && i === row.dots - 1 ? "ceo-step-running" : "ceo-step-done")
-                    : "ceo-step-waiting";
-                  return <span key={i} className={`ceo-step-dot ${dotCls}`} />;
-                })}
-              </span>
-              <span className="ceo-project-card-status">{label}</span>
-              <div className="ceo-project-card-actions">
-                <button
-                  className="ceo-project-card-action"
-                  title="Voir"
-                  onClick={() => openPreview(row)}
-                  disabled={row.active}
-                >
-                  👁
-                </button>
-                <button className="ceo-project-card-action" title="Archiver">🗄</button>
-                <button className="ceo-project-card-action" title="Supprimer">🗑</button>
+            <div key={row.id} className={`ceo-project-card${isExpanded ? " ceo-project-card-expanded" : ""}`}>
+              {/* Compact summary row — always visible */}
+              <div className="ceo-project-card-row">
+                <span className="ceo-project-card-name">{row.name}</span>
+                <span className="ceo-project-card-version">v{row.version}</span>
+                {!isExpanded && (
+                  <span className="ceo-project-card-steps" aria-hidden="true">
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const dotCls = i < row.dots
+                        ? (row.active && i === row.dots - 1 ? "ceo-step-running" : "ceo-step-done")
+                        : "ceo-step-waiting";
+                      return <span key={i} className={`ceo-step-dot ${dotCls}`} />;
+                    })}
+                  </span>
+                )}
+                <span className="ceo-project-card-status">{label}</span>
+                <div className="ceo-project-card-actions">
+                  <button
+                    className="ceo-project-card-action"
+                    title="Voir"
+                    onClick={() => openPreview(row)}
+                    disabled={row.active}
+                  >
+                    👁
+                  </button>
+                  <button className="ceo-project-card-action" title="Archiver">🗄</button>
+                  <button className="ceo-project-card-action" title="Supprimer">🗑</button>
+                </div>
               </div>
+
+              {/* Expanded step-by-step progress — only when pipeline is running */}
+              {isExpanded && (
+                <div className="ceo-project-steps-expanded" aria-label="Étapes du pipeline">
+                  {visibleStages.map((s) => (
+                    <div key={s.stage} className={`ceo-project-step ceo-project-step-${s.status}`}>
+                      <span className="ceo-project-step-icon" aria-hidden="true">
+                        {s.status === "completed" ? "✅" : s.status === "failed" ? "❌" : "⏳"}
+                      </span>
+                      <span className="ceo-project-step-label">
+                        {STAGE_LABELS[s.stage] ?? s.stage}
+                      </span>
+                      <span className="ceo-project-step-status">
+                        {s.status === "completed" ? "Complété" : s.status === "failed" ? "Erreur" : "En cours..."}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}

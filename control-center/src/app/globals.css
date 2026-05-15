@@ -8961,6 +8961,11 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   min-height: 36px;
 }
 
+/* Non-expanded: direct children are the row items */
+.ceo-project-card:not(.ceo-project-card-expanded) .ceo-project-card-row {
+  display: contents;
+}
+
 .ceo-project-card-name {
   font-weight: 500;
   color: var(--text-primary);
@@ -9032,6 +9037,45 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
 }
 
 .ceo-project-card-action:hover { color: var(--text-primary); background: var(--border); }
+
+/* Expanded card when pipeline is actively running */
+.ceo-project-card-expanded {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ceo-project-card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.ceo-project-steps-expanded {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0 2px 8px;
+  border-left: 1.5px solid var(--border);
+  margin-left: 6px;
+}
+
+.ceo-project-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.ceo-project-step-icon { font-size: 10px; width: 14px; text-align: center; flex-shrink: 0; }
+.ceo-project-step-label { flex: 1; color: var(--text-primary); }
+.ceo-project-step-status { color: var(--text-muted); font-size: 10px; flex-shrink: 0; }
+
+.ceo-project-step-completed .ceo-project-step-status { color: #22c55e; }
+.ceo-project-step-started .ceo-project-step-status { color: var(--accent); }
+.ceo-project-step-failed .ceo-project-step-status { color: #ef4444; }
 
 /* ── Other pages dark color overrides ───────────────────────────── */
 .platform-page {
