@@ -50,6 +50,9 @@ export function brandSummary(): string {
   if (b.industry) parts.push(`Secteur: ${b.industry}`);
   if (b.tagline) parts.push(`Tagline: ${b.tagline}`);
   if (b.tone) parts.push(`Ton: ${b.tone}`);
+  if (b.colors.length) parts.push(`Couleurs: ${b.colors.slice(0, 4).join(", ")}`);
+  if (b.typography.heading) parts.push(`Police titre: ${b.typography.heading}`);
+  if (b.typography.body) parts.push(`Police corps: ${b.typography.body}`);
   if (b.styleKeywords.length) parts.push(`Style retenu: ${b.styleKeywords.slice(0, 5).join(", ")}`);
   if (b.rejectedStyles.length) parts.push(`Styles refusés: ${b.rejectedStyles.slice(0, 3).join(", ")}`);
   return parts.join(" · ");

@@ -1,4 +1,6 @@
 import { buildCompanyMemoryContext } from "@/lib/memory/companyMemory";
+import { readBrandMemory } from "@/lib/brand/brandMemory";
+import { listTraceableArtifacts } from "@/lib/providers/providerRegistry";
 import { runAssetsAgent } from "@/lib/agents/assets-agent/assetsAgent";
 import { isGraphicDesignerRequest, runGraphicDesignerAgent } from "@/lib/agents/graphic-designer/graphicDesignerAgent";
 import { runCoderAgent } from "@/lib/agents/coder-agent/coderAgent";
@@ -11,11 +13,50 @@ function normalize(input: string) {
 
 export function detectCeoWorkflowType(command: string): CeoWorkflowType {
   const lower = normalize(command);
+  // Business card / follow-up branding print materials \u2192 HTML code
+  if (/carte\s*(d[''e]|de)\s*(affaire|visite|business)|business\s*card|carte\s*pro(fessionnelle)?|carte\s*de\s*visite/i.test(lower)) return "code";
   if (/\b(code|module|api|composant|component|typescript|react|fonction|endpoint)\b/.test(lower)) return "code";
   if (/\b(asset|assets|hero image|illustration site|image site|visuel site|image app|asset app)\b/.test(lower)) return "assets";
   if (isGraphicDesignerRequest(command)) return "graphic";
   if (/\b(copywriting|copy|texte|article|email|newsletter|slogan)\b/.test(lower)) return "copywriting";
   return "none";
+}
+
+function buildBrandContextBlock(): string {
+  const brand = readBrandMemory();
+  const allArtifacts = listTraceableArtifacts();
+
+  // Find latest logo artifact
+  const latestLogo = allArtifacts
+    .filter((a) => a.type === "logo" || /logo/i.test(a.title) || a.sourceType === "nvidia_image" || a.sourceType === "deepinfra_image")
+    .at(-1);
+
+  const lines: string[] = ["=== CONTEXTE DE MARQUE ACTIF ==="];
+  if (brand.name) lines.push(`Nom de la marque: ${brand.name} \u2014 NE JAMAIS utiliser un placeholder comme "ME" ou "LOGO"`);
+  if (brand.industry) lines.push(`Secteur: ${brand.industry}`);
+  if (brand.tagline) lines.push(`Tagline: ${brand.tagline}`);
+  if (brand.colors.length) lines.push(`Couleurs de la charte: ${brand.colors.join(", ")}`);
+  if (brand.typography.heading) lines.push(`Police titre: ${brand.typography.heading}`);
+  if (brand.typography.body) lines.push(`Police corps: ${brand.typography.body}`);
+  if (brand.tone) lines.push(`Ton: ${brand.tone}`);
+  if (brand.styleKeywords.length) lines.push(`Mots-cl\u00e9s style: ${brand.styleKeywords.join(", ")}`);
+
+  if (latestLogo) {
+    lines.push(`Logo approuv\u00e9: "${latestLogo.title}" (id: ${latestLogo.artifactId})`);
+    if (latestLogo.content) {
+      const isSvg = /<svg[\s>]/i.test(latestLogo.content);
+      const isDataUri = /^data:image\//i.test(latestLogo.content);
+      if (isSvg) {
+        lines.push(`SVG du logo (\u00e0 int\u00e9grer inline ou via <img>):\n${latestLogo.content.slice(0, 2000)}`);
+      } else if (isDataUri) {
+        lines.push(`Logo (data URI, \u00e0 utiliser dans <img src="...">): ${latestLogo.content.slice(0, 300)}...`);
+      }
+    }
+  }
+
+  lines.push("=== FIN CONTEXTE MARQUE ===");
+  lines.push("R\u00c8GLE ABSOLUE: utilise TOUJOURS le vrai nom de la marque ci-dessus dans le code. Jamais de placeholder g\u00e9n\u00e9rique.");
+  return lines.join("\n");
 }
 
 function missionId() {
@@ -52,7 +93,12 @@ export async function runCeoWorkflow(command: string, inputMissionId?: string, c
   if (type === "none" || type === "copywriting") return null;
   const id = inputMissionId ?? missionId();
   const memory = buildCompanyMemoryContext({ missionType: type, command });
-  const combinedMemory = [conversationContext, memory.summary].filter(Boolean).join("\n");
+
+  // For code requests that reference branding/logo context, always inject the brand block
+  const isBrandingFollowUp = type === "code" && /carte|logo|marque|brand|couleur|charte|visuel/i.test(command);
+  const brandBlock = isBrandingFollowUp ? buildBrandContextBlock() : "";
+
+  const combinedMemory = [brandBlock, conversationContext, memory.summary].filter(Boolean).join("\n");
   const enrichedCommand = [combinedMemory, command].filter(Boolean).join("\n");
   const result = type === "graphic"
     ? await runGraphicDesignerAgent(command, id, combinedMemory)

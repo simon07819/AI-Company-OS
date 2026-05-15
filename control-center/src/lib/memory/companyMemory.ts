@@ -127,8 +127,19 @@ export function buildCompanyMemoryContext(input: {
       ].filter(Boolean).join(" ");
     });
   const brand = brandSummary();
+
+  // Find latest approved logo artifact for follow-up branding requests
+  const allArtifacts = listTraceableArtifacts();
+  const latestLogo = allArtifacts
+    .filter((a) => a.type === "logo" || a.sourceType === "nvidia_image" || a.sourceType === "deepinfra_image" || /logo/i.test(a.title))
+    .at(-1);
+  const logoContext = latestLogo
+    ? `LOGO APPROUVÉ: id=${latestLogo.artifactId}, titre="${latestLogo.title}", provider=${latestLogo.providerUsed}${latestLogo.content && latestLogo.content.length < 2000 ? `, contenu=\n${latestLogo.content.slice(0, 1500)}` : ""}`
+    : "";
+
   const summary = [
     brand ? `MÉMOIRE MARQUE: ${brand}` : "",
+    logoContext,
     preferences.length ? `Préférences: ${summaryItems(preferences).join("; ")}` : "",
     avoidStyles.length ? `À éviter: ${summaryItems(avoidStyles).join("; ")}` : "",
     retainedBranding.length ? `Branding retenu: ${summaryItems(retainedBranding).join("; ")}` : "",
