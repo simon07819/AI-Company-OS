@@ -7,6 +7,7 @@ import CEOResultDetails from "./CEOResultDetails";
 import CodePreviewFrame from "./CodePreviewFrame";
 import LogoFinalAnswer from "./LogoFinalAnswer";
 import WebsitePreviewReply from "./WebsitePreviewReply";
+import { AuditPanel } from "./AuditPanel";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult } from "./types";
 
 type TeamContribution = {
@@ -210,6 +211,7 @@ function CEOResultMessage({
   onQuickPrompt: (prompt: string) => void;
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
   const hasArtifacts = result.artifactPaths.length > 0;
   const isWebsite = result.requestType === "website" || result.deliverableType === "website" || result.deliverableType === "landing_page";
   const isLogoDeliverable = !isWebsite && !isLogoSupportResult(result) && (result.deliverableType === "logo" || result.requestType === "logo" || /^Logo\s+/i.test(result.title));
@@ -296,16 +298,25 @@ function CEOResultMessage({
               <Download size={13} />
               Télécharger
             </a>
-            <a
+            <button
+              type="button"
               className="ceo-chat-action-link"
-              href="https://vercel.com/new"
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={() => setAuditOpen(true)}
             >
               <ExternalLink size={13} />
               Deploy Vercel
-            </a>
+            </button>
           </>
+        )}
+        {auditOpen && (
+          <AuditPanel
+            projectId={result.primaryArtifactId ?? result.artifactPaths[0] ?? "unknown"}
+            onClose={() => setAuditOpen(false)}
+            onProceed={() => {
+              setAuditOpen(false);
+              window.open("https://vercel.com/new", "_blank", "noopener,noreferrer");
+            }}
+          />
         )}
         {isNoProviderLogoResult(result) ? (
           <>
