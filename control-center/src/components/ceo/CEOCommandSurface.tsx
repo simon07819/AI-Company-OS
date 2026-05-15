@@ -102,6 +102,15 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
   };
 }
 
+const TEMPLATES = [
+  { label: "Composant React", prompt: "Crée un composant React TypeScript moderne avec Tailwind: une carte produit avec image, titre, prix et bouton d'achat." },
+  { label: "Landing page", prompt: "Crée une landing page complète pour une startup SaaS avec hero, features, pricing et CTA." },
+  { label: "Dashboard UI", prompt: "Crée un dashboard analytics React avec métriques clés, graphiques et tableau de données." },
+  { label: "Logo brief", prompt: "Prépare un brief créatif complet pour le logo d'une agence digitale premium appelée Lumina." },
+  { label: "Image hero", prompt: "Génère un visuel hero premium pour une marque de mode minimaliste haut de gamme." },
+  { label: "Brief stratégique", prompt: "Analyse et prépare un brief stratégique complet pour lancer une app mobile de fitness." },
+];
+
 interface PipelineStage {
   stage: string;
   status: "started" | "completed" | "failed";
@@ -300,6 +309,21 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           </header>
 
           <div className="ceo-zone-messages">
+            {!loading && !mission && turns.length === 0 && (
+              <div className="ceo-template-grid" aria-label="Suggestions de départ">
+                {TEMPLATES.map((t) => (
+                  <button
+                    key={t.label}
+                    className="ceo-template-card"
+                    onClick={() => submitCommand(t.prompt)}
+                    disabled={loading}
+                  >
+                    <span className="ceo-template-label">{t.label}</span>
+                    <span className="ceo-template-prompt">{t.prompt}</span>
+                  </button>
+                ))}
+              </div>
+            )}
             {loading && pipelineStages.length > 0 && (
               <div className="pipeline-progress" aria-live="polite" aria-label="Avancement pipeline">
                 {pipelineStages.filter((s) => s.stage !== "done").map((s) => (
