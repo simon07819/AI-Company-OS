@@ -5,6 +5,7 @@ export interface LlmRequest {
   system: string;
   user: string;
   purpose: string;
+  maxTokens?: number;
 }
 
 export interface LlmResponse {
@@ -40,6 +41,7 @@ async function callOpenAICompatibleText(
   model: string,
   system: string,
   user: string,
+  maxTokens = 1500,
 ): Promise<{ ok: boolean; text: string; error?: string }> {
   try {
     const endpoint = baseUrl.endsWith("/chat/completions")
@@ -59,7 +61,7 @@ async function callOpenAICompatibleText(
           { role: "user", content: user },
         ],
         temperature: 0.7,
-        max_tokens: 1500,
+        max_tokens: maxTokens,
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
@@ -143,6 +145,24 @@ async function tryNvidiaText(request: LlmRequest): Promise<LlmResponse | null> {
   }
 }
 
+// ─── Direct NVIDIA text (respects system prompt + maxTokens) ─────────────
+
+async function tryNvidiaTextDirect(request: LlmRequest): Promise<LlmResponse | null> {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey || apiKey.length < 8) return null;
+  const model = process.env.NVIDIA_MODEL ?? "nvidia/llama-3.1-nemotron-70b-instruct";
+  const result = await callOpenAICompatibleText(
+    "https://integrate.api.nvidia.com/v1/chat/completions",
+    apiKey,
+    model,
+    request.system,
+    request.user,
+    request.maxTokens ?? 1500,
+  );
+  if (!result.ok) return null;
+  return { ok: true, text: result.text, mode: "nvidia", warnings: [] };
+}
+
 // ─── DeepInfra text (OpenAI-compatible) ──────────────────────────────────
 
 function getDeepInfraTextModel(): string {
@@ -154,7 +174,7 @@ async function tryDeepInfraText(request: LlmRequest): Promise<LlmResponse | null
   const baseUrl = process.env.DEEPINFRA_BASE_URL;
   if (!apiKey || !baseUrl) return null;
   const model = getDeepInfraTextModel();
-  const result = await callOpenAICompatibleText(baseUrl, apiKey, model, request.system, request.user);
+  const result = await callOpenAICompatibleText(baseUrl, apiKey, model, request.system, request.user, request.maxTokens ?? 1500);
   if (!result.ok) return null;
   return { ok: true, text: result.text, mode: "deepinfra", warnings: [] };
 }
@@ -162,15 +182,20 @@ async function tryDeepInfraText(request: LlmRequest): Promise<LlmResponse | null
 // ─── Public API ───────────────────────────────────────────────────────────
 
 export async function generateWithLlm(request: LlmRequest): Promise<LlmResponse> {
-  // 1. Try NVIDIA text
+  // When maxTokens > 1500, use the direct path (adapter is capped at 1500 + conflates prompts)
+  if (request.maxTokens && request.maxTokens > 1500) {
+    const nvidiaResult = await tryNvidiaTextDirect(request);
+    if (nvidiaResult) return nvidiaResult;
+    const deepinfraResult = await tryDeepInfraText(request);
+    if (deepinfraResult) return deepinfraResult;
+    return prototypeResponse();
+  }
+
+  // Standard path: NVIDIA adapter → DeepInfra → prototype
   const nvidiaResult = await tryNvidiaText(request);
   if (nvidiaResult) return nvidiaResult;
-
-  // 2. Try DeepInfra text as fallback
   const deepinfraResult = await tryDeepInfraText(request);
   if (deepinfraResult) return deepinfraResult;
-
-  // 3. Prototype mode
   return prototypeResponse();
 }
 

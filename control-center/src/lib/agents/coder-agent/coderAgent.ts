@@ -1,6 +1,8 @@
 import { buildCompanyMemoryContext } from "@/lib/memory/companyMemory";
 import { createTraceableArtifact } from "@/lib/providers/providerRegistry";
+import { getActiveLlmProvider } from "@/lib/ai/llmClient";
 import { generateCodexCode } from "@/lib/providers/codexCodeProvider";
+import { runCodePipeline } from "./codePipeline";
 
 function qualityIssues(code?: string) {
   const issues: string[] = [];
@@ -12,11 +14,53 @@ function qualityIssues(code?: string) {
 export async function runCoderAgent(command: string, missionId: string) {
   const started = Date.now();
   const memory = buildCompanyMemoryContext({ missionType: "code", command });
-  let retries = 0;
+  const enrichedCommand = [memory.summary, command].filter(Boolean).join("\n");
+
+  // 4-stage pipeline when LLM provider is available
+  const provider = getActiveLlmProvider();
+  if (provider !== "prototype") {
+    const pipeline = await runCodePipeline(enrichedCommand);
+    if (pipeline) {
+      const artifact = createTraceableArtifact({
+        missionId,
+        type: "code",
+        title: `${pipeline.tech.framework} — ${command.slice(0, 60)}`,
+        sourceType: "nvidia_text",
+        providerUsed: pipeline.providerUsed,
+        content: pipeline.code,
+      });
+      return {
+        ok: true,
+        missionId,
+        agent: "coder-agent" as const,
+        status: (pipeline.qa.approved ? "completed" : "needs_revision") as "completed" | "needs_revision",
+        title: `${pipeline.tech.framework} composant`,
+        shortMessage: `${pipeline.tech.framework} · ${pipeline.tech.language} · ${pipeline.tech.styling} — score ${pipeline.qa.score}/100`,
+        providerUsed: pipeline.providerUsed,
+        sourceType: "nvidia_text" as const,
+        artifactId: artifact.artifactId,
+        outputData: pipeline.code,
+        durationMs: Date.now() - started,
+        expert: {
+          providerUsed: pipeline.providerUsed,
+          sourceType: "nvidia_text",
+          artifactId: artifact.artifactId,
+          durationMs: Date.now() - started,
+          retries: 0,
+          critiques: pipeline.qa.issues,
+          reviewer: pipeline.qa.approved ? "approved" : "needs_revision",
+          tech: pipeline.tech,
+          qa: pipeline.qa,
+          pipeline: pipeline.stages,
+        },
+      };
+    }
+  }
+
+  // Fallback: stub template
   let result = await generateCodexCode({ command: `${memory.summary}\n${command}`.trim() });
   let issues = qualityIssues(result.output);
   if (result.success && issues.length > 0) {
-    retries = 1;
     result = await generateCodexCode({ command: `${command}\nRetry: fix ${issues.join(", ")}` });
     issues = qualityIssues(result.output);
   }
@@ -26,15 +70,15 @@ export async function runCoderAgent(command: string, missionId: string) {
       ok: true,
       missionId,
       agent: "coder-agent" as const,
-      status: result.success ? "failed" as const : "needs_action" as const,
+      status: (result.success ? "failed" : "needs_action") as "failed" | "needs_action",
       title: "Agent Coder prêt",
-      shortMessage: result.error ?? "Agent Coder n’a pas produit de code validé.",
+      shortMessage: result.error ?? "Agent Coder n'a pas produit de code validé.",
       providerUsed: result.providerUsed,
       sourceType: result.sourceType,
       artifactId: null,
       outputData: null,
       durationMs: Date.now() - started,
-      expert: { providerUsed: result.providerUsed, sourceType: result.sourceType, artifactId: null, durationMs: Date.now() - started, retries, critiques: issues, reviewer: issues.length ? "failed" : "needs_configuration" },
+      expert: { providerUsed: result.providerUsed, sourceType: result.sourceType, artifactId: null, durationMs: Date.now() - started, retries: 1, critiques: issues, reviewer: issues.length ? "failed" : "needs_configuration" },
     };
   }
 
@@ -54,10 +98,10 @@ export async function runCoderAgent(command: string, missionId: string) {
     title: "Code final",
     shortMessage: "Voici votre code final.",
     providerUsed: "codex_personal",
-    sourceType: "codex_code",
+    sourceType: "codex_code" as const,
     artifactId: artifact.artifactId,
     outputData: result.output,
     durationMs: Date.now() - started,
-    expert: { providerUsed: "codex_personal", sourceType: "codex_code", artifactId: artifact.artifactId, durationMs: Date.now() - started, retries, critiques: [], reviewer: "approved" },
+    expert: { providerUsed: "codex_personal", sourceType: "codex_code", artifactId: artifact.artifactId, durationMs: Date.now() - started, retries: 0, critiques: [], reviewer: "approved" },
   };
 }
