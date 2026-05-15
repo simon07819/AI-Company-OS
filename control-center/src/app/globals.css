@@ -7505,6 +7505,103 @@ html[data-theme="dark"] .ceo-os-result-details {
 }
 .ceo-pr-compare-btn:hover { background: rgba(59, 130, 246, 0.2); }
 
+/* ── Client portal ──────────────────────────────────────────── */
+.client-portal {
+  min-height: 100vh;
+  background: #09090b;
+  color: #f4f4f5;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 24px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.client-portal-header {
+  margin-bottom: 28px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding-bottom: 20px;
+}
+
+.client-portal-brand {
+  font-size: 11px;
+  font-weight: 700;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 10px;
+}
+
+.client-portal-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.client-portal-meta {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.client-portal-body {
+  flex: 1;
+}
+
+.client-portal-iframe {
+  width: 100%;
+  height: 540px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  background: #09090b;
+}
+
+.client-artifact-svg {
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.client-artifact-svg svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.client-artifact-code {
+  background: rgba(24,24,27,0.8);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 20px;
+  font-size: 12px;
+  font-family: "Fira Code", Consolas, monospace;
+  overflow-x: auto;
+  color: #a1a1aa;
+}
+
+.client-portal-empty {
+  color: #71717a;
+  font-size: 14px;
+  padding: 32px 0;
+}
+
+.client-portal-footer {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.client-portal-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: rgba(59,130,246,0.12);
+  border: 1px solid rgba(59,130,246,0.3);
+  border-radius: 8px;
+  color: #60a5fa;
+  font-size: 13px;
+  text-decoration: none;
+}
+.client-portal-download:hover { background: rgba(59,130,246,0.2); }
+
 /* ── Topbar action buttons ──────────────────────────────────── */
 .topbar-action-btn {
   height: 34px;
