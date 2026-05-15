@@ -7,6 +7,7 @@ import CEOProjectPanel from "./CEOProjectPanel";
 import CEOResultStage from "./CEOResultStage";
 import CodePreviewFrame from "./CodePreviewFrame";
 import { attachmentPayload } from "./attachments";
+import BriefModal, { type BriefType } from "./BriefModal";
 import type { CEOMemoryAction, CEOMissionAction, ChatAttachment, CEOCurrentMission, CEOCurrentResult, CEORequestType } from "./types";
 
 interface CommandResponse {
@@ -104,12 +105,12 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
 
 const STORAGE_KEY = "ceo_active_session";
 
-const TEMPLATES = [
-  { label: "🎨 Logo & Branding",  prompt: "Crée un logo et une identité de marque complète pour une agence créative premium." },
-  { label: "🌐 Site web",          prompt: "Crée une landing page complète pour une startup SaaS avec hero, features, pricing et CTA." },
-  { label: "📱 App mobile",        prompt: "Conçois l'UI d'une app mobile de fitness avec dashboard, programme et tracking." },
+const TEMPLATES: Array<{ label: string; prompt: string; briefType?: BriefType }> = [
+  { label: "🎨 Logo & Branding",  prompt: "", briefType: "branding" },
+  { label: "🌐 Site web",          prompt: "", briefType: "website" },
+  { label: "📱 App mobile",        prompt: "", briefType: "app" },
   { label: "💼 Carte d'affaire",   prompt: "Crée une carte d'affaire HTML professionnelle pour une agence de design." },
-  { label: "📦 Kit SaaS",          prompt: "Génère un dashboard SaaS complet avec sidebar, métriques, tableaux et graphiques." },
+  { label: "📦 Kit SaaS",          prompt: "", briefType: "website" },
   { label: "📣 Réseaux sociaux",   prompt: "Crée un kit de visuels pour réseaux sociaux: post Instagram, cover LinkedIn, stories." },
   { label: "⚡ Demande libre",      prompt: "" },
 ];
@@ -142,6 +143,7 @@ export default function CEOCommandSurface() {
   const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
   const sseRef = useRef<EventSource | null>(null);
   const [compareIds, setCompareIds] = useState<[string, string] | null>(null);
+  const [briefModal, setBriefModal] = useState<{ type: BriefType; prompt: string } | null>(null);
 
   // Restore previous session from localStorage on mount
   useEffect(() => {
@@ -413,7 +415,11 @@ export default function CEOCommandSurface() {
                     key={t.label}
                     className="ceo-starter-card"
                     onClick={() => {
-                      if (t.prompt) void submitCommand(t.prompt);
+                      if (t.briefType) {
+                        setBriefModal({ type: t.briefType, prompt: t.prompt });
+                      } else if (t.prompt) {
+                        void submitCommand(t.prompt);
+                      }
                     }}
                     disabled={loading}
                   >
@@ -559,6 +565,14 @@ export default function CEOCommandSurface() {
           </div>
         );
       })()}
+      {/* Brief modal — structured form before pipeline launch */}
+      {briefModal && (
+        <BriefModal
+          initialType={briefModal.type}
+          onSubmit={(prompt) => { void submitCommand(prompt); }}
+          onClose={() => setBriefModal(null)}
+        />
+      )}
     </main>
   );
 }
