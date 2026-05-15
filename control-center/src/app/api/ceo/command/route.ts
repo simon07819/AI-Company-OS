@@ -35,9 +35,55 @@ import {
   websiteArtifactProviderResult,
 } from "@/lib/providers/providerRegistry";
 import { getNvidiaImageDiagnostics } from "@/lib/providers/nvidiaImageProvider";
+import { generateWithLlm } from "@/lib/ai/llmClient";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+
+// ─── Intent detection helpers ─────────────────────────────────────────────────
+
+const OBVIOUS_PROJECT_RE = /logo|site\s*web|landing|website|carte\s*d[''e]\s*affaire|branding|identit[eé]|marque|saas|dashboard|design|application|prototype|visuel|infographie|banner|affiche|packaging/i;
+
+type Intent = "conversation" | "question" | "project_correction" | "project_request";
+
+async function detectIntent(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+): Promise<Intent> {
+  if (OBVIOUS_PROJECT_RE.test(message)) return "project_request";
+  const historyText = history.slice(-4).map((m) => `${m.role}: ${m.content}`).join("\n");
+  const result = await generateWithLlm({
+    purpose: "intent_detection",
+    system: "You are an intent classifier. Respond with ONLY one word from this list: conversation, question, project_correction, project_request.",
+    user: `Classify the intent of this message.\nConversation history:\n${historyText || "(none)"}\n\nNew message: "${message}"\n\nRespond with ONLY ONE WORD: conversation | question | project_correction | project_request`,
+    maxTokens: 12,
+  });
+  const text = result.text.trim().toLowerCase().split(/\W/)[0] ?? "";
+  if (text === "project_correction") return "project_correction";
+  if (text === "project_request") return "project_request";
+  if (text === "question") return "question";
+  if (text === "conversation") return "conversation";
+  return "project_request";
+}
+
+async function directCEOReply(
+  message: string,
+  history: Array<{ role: string; content: string }>,
+): Promise<string> {
+  const historyText = history.slice(-6).map((m) => `${m.role === "user" ? "User" : "CEO"}: ${m.content}`).join("\n");
+  const result = await generateWithLlm({
+    purpose: "ceo_conversation",
+    system: `You are the CEO of a professional AI creative agency called AI Agency OS.
+You are helpful, direct, and knowledgeable about design, branding, marketing, and technology.
+Respond in the same language the user writes in (French if they write French).
+Be conversational and friendly — not just a task executor.
+When asked for opinions, give real ones. When asked about capabilities, explain clearly.
+Keep responses concise: 2-4 sentences for casual chat, more detail for real questions.`,
+    user: historyText ? `${historyText}\nUser: ${message}` : message,
+    maxTokens: 400,
+  });
+  return result.text.trim() || "Je suis là pour vous aider. Dites-moi ce que vous voulez créer.";
+}
 
 function artifactExists(artifactPath: string) {
   const absolute = path.isAbsolute(artifactPath) ? artifactPath : path.resolve(process.cwd(), artifactPath);
@@ -148,6 +194,45 @@ export async function POST(req: NextRequest) {
         artifactPaths: [],
         artifacts: [],
       }, { status: 400 });
+    }
+
+    // ── Intent detection: short-circuit pipeline for conversational messages ──
+    if (!missionAction) {
+      const intent = await detectIntent(prompt, conversationHistory).catch(() => "project_request" as Intent);
+      if (intent === "conversation" || intent === "question") {
+        const reply = await directCEOReply(prompt, conversationHistory);
+        persistCommandConversation(prompt, reply, { requestType: "conversation", intent });
+        return NextResponse.json({
+          ok: true,
+          missionId: `conv-${Date.now().toString(36)}`,
+          projectId: null,
+          title: "CEO",
+          requestType: "conversation",
+          deliverableType: "conversation",
+          status: "completed",
+          summary: reply,
+          shortMessage: reply,
+          primaryVisual: null,
+          primaryVisualPath: null,
+          primaryArtifactId: null,
+          primaryArtifactFingerprint: null,
+          artifactPaths: [],
+          artifacts: [],
+          missingArtifacts: [],
+          workspaceHref: null,
+          sourceType: "none",
+          providerUsed: "none",
+          limitations: [],
+          launchInstructions: [],
+          expert: {
+            productionStatus: "direct_ceo_conversation",
+            provider: "nvidia",
+            diagnostic: { intent, route: "POST /api/ceo/command" },
+            runtime: null,
+            inputAttachments: attachments,
+          },
+        });
+      }
     }
 
     const memoryStore = createMissionMemoryStore({ conversationId });
