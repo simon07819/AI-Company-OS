@@ -7516,6 +7516,26 @@ html[data-theme="dark"] .ceo-os-result-details {
   font-weight: 600;
   color: #71717a;
   border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ceo-compare-score {
+  font-size: 10px;
+  background: rgba(79, 142, 247, 0.15);
+  color: #4f8ef7;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.ceo-compare-actions {
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .ceo-compare-code {

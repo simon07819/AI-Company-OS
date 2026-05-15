@@ -503,27 +503,58 @@ export default function CEOCommandSurface() {
         const a = turns.find((t) => t.id === compareIds[0]);
         const b = turns.find((t) => t.id === compareIds[1]);
         if (!a || !b) return null;
+        const aIdx = turns.indexOf(a);
+        const bIdx = turns.indexOf(b);
+        const ComparePane = ({ turn, idx }: { turn: typeof a; idx: number }) => {
+          const [approved, setApproved] = useState(false);
+          const isImg = Boolean(turn.result.primaryVisual && /^data:image\//i.test(turn.result.primaryVisual ?? ""));
+          const isSvg = Boolean(turn.result.primaryVisual && /<svg[\s>]/i.test(turn.result.primaryVisual ?? "") && !isImg);
+          const isWebsite = turn.result.deliverableType === "website" || turn.result.deliverableType === "landing_page";
+          const handleApprove = async () => {
+            if (!turn.result.primaryArtifactId) return;
+            await fetch(`/api/deliverables/${turn.result.primaryArtifactId}/approve`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ projectId: conversationId, title: turn.result.title, deliverableType: turn.result.deliverableType, version: idx + 1 }),
+            });
+            setApproved(true);
+          };
+          return (
+            <div className="ceo-compare-pane">
+              <div className="ceo-compare-label">
+                <span>v{idx + 1} — {turn.result.brandName || turn.result.title}</span>
+                {turn.result.qualityScore != null && (
+                  <span className="ceo-compare-score">QA {turn.result.qualityScore}</span>
+                )}
+              </div>
+              {isWebsite && turn.result.primaryArtifactId
+                ? <iframe src={`/api/preview/${turn.result.primaryArtifactId}`} title={turn.result.title} style={{ width: "100%", height: 340, border: "none" }} />
+                : isImg
+                  ? <img src={turn.result.primaryVisual ?? ""} alt={turn.result.title} style={{ maxWidth: "100%", maxHeight: 340, objectFit: "contain", display: "block", margin: "0 auto" }} />
+                  : isSvg
+                    ? <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 340 }} dangerouslySetInnerHTML={{ __html: turn.result.primaryVisual ?? "" }} />
+                    : turn.result.primaryArtifactId
+                      ? <CodePreviewFrame artifactId={turn.result.primaryArtifactId} code={turn.result.summary} title={turn.result.title} />
+                      : <pre className="ceo-compare-code"><code>{turn.result.summary?.slice(0, 600)}</code></pre>
+              }
+              <div className="ceo-compare-actions">
+                {approved
+                  ? <span className="ceo-approved-badge">✓ Approuvé</span>
+                  : <button className="ceo-approve-btn" onClick={handleApprove} disabled={!turn.result.primaryArtifactId}>✓ Approuver v{idx + 1}</button>
+                }
+              </div>
+            </div>
+          );
+        };
         return (
           <div className="ceo-compare-overlay" role="dialog" aria-label="Comparaison de versions">
             <div className="ceo-compare-header">
-              <span>Comparaison côte à côte</span>
+              <span>Comparaison côte à côte — {turns.length} version{turns.length > 1 ? "s" : ""}</span>
               <button onClick={() => setCompareIds(null)} className="ceo-compare-close">✕</button>
             </div>
             <div className="ceo-compare-grid">
-              <div className="ceo-compare-pane">
-                <div className="ceo-compare-label">{a.result.title}</div>
-                {a.result.primaryArtifactId
-                  ? <CodePreviewFrame artifactId={a.result.primaryArtifactId} code={a.result.summary} title={a.result.title} />
-                  : <pre className="ceo-compare-code"><code>{a.result.summary}</code></pre>
-                }
-              </div>
-              <div className="ceo-compare-pane">
-                <div className="ceo-compare-label">{b.result.title}</div>
-                {b.result.primaryArtifactId
-                  ? <CodePreviewFrame artifactId={b.result.primaryArtifactId} code={b.result.summary} title={b.result.title} />
-                  : <pre className="ceo-compare-code"><code>{b.result.summary}</code></pre>
-                }
-              </div>
+              <ComparePane turn={a} idx={aIdx} />
+              <ComparePane turn={b} idx={bIdx} />
             </div>
           </div>
         );
