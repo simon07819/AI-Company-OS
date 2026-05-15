@@ -7254,6 +7254,49 @@ html[data-theme="dark"] .ceo-os-result-details {
   background: transparent;
 }
 
+/* ── Topbar action buttons ──────────────────────────────────── */
+.topbar-action-btn {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #0f0f0f;
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.topbar-action-btn:hover:not(:disabled) {
+  color: #fafafa;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.topbar-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topbar-action-btn.topbar-action-primary {
+  background: #111827;
+  border-color: rgba(79, 142, 247, 0.3);
+  color: #4f8ef7;
+}
+
+.topbar-action-btn.topbar-action-primary:hover {
+  background: #1a2540;
+  border-color: rgba(79, 142, 247, 0.5);
+  color: #7ab0ff;
+}
+
+@media (max-width: 640px) {
+  .topbar-action-btn { display: none; }
+}
+
 .platform-page {
   width: min(100%, 1120px);
   margin: 0 auto;
