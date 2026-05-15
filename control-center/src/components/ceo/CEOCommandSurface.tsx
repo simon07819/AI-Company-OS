@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import AttachmentDropzone from "./AttachmentDropzone";
 import CEOCommandComposer from "./CEOCommandComposer";
 import CEOProjectPanel from "./CEOProjectPanel";
@@ -101,6 +101,20 @@ function resultFromCommand(prompt: string, payload: CommandResponse): CEOCurrent
   };
 }
 
+interface PipelineStage {
+  stage: string;
+  status: "started" | "completed" | "failed";
+  data?: Record<string, unknown>;
+}
+
+const STAGE_LABELS: Record<string, string> = {
+  tech_selector: "Stack technique",
+  architect: "Architecture",
+  code_writer: "Génération du code",
+  qa_reviewer: "Révision QA",
+  done: "Terminé",
+};
+
 export default function CEOCommandSurface({ expertMode = false }: { expertMode?: boolean }) {
   const isExpert = expertMode;
   const [mission, setMission] = useState<CEOCurrentMission | null>(null);
@@ -112,6 +126,12 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memoryNotice, setMemoryNotice] = useState<string | null>(null);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>([]);
+  const sseRef = useRef<EventSource | null>(null);
+
+  useEffect(() => {
+    return () => { sseRef.current?.close(); };
+  }, []);
 
   const handleFileUpload = (file: File) => {
     setDroppedFiles((current) => [...current, file]);
@@ -145,11 +165,36 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
       createdAt: new Date().toISOString(),
       artifactCount: 0,
     };
+    const streamId = `stream-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
     setPendingAttachments(attachments);
+    setPipelineStages([]);
     setLoading(true);
     setError(null);
     setMission(pendingMission);
     setResult(null);
+
+    // Open SSE before POST so we catch all stage events
+    sseRef.current?.close();
+    const sse = new EventSource(`/api/stream/${streamId}`);
+    sseRef.current = sse;
+    sse.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data) as PipelineStage;
+        setPipelineStages((prev) => {
+          const idx = prev.findIndex((s) => s.stage === event.stage);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = event;
+            return next;
+          }
+          return [...prev, event];
+        });
+      } catch {}
+    };
+    sse.onerror = () => sse.close();
+
+    // Give SSE 200ms to connect before the POST fires
+    await new Promise<void>((resolve) => setTimeout(resolve, 200));
 
     try {
       const response = await fetch("/api/ceo/command", {
@@ -160,6 +205,7 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           displayPrompt: prompt,
           expertMode: isExpert,
           conversationId,
+          streamId,
           action,
           attachments: attachments.map(attachmentPayload),
           conversationHistory,
@@ -206,6 +252,9 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
     } finally {
       setLoading(false);
       setPendingAttachments([]);
+      sseRef.current?.close();
+      sseRef.current = null;
+      setPipelineStages([]);
     }
   };
 
@@ -249,6 +298,24 @@ export default function CEOCommandSurface({ expertMode = false }: { expertMode?:
           </header>
 
           <div className="ceo-zone-messages">
+            {loading && pipelineStages.length > 0 && (
+              <div className="pipeline-progress" aria-live="polite" aria-label="Avancement pipeline">
+                {pipelineStages.filter((s) => s.stage !== "done").map((s) => (
+                  <div key={s.stage} className={`pipeline-stage pipeline-stage-${s.status}`}>
+                    <span className="pipeline-stage-icon" aria-hidden="true">
+                      {s.status === "completed" ? "✓" : s.status === "failed" ? "✗" : "◌"}
+                    </span>
+                    <span className="pipeline-stage-label">{STAGE_LABELS[s.stage] ?? s.stage}</span>
+                    {s.status === "completed" && typeof s.data?.framework === "string" && (
+                      <span className="pipeline-stage-meta">{s.data.framework}</span>
+                    )}
+                    {s.status === "completed" && typeof s.data?.score === "number" && (
+                      <span className="pipeline-stage-meta">score {s.data.score}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             <CEOResultStage
               result={result}
               mission={mission}

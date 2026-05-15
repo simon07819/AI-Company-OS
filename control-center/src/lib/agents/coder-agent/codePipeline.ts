@@ -1,4 +1,5 @@
 import { generateWithLlm } from "@/lib/ai/llmClient";
+import { emitPipelineEvent } from "@/lib/pipeline/pipelineEventBus";
 
 export interface TechSelection {
   framework: string;
@@ -100,22 +101,38 @@ export async function runQAReviewer(code: string, command: string): Promise<QARe
   return parseJsonSafe(result.text, DEFAULT_QA);
 }
 
-export async function runCodePipeline(command: string): Promise<PipelineResult | null> {
+export async function runCodePipeline(command: string, streamId?: string): Promise<PipelineResult | null> {
   const started = Date.now();
   const stages: string[] = [];
+  const emit = (stage: string, status: "started" | "completed" | "failed", data?: Record<string, unknown>) => {
+    if (streamId) emitPipelineEvent(streamId, { stage, status, data, ts: Date.now() });
+  };
 
+  emit("tech_selector", "started");
   stages.push("tech_selector");
   const tech = await runTechSelector(command);
+  emit("tech_selector", "completed", { framework: tech.framework, language: tech.language });
 
+  emit("architect", "started");
   stages.push("architect");
   const arch = await runArchitect(command, tech);
+  emit("architect", "completed");
 
+  emit("code_writer", "started");
   stages.push("code_writer");
   const code = await runCodeWriter(command, tech, arch);
-  if (!code) return null;
+  if (!code) {
+    emit("code_writer", "failed");
+    emit("done", "failed");
+    return null;
+  }
+  emit("code_writer", "completed");
 
+  emit("qa_reviewer", "started");
   stages.push("qa_reviewer");
   const qa = await runQAReviewer(code, command);
+  emit("qa_reviewer", "completed", { score: qa.score, approved: qa.approved });
 
+  emit("done", "completed");
   return { code, tech, arch, qa, providerUsed: "nvidia", durationMs: Date.now() - started, stages };
 }

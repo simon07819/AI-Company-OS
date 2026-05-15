@@ -11,7 +11,7 @@ function qualityIssues(code?: string) {
   return issues;
 }
 
-export async function runCoderAgent(command: string, missionId: string) {
+export async function runCoderAgent(command: string, missionId: string, streamId?: string) {
   const started = Date.now();
   const memory = buildCompanyMemoryContext({ missionType: "code", command });
   const enrichedCommand = [memory.summary, command].filter(Boolean).join("\n");
@@ -19,7 +19,7 @@ export async function runCoderAgent(command: string, missionId: string) {
   // 4-stage pipeline when LLM provider is available
   const provider = getActiveLlmProvider();
   if (provider !== "prototype") {
-    const pipeline = await runCodePipeline(enrichedCommand);
+    const pipeline = await runCodePipeline(enrichedCommand, streamId);
     if (pipeline) {
       const artifact = createTraceableArtifact({
         missionId,

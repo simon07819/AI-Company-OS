@@ -138,6 +138,8 @@ export async function POST(req: NextRequest) {
       ? `HISTORIQUE:\n${conversationHistory.map((m) => (m.role === "user" ? `User: ${m.content}` : `CEO: ${m.content}`)).join("\n")}\n\n`
       : "";
 
+    const streamId = typeof body.streamId === "string" && body.streamId.trim() ? body.streamId.trim() : undefined;
+
     if (!prompt) {
       return NextResponse.json({
         ok: false,
@@ -174,7 +176,7 @@ export async function POST(req: NextRequest) {
         : null;
 
     const ceoWorkflow = preliminaryWorkOrder.requestType !== "website" && !missionAction
-      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId, conversationContext)
+      ? await runCeoWorkflow(prompt, preliminaryWorkOrder.missionId, conversationContext, streamId)
       : null;
 
     if (ceoWorkflow) {

@@ -7344,6 +7344,68 @@ html[data-theme="dark"] .ceo-os-result-details {
   overflow-x: auto;
 }
 
+/* ── Pipeline SSE progress ─────────────────────────────────────────────── */
+.pipeline-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  margin: 8px 16px;
+  background: rgba(24, 24, 27, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.pipeline-stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #71717a;
+  line-height: 1.4;
+}
+
+.pipeline-stage-icon {
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.pipeline-stage-label {
+  flex: 1;
+}
+
+.pipeline-stage-meta {
+  font-size: 11px;
+  color: #52525b;
+}
+
+.pipeline-stage-started .pipeline-stage-icon {
+  color: #3b82f6;
+  animation: pipeline-spin 1.2s linear infinite;
+}
+
+.pipeline-stage-started .pipeline-stage-label {
+  color: #a1a1aa;
+}
+
+.pipeline-stage-completed .pipeline-stage-icon {
+  color: #22c55e;
+}
+
+.pipeline-stage-completed .pipeline-stage-label {
+  color: #d4d4d8;
+}
+
+.pipeline-stage-failed .pipeline-stage-icon {
+  color: #ef4444;
+}
+
+@keyframes pipeline-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ── Topbar action buttons ──────────────────────────────────── */
 .topbar-action-btn {
   height: 34px;

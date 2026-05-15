@@ -47,7 +47,7 @@ function timeline(agent: string, providerUsed: string, sourceType: string, durat
   ];
 }
 
-export async function runCeoWorkflow(command: string, inputMissionId?: string, conversationContext = "") {
+export async function runCeoWorkflow(command: string, inputMissionId?: string, conversationContext = "", streamId?: string) {
   const type = detectCeoWorkflowType(command);
   if (type === "none" || type === "copywriting") return null;
   const id = inputMissionId ?? missionId();
@@ -58,7 +58,7 @@ export async function runCeoWorkflow(command: string, inputMissionId?: string, c
     ? await runGraphicDesignerAgent(command, id, combinedMemory)
     : type === "assets"
       ? await runAssetsAgent(enrichedCommand, id)
-      : await runCoderAgent(enrichedCommand, id);
+      : await runCoderAgent(enrichedCommand, id, streamId);
   const agency = "agency" in result.expert ? result.expert.agency : undefined;
   const runtime = {
     missionId: result.missionId,
