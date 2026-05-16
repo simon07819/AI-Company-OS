@@ -5,24 +5,16 @@ import { requireUser } from "@/lib/auth/serverAuth";
 
 export const dynamic = "force-dynamic";
 
-const ALLOWED_MIME_PREFIXES = ["image/", "video/"];
+const ALLOWED_MIME_PREFIXES = ["image/"];
 const ALLOWED_MIME_EXACT = new Set([
   "application/pdf",
   "text/plain",
   "text/markdown",
   "application/json",
   "text/csv",
-  "text/html",
-  "text/css",
-  "text/javascript",
-  "application/javascript",
-  "application/zip",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "mp4", "mov", "webm", "pdf", "txt", "md", "doc", "docx", "xls", "xlsx", "csv", "json", "zip", "js", "ts", "tsx", "jsx", "py", "html", "css"]);
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif", "pdf", "txt", "md", "csv", "json"]);
+const BLOCKED_EXTENSIONS = new Set(["html", "htm", "js", "mjs", "cjs", "ts", "tsx", "jsx", "css", "svg", "zip", "doc", "docx", "xls", "xlsx", "exe", "sh"]);
 const MAX_SIZE = 25 * 1024 * 1024;
 
 function extensionFromName(name: string) {
@@ -30,9 +22,11 @@ function extensionFromName(name: string) {
 }
 
 function isAllowed(file: File): boolean {
+  const extension = extensionFromName(file.name);
+  if (BLOCKED_EXTENSIONS.has(extension)) return false;
   return ALLOWED_MIME_PREFIXES.some((p) => file.type.startsWith(p))
     || ALLOWED_MIME_EXACT.has(file.type)
-    || ALLOWED_EXTENSIONS.has(extensionFromName(file.name));
+    || ALLOWED_EXTENSIONS.has(extension);
 }
 
 export async function POST(req: NextRequest) {

@@ -146,10 +146,10 @@ export function AuditPanel({ projectId, onClose, onProceed }: AuditPanelProps) {
         {state === "idle" && (
           <div className="audit-panel-body audit-panel-idle">
             <p style={{ color: "#a1a1aa", fontSize: 13, marginBottom: 16 }}>
-              L'audit analyse votre projet pour détecter les problèmes de sécurité, de légalité et de configuration avant le déploiement.
+              L&apos;audit analyse votre projet pour détecter les problèmes de sécurité, de légalité et de configuration avant le déploiement.
             </p>
             <button type="button" className="audit-run-btn" onClick={() => void runAudit()}>
-              Lancer l'audit
+              Lancer l&apos;audit
             </button>
           </div>
         )}

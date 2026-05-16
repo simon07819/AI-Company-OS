@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import { createWorkspaceForSession, updateWorkspaceAfterStep, generateAgentArtifact, generateProjectScaffold, projectScaffoldExists, writeAgentRun } from "./workspaceStore";
 import { runNvidiaAdapter } from "./nvidiaAgentAdapter";
 import { reviewDeliverables } from "./deliverableReview";
@@ -9,6 +7,8 @@ import { updateAgentState } from "./agentRuntime";
 import { emitEvent } from "./runtimeEvents";
 import { ensureFallbackVisibleOutput, getOutputCountForSession } from "./visibleOutputs";
 import type { LoopMode, LoopStatus, LoopHistoryEntry } from "./missionLoops";
+import { readJsonFile, writeJsonFileAtomic } from "./runtime/jsonStore";
+import { makeId } from "./id";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -117,28 +117,14 @@ export const AUTOPILOT_PHASES: { id: AutopilotPhase; label: string; agent: strin
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
-const REPO_ROOT = path.resolve(process.cwd(), "..");
-const DATA_DIR = path.join(REPO_ROOT, "data");
-const SESSIONS_PATH = path.join(DATA_DIR, "autopilot-sessions.json");
-
-function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+const SESSIONS_FILE = "autopilot-sessions.json";
 
 function readSessionsFile(): AutopilotSession[] {
-  ensureDataDir();
-  if (!fs.existsSync(SESSIONS_PATH)) return [];
-  try {
-    const raw = fs.readFileSync(SESSIONS_PATH, "utf-8");
-    return JSON.parse(raw) as AutopilotSession[];
-  } catch {
-    return [];
-  }
+  return readJsonFile<AutopilotSession[]>(SESSIONS_FILE, []);
 }
 
 function writeSessionsFile(sessions: AutopilotSession[]) {
-  ensureDataDir();
-  fs.writeFileSync(SESSIONS_PATH, JSON.stringify(sessions, null, 2) + "\n", "utf-8");
+  writeJsonFileAtomic(SESSIONS_FILE, sessions);
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -150,7 +136,7 @@ function taskId(): string {
 }
 
 function logId(): string {
-  return `log-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return makeId("log");
 }
 
 function sanitizeName(value: unknown): string {

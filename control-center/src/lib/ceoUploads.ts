@@ -1,5 +1,8 @@
 import fs from "fs";
 import path from "path";
+import { dataRoot } from "@/lib/runtime/dataRoot";
+import { readJsonFile, writeJsonFileAtomic } from "@/lib/runtime/jsonStore";
+import { makeId } from "@/lib/id";
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -30,14 +33,12 @@ interface CeoFilesData {
 
 // ─── Paths ────────────────────────────────────────────────────────────────
 
-const REPO_ROOT = process.cwd();
-const DATA_DIR = path.join(REPO_ROOT, "data");
-const FILES_PATH = path.join(DATA_DIR, "ceo-files.json");
+const FILES_FILE = "ceo-files.json";
+const DATA_DIR = dataRoot();
 const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 
-let _idBase = Date.now();
 function nextId(): string {
-  return `file-${(_idBase++).toString(36)}`;
+  return makeId("file");
 }
 
 function sanitizeFileName(name: string): string {
@@ -173,18 +174,11 @@ export function generateFileAnalysis(name: string, category: FileCategory): File
 // ─── Persistence ──────────────────────────────────────────────────────────
 
 function readData(): CeoFilesData {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(FILES_PATH)) return { files: [] };
-  try {
-    return JSON.parse(fs.readFileSync(FILES_PATH, "utf-8")) as CeoFilesData;
-  } catch {
-    return { files: [] };
-  }
+  return readJsonFile<CeoFilesData>(FILES_FILE, { files: [] });
 }
 
 function writeData(data: CeoFilesData): void {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(FILES_PATH, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  writeJsonFileAtomic(FILES_FILE, data);
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────

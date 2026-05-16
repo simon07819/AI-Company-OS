@@ -132,7 +132,7 @@ export default async function ClientPortalPage({
         ) : artifact.content ? (
           renderContent(artifact.content)
         ) : (
-          <p className="client-portal-empty">Ce livrable n'a pas de contenu prévisualisable.</p>
+          <p className="client-portal-empty">Ce livrable n&apos;a pas de contenu prévisualisable.</p>
         )}
       </section>
 

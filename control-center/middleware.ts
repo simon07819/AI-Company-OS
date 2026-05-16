@@ -18,16 +18,6 @@ const ADMIN_API_PREFIXES = [
   "/api/system/backups",
 ];
 
-const PRIVATE_API_PREFIXES = [
-  "/api/ceo",
-  "/api/runtime",
-  "/api/mission",
-  "/api/missions",
-  "/api/artifacts",
-  "/api/visible-outputs",
-  "/api/autopilot",
-];
-
 function matches(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
@@ -43,12 +33,8 @@ export function middleware(request: NextRequest) {
     return auth.response ?? NextResponse.next();
   }
 
-  if (matches(pathname, PRIVATE_API_PREFIXES)) {
-    const auth = requireUser(request);
-    return auth.response ?? NextResponse.next();
-  }
-
-  return NextResponse.next();
+  const auth = requireUser(request);
+  return auth.response ?? NextResponse.next();
 }
 
 export const config = {

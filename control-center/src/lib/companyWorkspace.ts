@@ -1,14 +1,12 @@
-import fs from "fs";
-import path from "path";
 import { listSessions } from "./autopilotStore";
 import { listClients, listLeads } from "./clientCrm";
 import { listCampaigns, listPublishedAssets } from "./distributionEngine";
 import { listProposals, listRevenueRecords } from "./revenueSystem";
 import { archiveEntity, restoreEntity, softDeleteEntity } from "./archiveSystem";
+import { makeId } from "./id";
+import { readJsonFile, writeJsonFileAtomic } from "./runtime/jsonStore";
 
-const REPO_ROOT = process.cwd();
-const DATA_DIR = path.join(REPO_ROOT, "data");
-const WORKSPACES_PATH = path.join(DATA_DIR, "company-workspaces.json");
+const WORKSPACES_FILE = "company-workspaces.json";
 const DEFAULT_WORKSPACE_ID = "workspace-default";
 
 export interface BrandProfile {
@@ -79,16 +77,12 @@ interface WorkspaceData {
   workspaces: CompanyWorkspace[];
 }
 
-function ensureDataDir() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 72) || "workspace";
 }
 
 function nextId(): string {
-  return `workspace-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return makeId("workspace");
 }
 
 function defaultBrand(): BrandProfile {
@@ -141,23 +135,16 @@ function makeDefaultWorkspace(now = new Date().toISOString()): CompanyWorkspace 
 }
 
 function readData(): WorkspaceData {
-  ensureDataDir();
-  if (!fs.existsSync(WORKSPACES_PATH)) return { workspaces: [makeDefaultWorkspace()] };
-  try {
-    const parsed = JSON.parse(fs.readFileSync(WORKSPACES_PATH, "utf-8")) as Partial<WorkspaceData>;
-    const workspaces = parsed.workspaces?.length ? parsed.workspaces : [makeDefaultWorkspace()];
-    if (!workspaces.some((workspace) => workspace.id === DEFAULT_WORKSPACE_ID)) {
-      workspaces.unshift(makeDefaultWorkspace());
-    }
-    return { workspaces };
-  } catch {
-    return { workspaces: [makeDefaultWorkspace()] };
+  const parsed = readJsonFile<Partial<WorkspaceData>>(WORKSPACES_FILE, {});
+  const workspaces = parsed.workspaces?.length ? parsed.workspaces : [makeDefaultWorkspace()];
+  if (!workspaces.some((workspace) => workspace.id === DEFAULT_WORKSPACE_ID)) {
+    workspaces.unshift(makeDefaultWorkspace());
   }
+  return { workspaces };
 }
 
 function writeData(data: WorkspaceData) {
-  ensureDataDir();
-  fs.writeFileSync(WORKSPACES_PATH, JSON.stringify(data, null, 2) + "\n", "utf-8");
+  writeJsonFileAtomic(WORKSPACES_FILE, data);
 }
 
 function syncDefaultAssignments(data: WorkspaceData): boolean {

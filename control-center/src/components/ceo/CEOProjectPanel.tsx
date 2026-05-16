@@ -171,6 +171,7 @@ function PreviewModal({ target, onClose, projectId, onRequestCEO }: { target: Pr
               title={title}
               width="100%"
               height="500px"
+              sandbox="allow-same-origin"
               style={{ border: "none", borderRadius: 6 }}
             />
           ) : isCode && result.primaryArtifactId ? (
@@ -232,8 +233,6 @@ export default function CEOProjectPanel({
     });
   }
 
-  if (rows.length === 0) return null;
-
   const codeIds = turns
     .filter((t) => t.result.deliverableType === "code" || t.result.sourceType === "nvidia_text")
     .map((t) => t.id);
@@ -267,6 +266,8 @@ export default function CEOProjectPanel({
       setSharing(null);
     }
   }, [turns, shareLinks, projectId]);
+
+  if (rows.length === 0) return null;
 
   function openPreview(row: Row) {
     const turn = turns.find((t) => t.id === row.id);

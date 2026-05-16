@@ -23,6 +23,7 @@ globalThis.__TEST_PATHNAME__ = "/";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => globalThis.__TEST_PATHNAME__ ?? "/",
+  useSearchParams: () => new URLSearchParams(""),
   useParams: () => {
     const segments = (globalThis.__TEST_PATHNAME__ ?? "/").split("/").filter(Boolean);
     return {

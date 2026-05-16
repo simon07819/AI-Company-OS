@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:evals": "vitest run src/agents/evals/agent-evals.test.ts",
@@ -14,7 +15,8 @@
     "diagnose:deepinfra-image": "tsx scripts/diagnose-deepinfra-image.ts",
     "test:deepinfra-image:real": "tsx scripts/test-deepinfra-image-real.ts",
     "lint": "next lint",
-    "reset:company-os": "node scripts/reset-ai-company-os.mjs"
+    "reset:company-os": "node scripts/reset-ai-company-os.mjs",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
     "@xyflow/react": "^12.10.2",

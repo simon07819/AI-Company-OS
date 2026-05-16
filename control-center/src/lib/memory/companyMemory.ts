@@ -1,6 +1,6 @@
 import { readRuntimeJson, writeRuntimeJson } from "@/lib/runtime/runtimeFileStore";
 import { listTraceableArtifacts } from "@/lib/providers/providerRegistry";
-import { brandSummary } from "@/lib/brand/brandMemory";
+import { brandSummary, writeBrandMemory } from "@/lib/brand/brandMemory";
 
 export type CompanyMemoryAction =
   | "retain_direction"
@@ -246,7 +246,6 @@ export function recordUserMemoryAction(input: {
     if (input.artifactId) base.acceptedArtifacts = [input.artifactId];
     // Persist to brand.json
     if (input.brandName) {
-      const { writeBrandMemory } = require("@/lib/brand/brandMemory") as typeof import("@/lib/brand/brandMemory");
       writeBrandMemory({ name: input.brandName, styleKeywords: artifactStyle ? [artifactStyle] : [] });
     }
   }
@@ -254,13 +253,11 @@ export function recordUserMemoryAction(input: {
     base.rejectedArtifacts = input.artifactId ? [input.artifactId] : [];
     base.repeatedCritiques = [text];
     if (input.brandName) {
-      const { writeBrandMemory } = require("@/lib/brand/brandMemory") as typeof import("@/lib/brand/brandMemory");
       writeBrandMemory({ rejectedStyles: [text] });
     }
   }
   if (input.action === "avoid_style") {
     base.visualStyleRejected = [text];
-    const { writeBrandMemory } = require("@/lib/brand/brandMemory") as typeof import("@/lib/brand/brandMemory");
     writeBrandMemory({ rejectedStyles: [text] });
   }
   if (input.action === "use_style_for_project") {
@@ -269,7 +266,6 @@ export function recordUserMemoryAction(input: {
     if (artifactPrompt) base.effectivePrompts = [artifactPrompt];
     if (input.artifactId) base.acceptedArtifacts = [input.artifactId];
     if (input.brandName) {
-      const { writeBrandMemory } = require("@/lib/brand/brandMemory") as typeof import("@/lib/brand/brandMemory");
       writeBrandMemory({ name: input.brandName, styleKeywords: artifactStyle ? [artifactStyle] : [] });
     }
   }
