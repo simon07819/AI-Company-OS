@@ -7100,8 +7100,7 @@ html[data-theme="dark"] .ceo-os-result-details {
 .platform-sidebar .os-dock-item span {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   white-space: nowrap;
   font-size: 12px;
   line-height: 1;
@@ -8724,7 +8723,7 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: var(--bg-primary);
+  background: #0a0a0f;
   scrollbar-width: thin;
   scrollbar-color: rgba(100,116,139,0.3) transparent;
 }
@@ -8736,20 +8735,21 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
-  gap: 12px;
+  padding: 0 16px 48px;
+  gap: 10px;
   text-align: center;
+  min-height: 0;
 }
 
 .ceo-empty-icon {
-  color: var(--border);
-  width: 32px;
-  height: 32px;
+  color: #1e1e2e;
+  width: 28px;
+  height: 28px;
 }
 
 .ceo-empty-text {
-  font-size: 14px;
-  color: var(--text-muted);
+  font-size: 13px;
+  color: #64748b;
   font-weight: 400;
 }
 
@@ -8758,24 +8758,27 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   flex-wrap: wrap;
   gap: 6px;
   justify-content: center;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .ceo-starter-card {
-  padding: 8px 14px;
-  background: var(--bg-secondary);
-  border: 0.5px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: #12121a;
+  border: 0.5px solid #1e1e2e;
   border-radius: 8px;
   font-size: 11px;
-  color: var(--text-muted);
+  color: #64748b;
   cursor: pointer;
   font-family: inherit;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color 0.12s, border-color 0.12s;
 }
 
 .ceo-starter-card:hover {
-  color: var(--text-primary);
-  border-color: var(--text-muted);
+  border-color: #4f8ef7;
+  color: #f1f5f9;
 }
 
 /* ── Chat message bubbles ────────────────────────────────────────── */
@@ -8887,12 +8890,13 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   display: flex;
   align-items: center;
   gap: 6px;
-  border: 0.5px solid var(--border);
+  border: 0.5px solid #1e1e2e;
   border-radius: 8px;
-  background: var(--bg-secondary);
+  background: #12121a;
   box-shadow: none;
   backdrop-filter: none;
-  padding: 4px 8px;
+  padding: 0 8px;
+  min-height: 48px;
 }
 
 .ceo-zone-input .ceo-os-composer:focus-within {
@@ -8901,22 +8905,23 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
 }
 
 .ceo-zone-input .ceo-os-composer textarea {
-  min-height: 36px;
+  min-height: 40px;
   max-height: 120px;
   font-size: 12px;
   color: var(--text-primary);
   background: transparent;
   border: 0;
   border-radius: 0;
-  padding: 6px 4px;
+  padding: 0 4px;
   outline: none;
   resize: none;
   width: 100%;
   flex: 1;
+  align-self: center;
 }
 
 .ceo-zone-input .ceo-os-composer textarea::placeholder {
-  color: var(--text-muted);
+  color: #64748b;
 }
 
 .ceo-zone-input .ceo-os-composer button {

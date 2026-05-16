@@ -438,15 +438,7 @@ export default function CEOResultStage({
   }
 
   if (!result) {
-    return (
-      <section className="ceo-chat-messages empty" aria-label="Messages CEO">
-        <article className="ceo-chat-empty">
-          <div className="ceo-chat-empty-avatar" aria-hidden="true">C</div>
-          <strong>CEO</strong>
-          <p>Qu’est-ce qu’on construit?</p>
-        </article>
-      </section>
-    );
+    return null;
   }
 
   if (turns.length > 0) {

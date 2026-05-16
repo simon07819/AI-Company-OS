@@ -105,7 +105,7 @@ export default function CEOCommandComposer({
       <textarea
         value={value}
         rows={2}
-        placeholder="Message"
+        placeholder="Parle au CEO... ex: crée un logo pour Ekida"
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
