@@ -6914,7 +6914,6 @@ html[data-theme="dark"] .ceo-os-result-details {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: 28px;
 }
 
 .ceo-attachment-dropzone.dragging .ceo-chat-shell {
@@ -8924,23 +8923,54 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
   color: #64748b;
 }
 
-.ceo-zone-input .ceo-os-composer button {
+/* Attachment button — small icon only */
+.ceo-zone-input .ceo-os-composer .ceo-attachment-button {
   width: 32px;
   min-height: 32px;
   border: none;
   border-radius: 6px;
-  background: var(--bg-panel);
-  color: var(--text-primary);
+  background: transparent;
+  color: var(--text-muted);
   padding: 0;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-.ceo-zone-input .ceo-os-composer button:disabled {
+.ceo-zone-input .ceo-os-composer .ceo-attachment-button:hover {
+  color: var(--text-primary);
+  background: var(--border);
+}
+
+/* Submit button — Envoyer text + icon */
+.ceo-zone-input .ceo-os-composer button[type="submit"] {
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: opacity 0.1s;
+}
+
+.ceo-zone-input .ceo-os-composer button[type="submit"]:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.ceo-zone-input .ceo-os-composer button span { display: flex; }
+.ceo-zone-input .ceo-os-composer button[type="submit"] span {
+  display: inline;
+}
 
 .ceo-input-field {
   flex: 1;
