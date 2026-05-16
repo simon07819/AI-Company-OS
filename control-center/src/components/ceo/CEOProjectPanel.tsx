@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Download, X } from "lucide-react";
+import { Download, X, Pencil } from "lucide-react";
+import ContentEditor from "./ContentEditor";
 import type { CEOCurrentMission, CEOCurrentResult, CEOMissionStatus } from "./types";
 import CodePreviewFrame from "./CodePreviewFrame";
 
@@ -55,10 +56,11 @@ interface PreviewTarget {
   result: CEOCurrentResult;
 }
 
-function PreviewModal({ target, onClose, projectId }: { target: PreviewTarget; onClose: () => void; projectId?: string }) {
+function PreviewModal({ target, onClose, projectId, onRequestCEO }: { target: PreviewTarget; onClose: () => void; projectId?: string; onRequestCEO?: (msg: string) => void }) {
   const { result, title, version } = target;
   const [approved, setApproved] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [editMode, setEditMode] = useState(false);
   const isWebsite = result.deliverableType === "website" || result.deliverableType === "landing_page";
   const isCode = result.deliverableType === "code" || result.sourceType === "codex_code" || result.sourceType === "nvidia_text";
   const isImage = Boolean(result.primaryVisual && /^data:image\//i.test(result.primaryVisual ?? ""));
@@ -114,6 +116,18 @@ function PreviewModal({ target, onClose, projectId }: { target: PreviewTarget; o
                 {approving ? "..." : "✓ Approuver"}
               </button>
             ) : null}
+            {(isWebsite || isCode) && result.primaryArtifactId && (
+              <button
+                type="button"
+                className="ceo-preview-modal-download"
+                onClick={() => setEditMode(true)}
+                aria-label="Modifier le contenu"
+                style={{ gap: 4 }}
+              >
+                <Pencil size={13} />
+                Modifier
+              </button>
+            )}
             {downloadHref && (
               <a
                 href={downloadHref}
@@ -135,6 +149,16 @@ function PreviewModal({ target, onClose, projectId }: { target: PreviewTarget; o
             </button>
           </div>
         </div>
+
+        {editMode && result.primaryArtifactId && (
+          <ContentEditor
+            artifactId={result.primaryArtifactId}
+            initialContent={result.summary ?? ""}
+            title={title}
+            onClose={() => setEditMode(false)}
+            onRequestCEO={(msg) => { onRequestCEO?.(msg); onClose(); }}
+          />
+        )}
 
         <div className="ceo-preview-modal-body">
           {!hasArtifact ? (
@@ -180,10 +204,9 @@ function PreviewModal({ target, onClose, projectId }: { target: PreviewTarget; o
 
 export default function CEOProjectPanel({
   mission, result, turns, loading, pipelineStages = [],
-  onCompare, onArchiveTurn, onDeleteTurn, projectId,
+  onCompare, onArchiveTurn, onDeleteTurn, projectId, onAddRequest,
 }: ProjectPanelProps & { projectId?: string }) {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
-  const [approvedIds, setApprovedIds] = useState<Set<string>>(new Set());
 
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
 
@@ -233,6 +256,7 @@ export default function CEOProjectPanel({
           target={preview}
           onClose={() => setPreview(null)}
           projectId={projectId}
+          onRequestCEO={onAddRequest}
         />
       )}
       <section className="ceo-project-zone" aria-label="Projets">
