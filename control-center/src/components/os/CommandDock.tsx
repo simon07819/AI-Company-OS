@@ -12,6 +12,9 @@ import {
   Settings,
   Clock,
   Terminal,
+  CheckSquare,
+  Link2,
+  DollarSign,
 } from "lucide-react";
 
 interface ProjectEntry {
@@ -21,10 +24,12 @@ interface ProjectEntry {
 }
 
 const NAV_MAIN = [
-  { href: "/ceo",      label: "Chat CEO",   icon: MessageCircle, exact: true },
-  { href: "/projects", label: "Projets",    icon: Folder },
-  { href: "/outputs",  label: "Livrables",  icon: Image },
-  { href: "/archive",  label: "Archives",   icon: Clock },
+  { href: "/ceo",            label: "Chat CEO",       icon: MessageCircle, exact: true },
+  { href: "/projects",       label: "Projets",        icon: Folder },
+  { href: "/outputs",        label: "Livrables",      icon: Image },
+  { href: "/approvals",      label: "Approbations",   icon: CheckSquare },
+  { href: "/client-portals", label: "Portails client", icon: Link2 },
+  { href: "/archive",        label: "Archives",       icon: Clock },
 ] as const;
 
 const NAV_SYSTEM = [
@@ -41,6 +46,9 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
   const router = useRouter();
   const [projects, setProjects] = useState<ProjectEntry[]>([]);
   const [activeAgents, setActiveAgents] = useState(0);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [totalCost, setTotalCost] = useState<number | null>(null);
+  const [costAlert, setCostAlert] = useState(false);
 
   useEffect(() => {
     // Fetch active CEO projects for sidebar
@@ -66,6 +74,25 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
         setActiveAgents(running);
       })
       .catch(() => {});
+
+    // Pending approvals count
+    fetch("/api/approvals")
+      .then((r) => r.json())
+      .then((d: { pendingCount?: number }) => {
+        setPendingApprovals(d.pendingCount ?? 0);
+      })
+      .catch(() => {});
+
+    // Cost summary
+    fetch("/api/costs")
+      .then((r) => r.json())
+      .then((d: { ok: boolean; totalUsd?: number; alertProjects?: string[] }) => {
+        if (d.ok) {
+          setTotalCost(d.totalUsd ?? 0);
+          setCostAlert((d.alertProjects?.length ?? 0) > 0);
+        }
+      })
+      .catch(() => {});
   }, [pathname]);
 
   return (
@@ -87,6 +114,7 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
         {NAV_MAIN.map(({ href, label, icon: Icon, ...rest }) => {
           const exact = "exact" in rest ? (rest as { exact?: boolean }).exact : false;
           const active = isActive(href, pathname, exact);
+          const badge = href === "/approvals" && pendingApprovals > 0 ? String(pendingApprovals) : null;
           return (
             <Link
               key={href}
@@ -97,6 +125,9 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
             >
               <Icon size={15} />
               <span>{label}</span>
+              {badge && (
+                <span className="sidebar-nav-badge sidebar-nav-badge-count">{badge}</span>
+              )}
             </Link>
           );
         })}
@@ -126,6 +157,29 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
           <span>Runtime</span>
           {activeAgents > 0 && (
             <span className="sidebar-nav-badge sidebar-nav-badge-count">{activeAgents}</span>
+          )}
+        </Link>
+
+        {/* Coûts */}
+        <Link
+          href="/runtime"
+          className={`platform-sidebar-link os-dock-item${isActive("/runtime", pathname) ? " active" : ""}`}
+          onClick={onNavigate}
+          style={{ opacity: 0.85 }}
+        >
+          <DollarSign size={15} />
+          <span>Coûts API</span>
+          {totalCost !== null && (
+            <span
+              className="sidebar-nav-badge"
+              style={{
+                background: costAlert ? "rgba(251,113,133,0.15)" : "rgba(100,116,139,0.15)",
+                color: costAlert ? "#fb7185" : "var(--text-muted)",
+                border: `1px solid ${costAlert ? "rgba(251,113,133,0.3)" : "rgba(100,116,139,0.2)"}`,
+              }}
+            >
+              ${totalCost.toFixed(2)}
+            </span>
           )}
         </Link>
 
