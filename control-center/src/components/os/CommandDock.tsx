@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Activity,
-  Archive,
   Folder,
   Image,
   MessageCircle,
@@ -16,12 +15,6 @@ import {
   Link2,
   DollarSign,
 } from "lucide-react";
-
-interface ProjectEntry {
-  id: string;
-  name: string;
-  status: string;
-}
 
 const NAV_MAIN = [
   { href: "/ceo",            label: "Chat CEO",       icon: MessageCircle, exact: true },
@@ -43,29 +36,12 @@ function isActive(href: string, pathname: string, exact = false) {
 
 export default function CommandDock({ mobileOpen = false, onNavigate }: { mobileOpen?: boolean; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [projects, setProjects] = useState<ProjectEntry[]>([]);
   const [activeAgents, setActiveAgents] = useState(0);
   const [pendingApprovals, setPendingApprovals] = useState(0);
   const [totalCost, setTotalCost] = useState<number | null>(null);
   const [costAlert, setCostAlert] = useState(false);
 
   useEffect(() => {
-    // Fetch active CEO projects for sidebar
-    fetch("/api/ceo-projects")
-      .then((r) => r.json())
-      .then((d: { ok?: boolean; projects?: Array<{ id: string; name: string; status: string }> }) => {
-        if (d.ok && Array.isArray(d.projects)) {
-          setProjects(
-            d.projects
-              .filter((p) => p.status !== "archived" && p.status !== "deleted")
-              .slice(0, 6)
-              .map((p) => ({ id: p.id, name: p.name, status: p.status }))
-          );
-        }
-      })
-      .catch(() => {});
-
     // Fetch runtime agent count
     fetch("/api/agents")
       .then((r) => r.json())
@@ -196,30 +172,6 @@ export default function CommandDock({ mobileOpen = false, onNavigate }: { mobile
         </Link>
       </nav>
 
-      {/* Projets actifs */}
-      {projects.length > 0 && (
-        <div className="sidebar-projects">
-          <div className="sidebar-section-label">Projets actifs</div>
-          {projects.map((p) => {
-            const isRunning = p.status === "running" || p.status === "in_progress";
-            const isDone = p.status === "completed" || p.status === "done";
-            const dotColor = isRunning ? "#4f8ef7" : isDone ? "#22c55e" : "#64748b";
-            return (
-              <div
-                key={p.id}
-                className="sidebar-project-row"
-                onClick={() => { router.push(`/ceo?project=${p.id}`); onNavigate?.(); }}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => e.key === "Enter" && router.push(`/ceo?project=${p.id}`)}
-              >
-                <span className="sidebar-project-dot" style={{ background: dotColor }} />
-                <span className="sidebar-project-name">{p.name}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </aside>
   );
 }
