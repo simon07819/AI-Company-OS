@@ -1,11 +1,13 @@
 import { runNvidiaAdapter } from "@/lib/nvidiaAgentAdapter";
 import type { AutopilotSession, AutopilotTask } from "@/lib/autopilotStore";
+import { recordCost } from "@/lib/costTracker";
 
 export interface LlmRequest {
   system: string;
   user: string;
   purpose: string;
   maxTokens?: number;
+  conversationId?: string;
 }
 
 export interface LlmResponse {
@@ -182,21 +184,38 @@ async function tryDeepInfraText(request: LlmRequest): Promise<LlmResponse | null
 // ─── Public API ───────────────────────────────────────────────────────────
 
 export async function generateWithLlm(request: LlmRequest): Promise<LlmResponse> {
+  let result: LlmResponse;
+
   // When maxTokens > 1500, use the direct path (adapter is capped at 1500 + conflates prompts)
   if (request.maxTokens && request.maxTokens > 1500) {
     const nvidiaResult = await tryNvidiaTextDirect(request);
-    if (nvidiaResult) return nvidiaResult;
-    const deepinfraResult = await tryDeepInfraText(request);
-    if (deepinfraResult) return deepinfraResult;
-    return prototypeResponse();
+    if (nvidiaResult) { result = nvidiaResult; }
+    else {
+      const deepinfraResult = await tryDeepInfraText(request);
+      result = deepinfraResult ?? prototypeResponse();
+    }
+  } else {
+    // Standard path: NVIDIA adapter → DeepInfra → prototype
+    const nvidiaResult = await tryNvidiaText(request);
+    if (nvidiaResult) { result = nvidiaResult; }
+    else {
+      const deepinfraResult = await tryDeepInfraText(request);
+      result = deepinfraResult ?? prototypeResponse();
+    }
   }
 
-  // Standard path: NVIDIA adapter → DeepInfra → prototype
-  const nvidiaResult = await tryNvidiaText(request);
-  if (nvidiaResult) return nvidiaResult;
-  const deepinfraResult = await tryDeepInfraText(request);
-  if (deepinfraResult) return deepinfraResult;
-  return prototypeResponse();
+  if (result.ok) {
+    try {
+      recordCost({
+        type: "llm_text",
+        provider: result.mode === "prototype" ? "prototype" : result.mode,
+        conversationId: request.conversationId,
+        purpose: request.purpose,
+      });
+    } catch { /* non-critical */ }
+  }
+
+  return result;
 }
 
 export function prototypeNotice() {

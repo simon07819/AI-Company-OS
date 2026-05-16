@@ -559,6 +559,14 @@ function EventTimeline({ events }: { events: RuntimeEvent[] }) {
   );
 }
 
+interface CostData {
+  totalUsd: number;
+  callCount: number;
+  imageCount: number;
+  alertProjects: string[];
+  byProvider: Record<string, number>;
+}
+
 export default function RuntimePage() {
   const { status, refresh: refreshStatus } = useSystemStatus(3500);
   const { tasks, summary, refresh: refreshTasks } = useTasks(undefined, 4500);
@@ -570,6 +578,7 @@ export default function RuntimePage() {
   const [runtimeQueue, setRuntimeQueue] = useState<QueuedTask[]>([]);
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
   const [resettingRuntime, setResettingRuntime] = useState(false);
+  const [costData, setCostData] = useState<CostData | null>(null);
   const { events: runtimeEvents, connected: eventsConnected, lastActivity } = useRuntimeEvents(true);
 
   useLogStream((entry) => {
@@ -604,6 +613,10 @@ export default function RuntimePage() {
   // Initial fetch + refresh when runtime events arrive (event-driven updates)
   useEffect(() => {
     void fetchRuntimeData();
+    fetch("/api/costs", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: CostData & { ok: boolean }) => { if (d.ok) setCostData(d); })
+      .catch(() => {});
   }, [fetchRuntimeData]);
 
   useEffect(() => {
@@ -866,6 +879,30 @@ export default function RuntimePage() {
         </div>
 
         <aside className="runtime-side-rail">
+          {costData && (
+            <div className="runtime-rail-card" style={{ marginBottom: 12 }}>
+              <div className="runtime-rail-title" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span><BarChart3 size={13} /> Coûts API estimés</span>
+                {costData.alertProjects.length > 0 && (
+                  <span style={{ fontSize: 10, color: "#fb7185", fontWeight: 600 }}>⚠ ALERTE</span>
+                )}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: costData.totalUsd >= 5 ? "#fb7185" : "#f4f4f5", margin: "8px 0 4px" }}>
+                ${costData.totalUsd.toFixed(3)}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.8 }}>
+                <div>{costData.callCount} appels LLM · {costData.imageCount} images</div>
+                {Object.entries(costData.byProvider).map(([p, v]) => (
+                  <div key={p}>{p}: ${(v as number).toFixed(3)}</div>
+                ))}
+                {costData.alertProjects.length > 0 && (
+                  <div style={{ color: "#fb7185", marginTop: 4 }}>
+                    {costData.alertProjects.length} projet(s) &gt; $5.00
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="runtime-rail-card">
             <div className="runtime-rail-title"><Timer size={14} /> Inference Queue</div>
             <div className="runtime-queue-list">
