@@ -7661,6 +7661,52 @@ html[data-theme="dark"] .ceo-os-result-details {
 }
 .client-portal-download:hover { background: rgba(59,130,246,0.2); }
 
+.client-portal-footer-note {
+  font-size: 12px;
+  color: #52525b;
+}
+
+.client-portal-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.client-artifact-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 20px;
+}
+
+.client-artifact-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f4f4f5;
+  margin: 0 0 4px;
+}
+
+.client-artifact-card-meta {
+  font-size: 12px;
+  color: #71717a;
+  margin-bottom: 16px;
+}
+
+.client-artifact-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 8px 16px;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 6px;
+  color: #60a5fa;
+  font-size: 12px;
+  text-decoration: none;
+}
+.client-artifact-download:hover { background: rgba(59,130,246,0.2); }
+
 /* ── Topbar action buttons ──────────────────────────────────── */
 .topbar-action-btn {
   height: 34px;
@@ -9172,6 +9218,18 @@ html[data-theme="dark"] .platform-sidebar .os-dock-item.active {
 }
 
 .ceo-project-card-action:hover { color: var(--text-primary); background: var(--border); }
+.ceo-project-card-action:disabled { opacity: 0.35; cursor: default; }
+
+.ceo-share-link {
+  font-size: 10px;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+  cursor: default;
+  flex-shrink: 0;
+}
 
 /* Expanded card when pipeline is actively running */
 .ceo-project-card-expanded {

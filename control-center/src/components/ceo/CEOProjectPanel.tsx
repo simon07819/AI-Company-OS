@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Download, X, Pencil } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Download, X, Pencil, Link } from "lucide-react";
 import ContentEditor from "./ContentEditor";
 import type { CEOCurrentMission, CEOCurrentResult, CEOMissionStatus } from "./types";
 import CodePreviewFrame from "./CodePreviewFrame";
@@ -207,6 +207,8 @@ export default function CEOProjectPanel({
   onCompare, onArchiveTurn, onDeleteTurn, projectId, onAddRequest,
 }: ProjectPanelProps & { projectId?: string }) {
   const [preview, setPreview] = useState<PreviewTarget | null>(null);
+  const [shareLinks, setShareLinks] = useState<Record<string, string>>({});
+  const [sharing, setSharing] = useState<string | null>(null);
 
   type Row = { id: string; name: string; version: number; dots: number; status: CEOMissionStatus | undefined; active: boolean };
 
@@ -236,6 +238,35 @@ export default function CEOProjectPanel({
     .filter((t) => t.result.deliverableType === "code" || t.result.sourceType === "nvidia_text")
     .map((t) => t.id);
   const canCompare = codeIds.length >= 2 && onCompare;
+
+  const handleShare = useCallback(async (row: Row) => {
+    if (shareLinks[row.id]) {
+      navigator.clipboard.writeText(shareLinks[row.id]).catch(() => {});
+      return;
+    }
+    const turn = turns.find((t) => t.id === row.id);
+    if (!turn) return;
+    setSharing(row.id);
+    try {
+      const res = await fetch("/api/client-portals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: turn.result.brandName || turn.mission.prompt.slice(0, 60),
+          conversationId: projectId ?? turn.id,
+          artifactIds: turn.result.primaryArtifactId ? [turn.result.primaryArtifactId] : [],
+          missionId: turn.id,
+        }),
+      });
+      const data = await res.json() as { ok: boolean; url?: string };
+      if (data.ok && data.url) {
+        setShareLinks((prev) => ({ ...prev, [row.id]: data.url! }));
+        navigator.clipboard.writeText(data.url).catch(() => {});
+      }
+    } finally {
+      setSharing(null);
+    }
+  }, [turns, shareLinks, projectId]);
 
   function openPreview(row: Row) {
     const turn = turns.find((t) => t.id === row.id);
@@ -302,6 +333,15 @@ export default function CEOProjectPanel({
                   </button>
                   <button
                     className="ceo-project-card-action"
+                    title={shareLinks[row.id] ? "Lien copié ✓" : "Partager avec client"}
+                    disabled={row.active || sharing === row.id}
+                    onClick={() => handleShare(row)}
+                    style={shareLinks[row.id] ? { color: "var(--accent)" } : undefined}
+                  >
+                    <Link size={12} />
+                  </button>
+                  <button
+                    className="ceo-project-card-action"
                     title="Archiver"
                     disabled={row.active}
                     onClick={() => onArchiveTurn?.(turnId)}
@@ -317,6 +357,11 @@ export default function CEOProjectPanel({
                     🗑
                   </button>
                 </div>
+                {shareLinks[row.id] && (
+                  <span className="ceo-share-link" title={shareLinks[row.id]}>
+                    🔗 {shareLinks[row.id].replace(/^https?:\/\/[^/]+/, "")}
+                  </span>
+                )}
               </div>
 
               {/* Expanded step-by-step progress — only when pipeline is running */}
